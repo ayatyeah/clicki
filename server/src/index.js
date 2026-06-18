@@ -1,4 +1,7 @@
 import 'dotenv/config';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -9,11 +12,16 @@ import { verifyRecaptcha } from './recaptcha.js';
 import { dispatchLead } from './notify.js';
 import { saveLead, readLeads } from './store.js';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const CLIENT_DIST = path.join(__dirname, '..', '..', 'client', 'dist');
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 
 app.set('trust proxy', 1);
-app.use(helmet());
+// CSP disabled: this server also serves the SPA, which loads external
+// fonts/analytics; a strict default CSP would block them.
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json({ limit: '32kb' }));
 
 const origins = (process.env.CORS_ORIGINS || 'http://localhost:5173')
@@ -81,7 +89,21 @@ app.get('/api/admin/leads', async (req, res) => {
   res.json({ ok: true, count: leads.length, leads });
 });
 
+// ---- Serve the built React app (single-service deploy) ----
+// When client/dist exists (production build), serve it + SPA fallback so
+// /business, /creators, etc. resolve to index.html on refresh.
+if (existsSync(CLIENT_DIST)) {
+  app.use(express.static(CLIENT_DIST));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api/')) return next();
+    res.sendFile(path.join(CLIENT_DIST, 'index.html'));
+  });
+  console.log(`Serving static client from ${CLIENT_DIST}`);
+} else {
+  console.log('client/dist not found — running API only (dev mode uses Vite separately)');
+}
+
 app.listen(PORT, () => {
-  console.log(`CLICKI API listening on http://localhost:${PORT}`);
+  console.log(`CLICKI listening on http://localhost:${PORT}`);
   console.log(`Allowed origins: ${origins.join(', ')}`);
 });

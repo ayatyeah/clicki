@@ -1,25 +1,28 @@
-# DigitalOcean App Platform spec — CLICKI
-# Two components: a static React site (client) + a Node API service (server).
+# DigitalOcean App Platform spec — CLICKI (single service)
+# One Node web service builds the React client and serves it + the API.
 # DO auto-detects this file when creating an app from the repo.
 name: clicki
-region: blr
+region: fra
 
-# ---- Frontend: static React build, served on the CDN ----
-static_sites:
-  - name: web
+services:
+  - name: clicki
     github:
       repo: ayatyeah/clicki
       branch: main
       deploy_on_push: true
-    source_dir: client
-    build_command: npm install && npm run build
-    output_dir: dist
-    # SPA: every unknown path returns index.html so /business, /creators work on refresh
-    catchall_document: index.html
+    # Root of the repo — root package.json build/start orchestrate client+server
+    build_command: npm run build
+    run_command: npm start
+    environment_slug: node-js
+    instance_size_slug: apps-s-1vcpu-1gb
+    instance_count: 1
+    http_port: 8080
+    health_check:
+      http_path: /api/health
     routes:
       - path: /
     envs:
-      # Empty base → the app calls relative /api (routed to the api service, same domain)
+      # ---- Frontend (baked into the client build) ----
       - key: VITE_API_BASE
         scope: BUILD_TIME
         value: ""
@@ -32,35 +35,10 @@ static_sites:
       - key: VITE_EMAIL
         scope: BUILD_TIME
         value: "hello@clicki.kz"
-      # Optional reCAPTCHA v3 site key (must match RECAPTCHA_SECRET below)
       - key: VITE_RECAPTCHA_SITE_KEY
         scope: BUILD_TIME
         value: ""
-
-# ---- Backend: Express API ----
-services:
-  - name: api
-    github:
-      repo: ayatyeah/clicki
-      branch: main
-      deploy_on_push: true
-    source_dir: server
-    build_command: npm install
-    run_command: npm start
-    environment_slug: node-js
-    instance_size_slug: apps-s-1vcpu-0.5gb
-    instance_count: 1
-    http_port: 8080
-    health_check:
-      http_path: /api/health
-    routes:
-      # Keep the /api prefix when forwarding so Express routes match as-is
-      - path: /api
-        preserve_path_prefix: true
-    envs:
-      - key: CORS_ORIGINS
-        scope: RUN_TIME
-        value: ${APP_URL}
+      # ---- Backend (runtime) ----
       - key: ADMIN_TOKEN
         scope: RUN_TIME
         type: SECRET
