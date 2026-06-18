@@ -1,0 +1,95 @@
+# DigitalOcean App Platform spec — CLICKI
+# Two components: a static React site (client) + a Node API service (server).
+# DO auto-detects this file when creating an app from the repo.
+name: clicki
+region: blr
+
+# ---- Frontend: static React build, served on the CDN ----
+static_sites:
+  - name: web
+    github:
+      repo: ayatyeah/clicki
+      branch: main
+      deploy_on_push: true
+    source_dir: client
+    build_command: npm install && npm run build
+    output_dir: dist
+    # SPA: every unknown path returns index.html so /business, /creators work on refresh
+    catchall_document: index.html
+    routes:
+      - path: /
+    envs:
+      # Empty base → the app calls relative /api (routed to the api service, same domain)
+      - key: VITE_API_BASE
+        scope: BUILD_TIME
+        value: ""
+      - key: VITE_PHONE
+        scope: BUILD_TIME
+        value: "+7 700 000 00 00"
+      - key: VITE_TELEGRAM
+        scope: BUILD_TIME
+        value: "CLICKI_App"
+      - key: VITE_EMAIL
+        scope: BUILD_TIME
+        value: "hello@clicki.kz"
+      # Optional reCAPTCHA v3 site key (must match RECAPTCHA_SECRET below)
+      - key: VITE_RECAPTCHA_SITE_KEY
+        scope: BUILD_TIME
+        value: ""
+
+# ---- Backend: Express API ----
+services:
+  - name: api
+    github:
+      repo: ayatyeah/clicki
+      branch: main
+      deploy_on_push: true
+    source_dir: server
+    build_command: npm install
+    run_command: npm start
+    environment_slug: node-js
+    instance_size_slug: apps-s-1vcpu-0.5gb
+    instance_count: 1
+    http_port: 8080
+    health_check:
+      http_path: /api/health
+    routes:
+      # Keep the /api prefix when forwarding so Express routes match as-is
+      - path: /api
+        preserve_path_prefix: true
+    envs:
+      - key: CORS_ORIGINS
+        scope: RUN_TIME
+        value: ${APP_URL}
+      - key: ADMIN_TOKEN
+        scope: RUN_TIME
+        type: SECRET
+        value: change-me-please
+      - key: TELEGRAM_BOT_TOKEN
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+      - key: TELEGRAM_CHAT_ID
+        scope: RUN_TIME
+        value: ""
+      - key: MAIL_TO
+        scope: RUN_TIME
+        value: ""
+      - key: SMTP_HOST
+        scope: RUN_TIME
+        value: ""
+      - key: SMTP_PORT
+        scope: RUN_TIME
+        value: "587"
+      - key: SMTP_USER
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+      - key: SMTP_PASS
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+      - key: RECAPTCHA_SECRET
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
