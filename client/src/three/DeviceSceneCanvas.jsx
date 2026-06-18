@@ -59,7 +59,7 @@ function makeScreenTexture(variant, aspect) {
   cv.width = w;
   cv.height = h;
   const ctx = cv.getContext('2d');
-  const cols = variant === 'green' ? ['#4fbeff', '#9552e0'] : ['#479dff', '#0069e0'];
+  const cols = variant === 'green' ? ['#8b5cf6', '#22c55e'] : ['#7c3aed', '#22c55e'];
 
   // Round the screen corners to match the phone; outside stays transparent.
   ctx.clearRect(0, 0, w, h);
@@ -150,7 +150,7 @@ function makeScreenTexture(variant, aspect) {
   const ay = h * 0.5;
   const ag = ctx.createLinearGradient(rx - 32, ay - 32, rx + 32, ay + 32);
   ag.addColorStop(0, '#ffd1b8');
-  ag.addColorStop(1, '#9552e0');
+  ag.addColorStop(1, '#7c3aed');
   ctx.fillStyle = ag;
   ctx.beginPath();
   ctx.arc(rx, ay, 32, 0, Math.PI * 2);
@@ -200,7 +200,7 @@ function makeScreenTexture(variant, aspect) {
   ctx.fillText('@clicki', 40, h * 0.83);
   const uw = ctx.measureText('@clicki').width;
   const vx = 40 + uw + 24;
-  ctx.fillStyle = '#0099ff';
+  ctx.fillStyle = '#7c3aed';
   ctx.beginPath();
   ctx.arc(vx, h * 0.83, 14, 0, Math.PI * 2);
   ctx.fill();
@@ -366,7 +366,7 @@ export default function DeviceSceneCanvas({ variant = 'violet', interactive = tr
       <ambientLight intensity={0.95} />
       <directionalLight position={[3, 5, 4]} intensity={1.3} color="#ffffff" />
       <directionalLight position={[-3, 2, -4]} intensity={0.5} color="#cce7ff" />
-      <pointLight position={[-4, -2, 3]} intensity={0.7} color={variant === 'green' ? '#9552e0' : '#4fbeff'} />
+      <pointLight position={[-4, -2, 3]} intensity={0.7} color={variant === 'green' ? '#22c55e' : '#7c3aed'} />
       <Suspense fallback={null}>
         <PhoneRig interactive={interactive} variant={variant} />
       </Suspense>

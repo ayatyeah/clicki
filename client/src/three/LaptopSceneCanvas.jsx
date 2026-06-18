@@ -41,8 +41,8 @@ function makeDashboardTexture() {
 
   // brand
   const lg = ctx.createLinearGradient(40, 28, 80, 68);
-  lg.addColorStop(0, '#479dff');
-  lg.addColorStop(1, '#0069e0');
+  lg.addColorStop(0, '#8b5cf6');
+  lg.addColorStop(1, '#6d28d9');
   ctx.fillStyle = lg;
   roundRect(ctx, 40, 28, 40, 40, 12);
   ctx.fill();
@@ -115,8 +115,8 @@ function makeDashboardTexture() {
 
   // area fill
   const ag = ctx.createLinearGradient(0, cy, 0, baseY);
-  ag.addColorStop(0, 'rgba(71,157,255,0.32)');
-  ag.addColorStop(1, 'rgba(71,157,255,0.02)');
+  ag.addColorStop(0, 'rgba(124,58,237,0.30)');
+  ag.addColorStop(1, 'rgba(124,58,237,0.02)');
   ctx.fillStyle = ag;
   ctx.beginPath();
   ctx.moveTo(pts[0][0], baseY);
@@ -126,14 +126,14 @@ function makeDashboardTexture() {
   ctx.fill();
 
   // line
-  ctx.strokeStyle = '#0069e0';
+  ctx.strokeStyle = '#6d28d9';
   ctx.lineWidth = 5;
   ctx.lineJoin = 'round';
   ctx.beginPath();
   pts.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])));
   ctx.stroke();
   // end dot
-  ctx.fillStyle = '#0069e0';
+  ctx.fillStyle = '#6d28d9';
   ctx.beginPath();
   ctx.arc(pts[n - 1][0], pts[n - 1][1], 9, 0, Math.PI * 2);
   ctx.fill();
@@ -147,8 +147,8 @@ function makeDashboardTexture() {
   const sw = 400;
   const stats = [
     { label: 'Просмотры', value: '1.2M', delta: '↑ растёт', accent: '#16a34a' },
-    { label: 'Авторы в работе', value: '248', delta: 'проверенные', accent: '#9552e0' },
-    { label: 'Платформы', value: '5', delta: 'мультиохват', accent: '#f26110' },
+    { label: 'Авторы в работе', value: '248', delta: 'проверенные', accent: '#7c3aed' },
+    { label: 'Платформы', value: '5', delta: 'мультиохват', accent: '#16a34a' },
   ];
   let syc = 210;
   const sh = 168;
@@ -259,7 +259,7 @@ export default function LaptopSceneCanvas({ interactive = true }) {
       <ambientLight intensity={0.95} />
       <directionalLight position={[3, 6, 5]} intensity={1.3} color="#ffffff" />
       <directionalLight position={[-4, 2, -3]} intensity={0.5} color="#cce7ff" />
-      <pointLight position={[0, -3, 4]} intensity={0.5} color="#9552e0" />
+      <pointLight position={[0, -3, 4]} intensity={0.5} color="#7c3aed" />
       <Suspense fallback={null}>
         <LaptopRig interactive={interactive} />
       </Suspense>

@@ -6,37 +6,40 @@
    ============================================================ */
 
 :root {
-  /* Surfaces */
-  --sky: #ebf5ff;
-  --paper: #fafdff;
-  --veil: #f6f7f8;
+  /* Surfaces — airy, lavender-tinted */
+  --sky: #f6f4fe;
+  --paper: #ffffff;
+  --veil: #f1edfb;
   --white: #ffffff;
 
-  /* Ink */
-  --ink: #0a0d12;
-  --charcoal: #181d27;
-  --stone: #535862;
-  --fog: #93979f;
+  /* Ink — deep indigo headings, muted violet-grey body */
+  --ink: #1b1740;
+  --charcoal: #6d28d9; /* primary filled action = violet */
+  --stone: #5d5878;
+  --fog: #9b97b5;
+  --line: #e8e3f6; /* light hairline borders */
 
-  /* Decorative accents (illustration / icons only) */
-  --cornflower: #4fbeff;
-  --tangerine: #f26110;
-  --amethyst: #9552e0;
-  --mustard: #bb9915;
-  --signal: #0099ff;
-  --cobalt: #0069e0;
+  /* Accents — violet + green only */
+  --cornflower: #8b5cf6;
+  --tangerine: #16a34a;
+  --amethyst: #7c3aed;
+  --mustard: #10b981;
+  --signal: #6d28d9;
+  --cobalt: #5b21b6;
+  --green: #16a34a;
 
   /* Tints */
-  --morning: #cce7ff;
-  --lilac: #f1e6ff;
-  --sprout: #d3f6e3;
-  --grad-buttery: linear-gradient(180deg, #fff9e0 0%, #ffeca3 100%);
-  --grad-lilac: linear-gradient(180deg, #f4ebff 0%, #e4ccff 100%);
-  --grad-sky: linear-gradient(180deg, #e5f6ff 0%, #c2e9ff 100%);
-  --grad-sunset: linear-gradient(180deg, #fff2eb 0%, #ffd1b8 100%);
-  --grad-brand: linear-gradient(135deg, #479dff 11.43%, #0069e0 78.2%);
+  --morning: #efe9fe;
+  --lilac: #f3effe;
+  --sprout: #e6f8ee;
+  --grad-buttery: linear-gradient(180deg, #f3efff 0%, #e9dcff 100%);
+  --grad-lilac: linear-gradient(180deg, #f4efff 0%, #e9dcff 100%);
+  --grad-sky: linear-gradient(180deg, #f1ecff 0%, #ddd0ff 100%);
+  --grad-sunset: linear-gradient(180deg, #eafaef 0%, #c9f2d8 100%);
+  --grad-brand: linear-gradient(135deg, #7c3aed 0%, #22c55e 100%);
 
-  --shadow-card: rgba(4, 69, 144, 0.08) 0px 14px 20px 4px;
+  --shadow-card: rgba(76, 29, 149, 0.13) 0px 24px 48px -16px;
+  --shadow-soft: rgba(76, 29, 149, 0.06) 0px 8px 24px -10px;
 
   --container: 1200px;
   --r-card: 32px;
@@ -234,7 +237,7 @@ img, video {
 }
 
 /* ============================================================
-   Playground — floating-doodle hero hook (the background)
+   Playground — premium gradient-orb backdrop (the hero hook)
    ============================================================ */
 .playground {
   position: fixed;
@@ -243,38 +246,53 @@ img, video {
   pointer-events: none;
   overflow: hidden;
   background:
-    radial-gradient(60% 50% at 80% 0%, rgba(79, 190, 255, 0.16), transparent 70%),
-    radial-gradient(50% 45% at 12% 12%, rgba(149, 82, 224, 0.1), transparent 70%),
-    radial-gradient(55% 50% at 50% 110%, rgba(242, 97, 16, 0.08), transparent 70%),
+    radial-gradient(60% 50% at 82% -4%, rgba(124, 58, 237, 0.1), transparent 70%),
+    radial-gradient(55% 50% at 8% 8%, rgba(139, 92, 246, 0.08), transparent 70%),
+    radial-gradient(55% 50% at 60% 108%, rgba(34, 197, 94, 0.08), transparent 70%),
     var(--sky);
   --mx: 0;
   --my: 0;
   --scroll: 0;
 }
-.doodle {
+.pg-orb,
+.pg-dot {
   position: absolute;
+  border-radius: 50%;
   will-change: transform;
   transform: translate3d(calc(var(--mx) * var(--depth)), calc(var(--my) * var(--depth) + var(--scroll) * var(--depthY)), 0);
+  animation: pgFloat var(--dur, 14s) ease-in-out infinite;
 }
-.doodle__inner {
-  display: block;
-  animation: doodleFloat var(--dur, 7s) ease-in-out infinite;
-  animation-delay: var(--delay, 0s);
+.pg-orb {
+  filter: blur(60px);
+  opacity: 0.5;
 }
-.doodle--spin .doodle__inner {
-  animation-name: doodleSpin;
-  animation-timing-function: linear;
+.pg-orb--violet {
+  background: radial-gradient(circle at 35% 35%, #a78bfa, #7c3aed 70%);
 }
-@keyframes doodleFloat {
-  0%, 100% { transform: translateY(0) rotate(var(--rot, 0deg)); }
-  50% { transform: translateY(-18px) rotate(calc(var(--rot, 0deg) + 4deg)); }
+.pg-orb--lavender {
+  background: radial-gradient(circle at 35% 35%, #c4b5fd, #8b5cf6 70%);
 }
-@keyframes doodleSpin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+.pg-orb--green {
+  background: radial-gradient(circle at 35% 35%, #6ee7a8, #16a34a 72%);
+  opacity: 0.42;
+}
+.pg-dot {
+  filter: blur(0.5px);
+  opacity: 0.5;
+}
+.pg-dot--violet {
+  background: #7c3aed;
+}
+.pg-dot--green {
+  background: #16a34a;
+}
+@keyframes pgFloat {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -22px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .doodle__inner {
+  .pg-orb,
+  .pg-dot {
     animation: none;
   }
 }
@@ -321,9 +339,14 @@ img, video {
   color: var(--ink);
 }
 .logo__img {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   object-fit: contain;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 4px;
+  box-shadow: var(--shadow-soft);
 }
 .logo__word {
   font-family: var(--font-display);
@@ -364,9 +387,14 @@ img, video {
   margin-bottom: 32px;
 }
 .hub__mark {
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   object-fit: contain;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 9px;
+  box-shadow: var(--shadow-card);
 }
 .hub__wordmark {
   font-family: var(--font-display);
@@ -454,7 +482,7 @@ img, video {
 
 /* ---------- Hero (funnels) ---------- */
 .hero {
-  padding: 96px 0 112px;
+  padding: clamp(72px, 9vw, 128px) 0 clamp(88px, 10vw, 144px);
 }
 .hero__inner {
   display: grid;
@@ -505,7 +533,7 @@ img, video {
   position: relative;
   z-index: 2;
   background: var(--paper);
-  border: 1px solid var(--stone);
+  border: 1px solid var(--line);
   border-radius: var(--r-card);
   box-shadow: var(--shadow-card);
   padding: 28px;
@@ -561,7 +589,7 @@ img, video {
   width: 150px;
   height: 304px;
   border-radius: 28px;
-  border: 1px solid var(--stone);
+  border: 1px solid var(--line);
   background: var(--grad-brand);
 }
 .device-fallback--green::after {
@@ -571,13 +599,13 @@ img, video {
   width: 320px;
   height: 200px;
   border-radius: 16px;
-  border: 1px solid var(--stone);
+  border: 1px solid var(--line);
   background: var(--grad-brand);
 }
 
 /* ---------- Sections (whitespace as divider) ---------- */
 .section {
-  padding: clamp(72px, 9vw, 128px) 0;
+  padding: clamp(96px, 11vw, 176px) 0;
 }
 .section--violet,
 .section--green,
@@ -586,7 +614,7 @@ img, video {
 }
 .section__head {
   max-width: 900px;
-  margin: 0 0 64px;
+  margin: 0 0 80px;
 }
 .section__eyebrow {
   margin-bottom: 20px;
@@ -618,9 +646,10 @@ img, video {
 }
 .card {
   background: var(--paper);
-  border: 1px solid var(--stone);
+  border: 1px solid var(--line);
   border-radius: var(--r-card);
-  padding: 32px;
+  padding: 36px;
+  box-shadow: var(--shadow-soft);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .card:hover {
@@ -705,7 +734,7 @@ img, video {
   gap: 18px;
   align-items: flex-start;
   background: var(--paper);
-  border: 1px solid var(--stone);
+  border: 1px solid var(--line);
   border-radius: var(--r-card);
   padding: 24px;
 }
@@ -743,7 +772,7 @@ img, video {
 .compare {
   overflow-x: auto;
   background: var(--paper);
-  border: 1px solid var(--stone);
+  border: 1px solid var(--line);
   border-radius: var(--r-card);
 }
 .compare__table {
@@ -787,7 +816,7 @@ img, video {
   align-items: center;
   gap: 10px;
   background: var(--paper);
-  border: 1px solid var(--stone);
+  border: 1px solid var(--line);
   border-radius: var(--r-pill);
   padding: 10px 20px;
   color: var(--ink);
@@ -816,7 +845,7 @@ img, video {
   aspect-ratio: 9 / 16;
   border-radius: var(--r-icon);
   overflow: hidden;
-  border: 1px solid var(--stone);
+  border: 1px solid var(--line);
   background: var(--paper);
 }
 .showcase__card video {
@@ -868,7 +897,7 @@ img, video {
 
 /* ---------- CTA + form ---------- */
 .cta-section {
-  padding: clamp(80px, 9vw, 128px) 0;
+  padding: clamp(96px, 11vw, 176px) 0;
 }
 .cta-section__inner {
   display: grid;
@@ -876,9 +905,10 @@ img, video {
   grid-template-columns: 1fr;
   align-items: start;
   background: var(--paper);
-  border: 1px solid var(--stone);
+  border: 1px solid var(--line);
   border-radius: var(--r-card);
-  padding: 40px;
+  box-shadow: var(--shadow-card);
+  padding: 48px;
 }
 .cta-section__title {
   font-size: clamp(2.4rem, 6vw, 4.2rem);
@@ -909,9 +939,10 @@ img, video {
 /* ---------- Lead form ---------- */
 .lead-form {
   background: var(--white);
-  border: 1px solid var(--stone);
+  border: 1px solid var(--line);
   border-radius: var(--r-card);
-  padding: 28px;
+  padding: 32px;
+  box-shadow: var(--shadow-card);
   display: grid;
   gap: 16px;
 }
@@ -1049,7 +1080,7 @@ img, video {
   display: grid;
   gap: 4px;
   background: var(--paper);
-  border: 1px solid var(--stone);
+  border: 1px solid var(--line);
   border-radius: var(--r-card);
   padding: 24px;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -1147,7 +1178,7 @@ img, video {
   gap: 28px;
   grid-template-columns: 1fr;
   background: var(--paper);
-  border: 1px solid var(--stone);
+  border: 1px solid var(--line);
   border-radius: var(--r-card);
   padding: 40px;
 }
