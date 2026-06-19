@@ -7,6 +7,7 @@ import Contacts from './pages/Contacts.jsx';
 import Privacy from './pages/Privacy.jsx';
 import ThankYou from './pages/ThankYou.jsx';
 import NotFound from './pages/NotFound.jsx';
+import Admin from './pages/Admin.jsx';
 import Playground from './components/Playground.jsx';
 
 // Scroll to top on route change so each funnel page starts at its hero.
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="/contacts" element={<Contacts />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/thanks/:type" element={<ThankYou />} />
+        <Route path="/admin" element={<Admin />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>

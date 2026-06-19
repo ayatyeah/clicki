@@ -1,7 +1,32 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { submitLead } from '../lib/api.js';
-import { Link } from 'react-router-dom';
+import { useLang } from '../i18n.jsx';
+
+const L = {
+  ru: {
+    fill: (label) => `Заполните поле «${label}»`,
+    consentErr: 'Подтвердите согласие на обработку персональных данных',
+    adultErr: 'Подтвердите, что вам есть 18 лет',
+    failed: 'Не удалось отправить заявку.',
+    sending: 'Отправляем…',
+    consent1: 'Я согласен на обработку персональных данных в соответствии с ',
+    consentLink: 'политикой конфиденциальности',
+    adult: 'Мне есть 18 лет.',
+    note: 'Нажимая кнопку, вы соглашаетесь с обработкой персональных данных.',
+  },
+  en: {
+    fill: (label) => `Please fill in “${label}”`,
+    consentErr: 'Please accept the personal data processing consent',
+    adultErr: 'Please confirm you are 18 or older',
+    failed: 'Could not send the request.',
+    sending: 'Sending…',
+    consent1: 'I agree to the processing of my personal data per the ',
+    consentLink: 'privacy policy',
+    adult: 'I am 18 or older.',
+    note: 'By submitting, you agree to the processing of your personal data.',
+  },
+};
 
 /**
  * Reusable lead form for both funnels.
@@ -13,6 +38,8 @@ import { Link } from 'react-router-dom';
  */
 export default function LeadForm({ funnel, fields, submitLabel, requireAdult = false }) {
   const navigate = useNavigate();
+  const { lang } = useLang();
+  const t = L[lang] || L.ru;
   const [values, setValues] = useState({});
   const [consent, setConsent] = useState(false);
   const [adult, setAdult] = useState(false);
@@ -29,11 +56,11 @@ export default function LeadForm({ funnel, fields, submitLabel, requireAdult = f
     const localErrors = [];
     for (const f of fields) {
       if (f.required && !String(values[f.name] || '').trim()) {
-        localErrors.push(`Заполните поле «${f.label}»`);
+        localErrors.push(t.fill(f.label));
       }
     }
-    if (!consent) localErrors.push('Подтвердите согласие на обработку персональных данных');
-    if (requireAdult && !adult) localErrors.push('Подтвердите, что вам есть 18 лет');
+    if (!consent) localErrors.push(t.consentErr);
+    if (requireAdult && !adult) localErrors.push(t.adultErr);
     if (localErrors.length) {
       setErrors(localErrors);
       return;
@@ -45,7 +72,7 @@ export default function LeadForm({ funnel, fields, submitLabel, requireAdult = f
       navigate(`/thanks/${funnel}`);
     } else {
       setStatus('error');
-      setErrors(res.errors || ['Не удалось отправить заявку.']);
+      setErrors(res.errors || [t.failed]);
     }
   }
 
@@ -55,16 +82,15 @@ export default function LeadForm({ funnel, fields, submitLabel, requireAdult = f
         <label key={f.name} className="lead-form__field">
           <span className="lead-form__label">
             {f.label}
-            {f.required && <span className="lead-form__req" aria-hidden="true"> *</span>}
+            {f.required && (
+              <span className="lead-form__req" aria-hidden="true">
+                {' '}
+                *
+              </span>
+            )}
           </span>
           {f.type === 'textarea' ? (
-            <textarea
-              name={f.name}
-              rows={3}
-              placeholder={f.placeholder}
-              value={values[f.name] || ''}
-              onChange={onChange}
-            />
+            <textarea name={f.name} rows={3} placeholder={f.placeholder} value={values[f.name] || ''} onChange={onChange} />
           ) : (
             <input
               type={f.type || 'text'}
@@ -93,9 +119,9 @@ export default function LeadForm({ funnel, fields, submitLabel, requireAdult = f
       <label className="lead-form__check">
         <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
         <span>
-          Я согласен на обработку персональных данных в соответствии с{' '}
+          {t.consent1}
           <Link to="/privacy" target="_blank">
-            политикой конфиденциальности
+            {t.consentLink}
           </Link>
           .
         </span>
@@ -104,7 +130,7 @@ export default function LeadForm({ funnel, fields, submitLabel, requireAdult = f
       {requireAdult && (
         <label className="lead-form__check">
           <input type="checkbox" checked={adult} onChange={(e) => setAdult(e.target.checked)} />
-          <span>Мне есть 18 лет.</span>
+          <span>{t.adult}</span>
         </label>
       )}
 
@@ -117,9 +143,9 @@ export default function LeadForm({ funnel, fields, submitLabel, requireAdult = f
       )}
 
       <button type="submit" className="btn btn--primary btn--block" disabled={status === 'sending'}>
-        {status === 'sending' ? 'Отправляем…' : submitLabel}
+        {status === 'sending' ? t.sending : submitLabel}
       </button>
-      <p className="lead-form__note">Нажимая кнопку, вы соглашаетесь с обработкой персональных данных.</p>
+      <p className="lead-form__note">{t.note}</p>
     </form>
   );
 }

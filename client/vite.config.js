@@ -5,9 +5,10 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    // Proxy API calls to the Express backend during development.
+    // Proxy API + uploaded media to the Express backend during development.
     proxy: {
       '/api': 'http://localhost:4000',
+      '/uploads': 'http://localhost:4000',
     },
   },
 });

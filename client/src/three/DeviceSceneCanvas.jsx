@@ -1,4 +1,4 @@
-import { Suspense, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Float, PresentationControls, useGLTF } from '@react-three/drei';
@@ -297,10 +297,74 @@ function screenPlacement(sizeScaled) {
   return { pos, rot, w, h, aspect: h / w };
 }
 
-function PhoneModel({ variant, targetSize = 3.7 }) {
+/** The screen plane: a drawn UGC feed, or an uploaded image when configured. */
+function PhoneScreen({ place, variant, imageUrl }) {
+  const drawn = useMemo(() => makeScreenTexture(variant, place.aspect), [variant, place.aspect]);
+  const [tex, setTex] = useState(drawn);
+
+  useEffect(() => {
+    if (!imageUrl) {
+      setTex(drawn);
+      return undefined;
+    }
+    let alive = true;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = imageUrl;
+    img.onload = () => {
+      if (!alive) return;
+      const w = 620;
+      const h = Math.round(w * place.aspect);
+      const cv = document.createElement('canvas');
+      cv.width = w;
+      cv.height = h;
+      const ctx = cv.getContext('2d');
+
+      ctx.clearRect(0, 0, w, h);
+      ctx.save();
+      roundRect(ctx, 0, 0, w, h, w * 0.155);
+      ctx.clip();
+
+      const imgAspect = img.width / img.height;
+      const canvasAspect = w / h;
+      let drawW = w;
+      let drawH = h;
+      let drawX = 0;
+      let drawY = 0;
+
+      if (imgAspect > canvasAspect) {
+        drawW = h * imgAspect;
+        drawX = (w - drawW) / 2;
+      } else {
+        drawH = w / imgAspect;
+        drawY = (h - drawH) / 2;
+      }
+
+      ctx.drawImage(img, drawX, drawY, drawW, drawH);
+      ctx.restore();
+
+      const t = new THREE.CanvasTexture(cv);
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.anisotropy = 8;
+      setTex(t);
+    };
+    return () => {
+      alive = false;
+    };
+  }, [imageUrl, drawn, place.aspect]);
+
+  return (
+    <mesh position={place.pos} rotation={place.rot}>
+      <planeGeometry args={[place.w, place.h]} />
+      <meshBasicMaterial map={tex} toneMapped={false} transparent side={THREE.DoubleSide} />
+    </mesh>
+  );
+}
+
+function PhoneModel({ variant, screenImage, targetSize = 3.7 }) {
   const { scene } = useGLTF(MODEL_URL);
 
-  const { model, place, screenTex } = useMemo(() => {
+  const { model, place } = useMemo(() => {
     const root = scene.clone(true);
     const box = new THREE.Box3().setFromObject(root);
     const size = box.getSize(new THREE.Vector3());
@@ -314,28 +378,24 @@ function PhoneModel({ variant, targetSize = 3.7 }) {
     wrap.scale.setScalar(s);
 
     const sized = size.clone().multiplyScalar(s);
-    const pl = screenPlacement(sized);
-    return { model: wrap, place: pl, screenTex: makeScreenTexture(variant, pl.aspect) };
-  }, [scene, targetSize, variant]);
+    return { model: wrap, place: screenPlacement(sized) };
+  }, [scene, targetSize]);
 
   return (
     <group>
       <primitive object={model} />
-      <mesh position={place.pos} rotation={place.rot}>
-        <planeGeometry args={[place.w, place.h]} />
-        <meshBasicMaterial map={screenTex} toneMapped={false} transparent side={THREE.DoubleSide} />
-      </mesh>
+      <PhoneScreen place={place} variant={variant} imageUrl={screenImage} />
     </group>
   );
 }
 
-function PhoneRig({ interactive, variant }) {
+function PhoneRig({ interactive, variant, screenImage }) {
   const content = (
     <ScrollMotion>
       <Float speed={1.4} rotationIntensity={0.25} floatIntensity={0.45}>
         {/* Flattering 3/4 hero pose — screen clearly readable, a touch of depth. */}
         <group rotation={[0.14, -0.12, 0.05]}>
-          <PhoneModel variant={variant} />
+          <PhoneModel variant={variant} screenImage={screenImage} />
         </group>
       </Float>
     </ScrollMotion>
@@ -356,7 +416,7 @@ function PhoneRig({ interactive, variant }) {
 }
 
 /** Heavy three.js canvas — imported lazily by DeviceScene so three is code-split. */
-export default function DeviceSceneCanvas({ variant = 'violet', interactive = true }) {
+export default function DeviceSceneCanvas({ variant = 'violet', interactive = true, screenImage = '' }) {
   return (
     <Canvas
       dpr={[1, 2]}
@@ -368,7 +428,7 @@ export default function DeviceSceneCanvas({ variant = 'violet', interactive = tr
       <directionalLight position={[-3, 2, -4]} intensity={0.5} color="#cce7ff" />
       <pointLight position={[-4, -2, 3]} intensity={0.7} color={variant === 'green' ? '#22c55e' : '#7c3aed'} />
       <Suspense fallback={null}>
-        <PhoneRig interactive={interactive} variant={variant} />
+        <PhoneRig interactive={interactive} variant={variant} screenImage={screenImage} />
       </Suspense>
     </Canvas>
   );

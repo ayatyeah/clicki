@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { Float, TorusKnot } from '@react-three/drei';
 
 /* Soft gradient orbs in the brand palette — premium "investor teaser" backdrop.
    depth = mouse-parallax px, depthY = scroll-parallax factor. */
@@ -16,6 +18,25 @@ const DOTS = [
   { tone: 'green', top: '16%', left: '82%', size: 8, depth: 54, depthY: 0.1 },
   { tone: 'violet', top: '82%', left: '40%', size: 9, depth: 64, depthY: 0.13 },
 ];
+
+function FloatingShape() {
+  const ref = useRef();
+  
+  useFrame((state, delta) => {
+    if (ref.current) {
+      ref.current.rotation.x += delta * 0.1;
+      ref.current.rotation.y += delta * 0.15;
+    }
+  });
+
+  return (
+    <Float speed={2} rotationIntensity={1} floatIntensity={2}>
+      <TorusKnot ref={ref} args={[1.5, 0.4, 128, 32]}>
+        <meshStandardMaterial color="#8a2be2" wireframe opacity={0.15} transparent />
+      </TorusKnot>
+    </Float>
+  );
+}
 
 /**
  * Fixed premium backdrop: blurred brand-colour orbs that drift toward the
@@ -64,7 +85,14 @@ export default function Playground() {
   }, []);
 
   return (
-    <div className="playground" ref={ref} aria-hidden="true">
+    <div className="playground" ref={ref} aria-hidden="true" style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none' }}>
+      <div style={{ position: 'absolute', inset: 0, opacity: 0.6 }}>
+        <Canvas camera={{ position: [0, 0, 8] }}>
+          <ambientLight intensity={0.5} />
+          <directionalLight position={[10, 10, 5]} intensity={1} />
+          <FloatingShape />
+        </Canvas>
+      </div>
       {ORBS.map((o, i) => (
         <span
           key={`orb-${i}`}

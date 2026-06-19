@@ -1,4 +1,4 @@
-import { Suspense, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Float, PresentationControls, useGLTF } from '@react-three/drei';
@@ -187,10 +187,10 @@ function ScrollMotion({ children }) {
 
 /* ---------------- Model ---------------- */
 
-function LaptopModel({ targetSize = 4.5 }) {
+function LaptopModel({ screenImage, targetSize = 4.5 }) {
   const { scene } = useGLTF(MODEL_URL);
 
-  const model = useMemo(() => {
+  const { model, screen } = useMemo(() => {
     const root = scene.clone(true);
     root.updateMatrixWorld(true);
 
@@ -227,19 +227,35 @@ function LaptopModel({ targetSize = 4.5 }) {
     const wrap = new THREE.Group();
     wrap.add(root);
     wrap.scale.setScalar(targetSize / maxDim);
-    return wrap;
+    return { model: wrap, screen };
   }, [scene, targetSize]);
+
+  // Swap the dashboard for an uploaded image when one is configured.
+  useEffect(() => {
+    if (!screen || !screenImage) return undefined;
+    let alive = true;
+    new THREE.TextureLoader().load(screenImage, (t) => {
+      if (!alive) return;
+      t.flipY = false;
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.anisotropy = 8;
+      screen.material = new THREE.MeshBasicMaterial({ map: t, toneMapped: false });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [screen, screenImage]);
 
   return <primitive object={model} />;
 }
 
-function LaptopRig({ interactive }) {
+function LaptopRig({ interactive, screenImage }) {
   const content = (
     <ScrollMotion>
       <Float speed={1.2} rotationIntensity={0.25} floatIntensity={0.5}>
         {/* 3/4 hero pose so the screen reads clearly. */}
         <group rotation={[0.05, -0.5, 0]}>
-          <LaptopModel />
+          <LaptopModel screenImage={screenImage} />
         </group>
       </Float>
     </ScrollMotion>
@@ -253,7 +269,7 @@ function LaptopRig({ interactive }) {
   );
 }
 
-export default function LaptopSceneCanvas({ interactive = true }) {
+export default function LaptopSceneCanvas({ interactive = true, screenImage = '' }) {
   return (
     <Canvas dpr={[1, 2]} camera={{ position: [0, 0.4, 10], fov: 38 }} gl={{ alpha: true, antialias: true }}>
       <ambientLight intensity={0.95} />
@@ -261,7 +277,7 @@ export default function LaptopSceneCanvas({ interactive = true }) {
       <directionalLight position={[-4, 2, -3]} intensity={0.5} color="#cce7ff" />
       <pointLight position={[0, -3, 4]} intensity={0.5} color="#7c3aed" />
       <Suspense fallback={null}>
-        <LaptopRig interactive={interactive} />
+        <LaptopRig interactive={interactive} screenImage={screenImage} />
       </Suspense>
     </Canvas>
   );

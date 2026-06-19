@@ -1,12 +1,15 @@
 import { useEffect, useRef } from 'react';
+import { useContent } from '../content.jsx';
 
 /**
- * Vertical 9:16 video showcase (ТЗ 5.11 / 7.3).
- * Autoplays muted previews when scrolled into view, pauses when out.
- * Content is normally fed from the CMS/admin (ТЗ 7.5); here it accepts an
- * `items` prop and renders placeholders when no media is configured yet.
+ * Vertical 9:16 showcase (ТЗ 5.11 / 7.3). Pulls its items from the CMS
+ * (`content.showcase`, managed in /admin); renders placeholders when empty.
+ * Videos autoplay muted in view, unmute on click; images render as posters.
  */
-export default function VideoShowcase({ items = [] }) {
+export default function VideoShowcase({ items }) {
+  const content = useContent();
+  const list = items && items.length ? items : content.showcase;
+  const cards = list && list.length ? list : PLACEHOLDERS;
   const containerRef = useRef(null);
 
   useEffect(() => {
@@ -27,15 +30,15 @@ export default function VideoShowcase({ items = [] }) {
     );
     videos.forEach((v) => io.observe(v));
     return () => io.disconnect();
-  }, [items]);
-
-  const cards = items.length ? items : PLACEHOLDERS;
+  }, [cards]);
 
   return (
     <div className="showcase" ref={containerRef}>
       {cards.map((item, i) => (
-        <article className="showcase__card" key={item.id || i}>
-          {item.src ? (
+        <article className="showcase__card" key={item.src || i}>
+          {item.type === 'image' && item.src ? (
+            <img src={item.src} alt="" loading="lazy" />
+          ) : item.src ? (
             <video
               src={item.src}
               poster={item.poster}

@@ -7,45 +7,215 @@ import LeadForm from '../components/LeadForm.jsx';
 import VideoShowcase from '../components/VideoShowcase.jsx';
 import PlatformChips from '../components/PlatformChips.jsx';
 import LaptopScene from '../three/LaptopScene.jsx';
+import { useLang } from '../i18n.jsx';
+import { useContent } from '../content.jsx';
 import { PHONE, PHONE_TEL, TELEGRAM_URL, EMAIL, EMAIL_URL } from '../lib/config.js';
 
-const CLIENT_FIELDS = [
-  { name: 'name', label: 'Имя', required: true, autoComplete: 'name', placeholder: 'Как к вам обращаться' },
-  { name: 'company', label: 'Компания', placeholder: 'Название бренда' },
-  { name: 'phone', label: 'Телефон', type: 'tel', required: true, autoComplete: 'tel', placeholder: '+7 ___ ___ __ __' },
-  { name: 'email', label: 'Email', type: 'email', autoComplete: 'email', placeholder: 'you@company.kz' },
-  { name: 'niche', label: 'Сфера бизнеса', placeholder: 'Например: косметика, доставка, услуги' },
-  { name: 'comment', label: 'Комментарий', type: 'textarea', placeholder: 'Коротко о задаче' },
-];
+const COPY = {
+  ru: {
+    seoTitle: 'CLICKI для бизнеса — реклама с оплатой за просмотры',
+    seoDesc: 'Первая автоматизированная платформа рекламы с оплатой за органические просмотры. Получите консультацию.',
+    badge: 'Performance-маркетинг нового поколения',
+    heroPre: 'Платишь за ',
+    heroAccent: 'результат',
+    heroPost: ', а не за надежду',
+    heroSub: 'Первая платформа, где вы платите за живые просмотры, а не за обещания. Запуск за пару дней и никакого слитого бюджета.',
+    consult: 'Получить консультацию',
+    how: 'Как это работает',
+    fields: [
+      { name: 'name', label: 'Имя', required: true, autoComplete: 'name', placeholder: 'Как к вам обращаться' },
+      { name: 'company', label: 'Компания', placeholder: 'Название бренда' },
+      { name: 'phone', label: 'Телефон', type: 'tel', required: true, autoComplete: 'tel', placeholder: '+7 ___ ___ __ __' },
+      { name: 'email', label: 'Email', type: 'email', autoComplete: 'email', placeholder: 'you@company.kz' },
+      { name: 'niche', label: 'Сфера бизнеса', placeholder: 'Например: косметика, доставка, услуги' },
+      { name: 'comment', label: 'Комментарий', type: 'textarea', placeholder: 'Коротко о задаче' },
+    ],
+    problem: {
+      eyebrow: 'Проблема',
+      title: 'Почему классическая реклама сливает бюджет',
+      cards: [
+        { title: 'Слив бюджета', text: 'Платите блогеру фиксированный гонорар, а видео не набирает просмотров — деньги потеряны.' },
+        { title: 'Нет гарантий', text: 'Результат интеграций непредсказуем: стоимость привлечения растёт, отдача стремится к нулю.' },
+      ],
+    },
+    ugc: {
+      eyebrow: 'Контекст',
+      title: 'Что такое UGC',
+      lead: 'UGC (User Generated Content) — короткие видео от реальных людей на их живых аккаунтах. Аудитория доверяет таким роликам больше, чем прямой рекламе. Никаких фейков и накруток — только живой контент.',
+    },
+    why: {
+      eyebrow: 'Зачем это бизнесу',
+      title: 'Что даёт UGC вашему бренду',
+      cards: [
+        { title: 'Доверие', text: 'Живая аудитория вместо «рекламной слепоты» к баннерам.' },
+        { title: 'Вовлечённость', text: 'Выше отклик и конверсия, чем у таргета и медийки.' },
+        { title: 'Дешевле продакшн', text: 'Контент без дорогого классического креатива.' },
+        { title: 'Предсказуемость', text: 'Измеримый, понятный охват.' },
+      ],
+    },
+    solution: {
+      eyebrow: 'Решение',
+      title: 'Платформа CLICKI',
+      features: [
+        { title: 'Платим только за просмотр', text: 'Бренд ставит бриф и платит строго за подтверждённый живой охват.' },
+        { title: 'Полный автопилот', text: 'Платформа сама раздаёт заказы проверенным авторам и считает просмотры.' },
+        { title: 'Защита от накруток', text: 'Умные фильтры отсекают ботов и «левый» трафик.' },
+      ],
+    },
+    process: {
+      eyebrow: 'Процесс',
+      title: 'Как работает CLICKI',
+      steps: [
+        { title: 'Бренд ставит бриф', text: 'Что и для кого продвигаем.' },
+        { title: 'Платформа распределяет задачи', text: 'Заказ уходит сети проверенных авторов.' },
+        { title: 'Авторы публикуют UGC', text: 'Видео выходят на реальных аккаунтах.' },
+        { title: 'Бренд получает охват', text: 'Подтверждённые органические просмотры и прозрачный отчёт.' },
+      ],
+    },
+    lifecycle: {
+      eyebrow: 'Прозрачность',
+      title: 'Что происходит с вашим продуктом',
+      lead: 'От брифа до живого охвата и понятной отчётности в дашборде. Полный контроль, прозрачность и безопасность бренда на каждом шаге кампании.',
+    },
+    compare: {
+      eyebrow: 'Сравнение',
+      title: 'Почему именно мы',
+      head: ['Параметр', 'Обычные агентства', 'Платформа CLICKI'],
+      rows: [
+        ['За что платит бренд', 'За публикацию (может набрать 0)', 'За гарантированные просмотры'],
+        ['Время на запуск', '2–4 недели', 'До 48 часов, автоматически'],
+        ['Риски слива бюджета', 'Огромные', 'Нулевые — оплата за результат'],
+        ['Прозрачность', 'Скриншоты в Excel', 'Интерактивный live-дашборд'],
+      ],
+    },
+    platforms: { eyebrow: 'Каналы', title: 'На каких платформах работаем', note: 'Мультиплатформенный охват одной кампанией.' },
+    showcase: { eyebrow: 'Витрина', title: 'Лента нашей рекламы', note: 'Примеры UGC-роликов, которые мы производим.' },
+    about: {
+      eyebrow: 'О нас',
+      title: 'Кто мы',
+      alt: 'Партнёрское рукопожатие — доверие и долгосрочные отношения с брендами',
+      lead: 'CLICKI — технологическая performance-платформа из Астаны. Доверие, экспертиза и ясное видение того, как работает органический охват. За плечами — собранная сеть авторов, запущенный пилот и готовый продукт.',
+    },
+    finalTitle: 'Получить консультацию',
+    finalText: 'Оставьте заявку — мы свяжемся с вами, разберём задачу и покажем, как запустить кампанию.',
+  },
+  en: {
+    seoTitle: 'CLICKI for business — pay-for-views advertising',
+    seoDesc: 'The first automated pay-for-organic-views advertising platform. Get a consultation.',
+    badge: 'Next-generation performance marketing',
+    heroPre: 'You pay for ',
+    heroAccent: 'results',
+    heroPost: ', not for hope',
+    heroSub: 'The first platform where you pay for real views, not promises. Launch in days — no wasted budget.',
+    consult: 'Get a consultation',
+    how: 'How it works',
+    fields: [
+      { name: 'name', label: 'Name', required: true, autoComplete: 'name', placeholder: 'How should we address you' },
+      { name: 'company', label: 'Company', placeholder: 'Brand name' },
+      { name: 'phone', label: 'Phone', type: 'tel', required: true, autoComplete: 'tel', placeholder: '+7 ___ ___ __ __' },
+      { name: 'email', label: 'Email', type: 'email', autoComplete: 'email', placeholder: 'you@company.kz' },
+      { name: 'niche', label: 'Industry', placeholder: 'e.g. cosmetics, delivery, services' },
+      { name: 'comment', label: 'Comment', type: 'textarea', placeholder: 'Briefly about your goal' },
+    ],
+    problem: {
+      eyebrow: 'Problem',
+      title: 'Why classic advertising burns budget',
+      cards: [
+        { title: 'Wasted budget', text: 'You pay a blogger a fixed fee, the video gets no views — the money is gone.' },
+        { title: 'No guarantees', text: 'Integration results are unpredictable: acquisition cost rises, ROI trends to zero.' },
+      ],
+    },
+    ugc: {
+      eyebrow: 'Context',
+      title: 'What is UGC',
+      lead: 'UGC (User Generated Content) — short videos by real people on their real accounts. Audiences trust them more than direct ads. No fakes, no bots — only real content.',
+    },
+    why: {
+      eyebrow: 'Why business needs it',
+      title: 'What UGC gives your brand',
+      cards: [
+        { title: 'Trust', text: 'A live audience instead of “banner blindness”.' },
+        { title: 'Engagement', text: 'Higher response and conversion than targeting and display.' },
+        { title: 'Cheaper production', text: 'Content without expensive classic creative.' },
+        { title: 'Predictability', text: 'Measurable, clear reach.' },
+      ],
+    },
+    solution: {
+      eyebrow: 'Solution',
+      title: 'The CLICKI platform',
+      features: [
+        { title: 'Pay only per view', text: 'The brand sets a brief and pays strictly for confirmed real reach.' },
+        { title: 'Full autopilot', text: 'The platform assigns tasks to vetted creators and counts the views.' },
+        { title: 'Bot protection', text: 'Smart filters cut out bots and junk traffic.' },
+      ],
+    },
+    process: {
+      eyebrow: 'Process',
+      title: 'How CLICKI works',
+      steps: [
+        { title: 'The brand sets a brief', text: 'What we promote and for whom.' },
+        { title: 'The platform distributes tasks', text: 'The order goes to a network of vetted creators.' },
+        { title: 'Creators publish UGC', text: 'Videos go live on real accounts.' },
+        { title: 'The brand gets reach', text: 'Confirmed organic views and a transparent report.' },
+      ],
+    },
+    lifecycle: {
+      eyebrow: 'Transparency',
+      title: 'What happens to your product',
+      lead: 'From brief to real reach and clear reporting in the dashboard. Full control, transparency and brand safety at every step of the campaign.',
+    },
+    compare: {
+      eyebrow: 'Comparison',
+      title: 'Why us',
+      head: ['Parameter', 'Typical agencies', 'CLICKI platform'],
+      rows: [
+        ['What the brand pays for', 'For posting (may get 0)', 'For guaranteed views'],
+        ['Time to launch', '2–4 weeks', 'Up to 48 hours, automatically'],
+        ['Budget-waste risk', 'Huge', 'Zero — pay for results'],
+        ['Transparency', 'Screenshots in Excel', 'Interactive live dashboard'],
+      ],
+    },
+    platforms: { eyebrow: 'Channels', title: 'Platforms we work on', note: 'Multi-platform reach in a single campaign.' },
+    showcase: { eyebrow: 'Showcase', title: 'Our ad feed', note: 'Examples of the UGC clips we produce.' },
+    about: {
+      eyebrow: 'About',
+      title: 'Who we are',
+      alt: 'A partnership handshake — trust and long-term relationships with brands',
+      lead: 'CLICKI is a technology performance platform from Astana. Trust, expertise and a clear vision of how organic reach works. Behind us — a built creator network, a launched pilot and a ready product.',
+    },
+    finalTitle: 'Get a consultation',
+    finalText: 'Leave a request — we’ll contact you, dig into your goal and show how to launch a campaign.',
+  },
+};
+
+const ICONS = [<IconTarget key="t" />, <IconAuto key="a" />, <IconShield key="s" />];
 
 export default function Business() {
+  const { lang } = useLang();
+  const content = useContent();
+  const t = COPY[lang] || COPY.ru;
   return (
     <>
-      <Seo
-        title="CLICKI для бизнеса — реклама с оплатой за просмотры"
-        description="Первая автоматизированная платформа рекламы с оплатой за органические просмотры. Получите консультацию."
-        path="/business"
-      />
+      <Seo title={t.seoTitle} description={t.seoDesc} path="/business" />
       <Header variant="business" />
       <main className="funnel funnel--business">
         {/* 5.1 Hero */}
         <section className="hero">
           <div className="container hero__inner">
             <Reveal as="div" className="hero__copy">
-              <span className="badge">Performance-маркетинг нового поколения</span>
+              <span className="badge">{t.badge}</span>
               <h1 className="hero__title">
-                Платишь за <span className="accent">результат</span>, а не за надежду
+                {t.heroPre}
+                <span className="accent">{t.heroAccent}</span>
+                {t.heroPost}
               </h1>
-              <p className="hero__subtitle">
-                Первая платформа, где вы платите за живые просмотры, а не за обещания. Запуск за пару дней и никакого
-                слитого бюджета.
-              </p>
+              <p className="hero__subtitle">{t.heroSub}</p>
               <div className="hero__actions">
                 <a href="#consult" className="btn btn--primary btn--lg">
-                  Получить консультацию
+                  {t.consult}
                 </a>
                 <a href="#how" className="btn btn--ghost btn--lg">
-                  Как это работает
+                  {t.how}
                 </a>
               </div>
               <a href={`tel:${PHONE_TEL}`} className="hero__call">
@@ -53,135 +223,105 @@ export default function Business() {
               </a>
             </Reveal>
             <Reveal className="hero__art hero__art--device">
-              <LaptopScene interactive className="hero__device hero__device--lg" />
+              <LaptopScene
+                interactive
+                className="hero__device hero__device--lg"
+                screenImage={content.devices?.laptop?.image}
+              />
             </Reveal>
           </div>
         </section>
 
-        {/* 5.2 Problem */}
-        <Section id="problem" eyebrow="Проблема" title="Почему классическая реклама сливает бюджет">
+        <Section id="problem" eyebrow={t.problem.eyebrow} title={t.problem.title}>
           <div className="cards cards--2">
-            <Card title="Слив бюджета" text="Платите блогеру фиксированный гонорар, а видео не набирает просмотров — деньги потеряны." />
-            <Card title="Нет гарантий" text="Результат интеграций непредсказуем: стоимость привлечения растёт, отдача стремится к нулю." />
+            {t.problem.cards.map((c) => (
+              <Card key={c.title} {...c} />
+            ))}
           </div>
         </Section>
 
-        {/* 5.3 What is UGC */}
-        <Section eyebrow="Контекст" title="Что такое UGC" tone="muted">
-          <p className="lead">
-            UGC (User Generated Content) — короткие видео от реальных людей на их живых аккаунтах. Аудитория доверяет
-            таким роликам больше, чем прямой рекламе. Никаких фейков и накруток — только живой контент.
-          </p>
+        <Section eyebrow={t.ugc.eyebrow} title={t.ugc.title} tone="muted">
+          <p className="lead">{t.ugc.lead}</p>
         </Section>
 
-        {/* 5.4 Why business needs UGC */}
-        <Section eyebrow="Зачем это бизнесу" title="Что даёт UGC вашему бренду">
+        <Section eyebrow={t.why.eyebrow} title={t.why.title}>
           <div className="cards cards--4">
-            <Card title="Доверие" text="Живая аудитория вместо «рекламной слепоты» к баннерам." />
-            <Card title="Вовлечённость" text="Выше отклик и конверсия, чем у таргета и медийки." />
-            <Card title="Дешевле продакшн" text="Контент без дорогого классического креатива." />
-            <Card title="Предсказуемость" text="Измеримый, понятный охват." />
+            {t.why.cards.map((c) => (
+              <Card key={c.title} {...c} />
+            ))}
           </div>
         </Section>
 
-        {/* 5.5 Solution */}
-        <Section eyebrow="Решение" title="Платформа CLICKI" tone="violet">
+        <Section eyebrow={t.solution.eyebrow} title={t.solution.title} tone="violet">
           <div className="cards cards--3">
-            <Feature icon={<IconTarget />} title="Платим только за просмотр">
-              Бренд ставит бриф и платит строго за подтверждённый живой охват.
-            </Feature>
-            <Feature icon={<IconAuto />} title="Полный автопилот">
-              Платформа сама раздаёт заказы проверенным авторам и считает просмотры.
-            </Feature>
-            <Feature icon={<IconShield />} title="Защита от накруток">
-              Умные фильтры отсекают ботов и «левый» трафик.
-            </Feature>
+            {t.solution.features.map((f, i) => (
+              <Feature key={f.title} icon={ICONS[i]} title={f.title}>
+                {f.text}
+              </Feature>
+            ))}
           </div>
         </Section>
 
-        {/* 5.6 How it works */}
-        <Section id="how" eyebrow="Процесс" title="Как работает CLICKI">
+        <Section id="how" eyebrow={t.process.eyebrow} title={t.process.title}>
           <ol className="steps">
-            <Step n="1" title="Бренд ставит бриф" text="Что и для кого продвигаем." />
-            <Step n="2" title="Платформа распределяет задачи" text="Заказ уходит сети проверенных авторов." />
-            <Step n="3" title="Авторы публикуют UGC" text="Видео выходят на реальных аккаунтах." />
-            <Step n="4" title="Бренд получает охват" text="Подтверждённые органические просмотры и прозрачный отчёт." />
+            {t.process.steps.map((s, i) => (
+              <Step key={s.title} n={i + 1} {...s} />
+            ))}
           </ol>
         </Section>
 
-        {/* 5.7 Lifecycle */}
-        <Section eyebrow="Прозрачность" title="Что происходит с вашим продуктом" tone="muted">
-          <p className="lead">
-            От брифа до живого охвата и понятной отчётности в дашборде. Полный контроль, прозрачность и безопасность
-            бренда на каждом шаге кампании.
-          </p>
+        <Section eyebrow={t.lifecycle.eyebrow} title={t.lifecycle.title} tone="muted">
+          <p className="lead">{t.lifecycle.lead}</p>
         </Section>
 
-        {/* 5.8 Comparison */}
-        <Section eyebrow="Сравнение" title="Почему именно мы">
+        <Section eyebrow={t.compare.eyebrow} title={t.compare.title}>
           <div className="compare">
             <table className="compare__table">
               <thead>
                 <tr>
-                  <th>Параметр</th>
-                  <th>Обычные агентства</th>
-                  <th className="compare__us">Платформа CLICKI</th>
+                  <th>{t.compare.head[0]}</th>
+                  <th>{t.compare.head[1]}</th>
+                  <th className="compare__us">{t.compare.head[2]}</th>
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td>За что платит бренд</td>
-                  <td>За публикацию (может набрать 0)</td>
-                  <td className="compare__us">За гарантированные просмотры</td>
-                </tr>
-                <tr>
-                  <td>Время на запуск</td>
-                  <td>2–4 недели</td>
-                  <td className="compare__us">До 48 часов, автоматически</td>
-                </tr>
-                <tr>
-                  <td>Риски слива бюджета</td>
-                  <td>Огромные</td>
-                  <td className="compare__us">Нулевые — оплата за результат</td>
-                </tr>
-                <tr>
-                  <td>Прозрачность</td>
-                  <td>Скриншоты в Excel</td>
-                  <td className="compare__us">Интерактивный live-дашборд</td>
-                </tr>
+                {t.compare.rows.map((r) => (
+                  <tr key={r[0]}>
+                    <td>{r[0]}</td>
+                    <td>{r[1]}</td>
+                    <td className="compare__us">{r[2]}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         </Section>
 
-        {/* 5.9 Platforms */}
-        <Section eyebrow="Каналы" title="На каких платформах работаем" tone="muted">
+        <Section eyebrow={t.platforms.eyebrow} title={t.platforms.title} tone="muted">
           <PlatformChips />
-          <p className="muted-note">Мультиплатформенный охват одной кампанией.</p>
+          <p className="muted-note">{t.platforms.note}</p>
         </Section>
 
-        {/* 5.11 Showcase */}
-        <Section eyebrow="Витрина" title="Лента нашей рекламы">
+        <Section eyebrow={t.showcase.eyebrow} title={t.showcase.title}>
           <VideoShowcase />
-          <p className="muted-note">Примеры UGC-роликов, которые мы производим.</p>
+          <p className="muted-note">{t.showcase.note}</p>
         </Section>
 
-        {/* 5.10 About + 5.12 Results */}
-        <Section eyebrow="О нас" title="Кто мы" tone="violet">
-          <p className="lead">
-            CLICKI — технологическая performance-платформа из Астаны. Доверие, экспертиза и ясное видение того, как
-            работает органический охват. За плечами — собранная сеть авторов, запущенный пилот и готовый продукт.
-          </p>
+        <Section eyebrow={t.about.eyebrow} title={t.about.title} tone="violet">
+          <div className="about-grid">
+            <div className="about-photo">
+              <img src="/handshake.png" alt={t.about.alt} width="740" height="375" loading="lazy" />
+            </div>
+            <p className="lead">{t.about.lead}</p>
+          </div>
         </Section>
 
         {/* 5.13 Final CTA + form */}
         <section id="consult" className="cta-section">
           <div className="container cta-section__inner">
             <Reveal className="cta-section__copy">
-              <h2 className="cta-section__title">Получить консультацию</h2>
-              <p className="cta-section__text">
-                Оставьте заявку — мы свяжемся с вами, разберём задачу и покажем, как запустить кампанию.
-              </p>
+              <h2 className="cta-section__title">{t.finalTitle}</h2>
+              <p className="cta-section__text">{t.finalText}</p>
               <ul className="cta-section__contacts">
                 <li>
                   <a href={`tel:${PHONE_TEL}`}>☎ {PHONE}</a>
@@ -197,7 +337,7 @@ export default function Business() {
               </ul>
             </Reveal>
             <Reveal className="cta-section__form">
-              <LeadForm funnel="client" fields={CLIENT_FIELDS} submitLabel="Получить консультацию" />
+              <LeadForm funnel="client" fields={t.fields} submitLabel={t.consult} />
             </Reveal>
           </div>
         </section>

@@ -11,7 +11,7 @@ const DeviceSceneCanvas = lazy(() => import('./DeviceSceneCanvas.jsx'));
  * @param {'violet'|'green'} variant — screen palette
  * @param {boolean} interactive — allow drag-to-tilt (default true)
  */
-export default function DeviceScene({ variant = 'violet', interactive = true, className = '' }) {
+export default function DeviceScene({ variant = 'violet', interactive = true, className = '', screenImage = '' }) {
   const { ready, enabled } = useShouldRender3D();
 
   if (!ready || !enabled) {
@@ -21,7 +21,7 @@ export default function DeviceScene({ variant = 'violet', interactive = true, cl
   return (
     <div className={`device3d ${className}`} aria-hidden="true">
       <Suspense fallback={<div className={`device-fallback device-fallback--${variant}`} />}>
-        <DeviceSceneCanvas variant={variant} interactive={interactive} />
+        <DeviceSceneCanvas variant={variant} interactive={interactive} screenImage={screenImage} />
       </Suspense>
     </div>
   );

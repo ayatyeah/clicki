@@ -16,8 +16,9 @@ client/dist/
 !client/.env.example
 !server/.env.example
 
-# ---- Runtime data / collected leads ----
+# ---- Runtime data / collected leads / uploaded media ----
 server/data/
+server/uploads/
 
 # ---- Logs ----
 *.log
