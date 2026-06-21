@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { submitLead } from '../lib/api.js';
+import { trackLead } from '../lib/analytics.js';
 import { useLang } from '../i18n.jsx';
 
 const L = {
@@ -69,6 +70,7 @@ export default function LeadForm({ funnel, fields, submitLabel, requireAdult = f
     setStatus('sending');
     const res = await submitLead(funnel, { ...values, consent, adult, website });
     if (res.ok) {
+      trackLead(funnel); // client_lead / creator_lead conversion
       navigate(`/thanks/${funnel}`);
     } else {
       setStatus('error');

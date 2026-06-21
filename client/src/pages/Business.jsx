@@ -96,6 +96,36 @@ const COPY = {
       alt: 'Партнёрское рукопожатие — доверие и долгосрочные отношения с брендами',
       lead: 'CLICKI — технологическая performance-платформа из Астаны. Доверие, экспертиза и ясное видение того, как работает органический охват. За плечами — собранная сеть авторов, запущенный пилот и готовый продукт.',
     },
+    faq: {
+      title: 'Частые вопросы',
+      sub: 'Всё, что важно знать перед запуском кампании',
+      items: [
+        {
+          q: 'Чем оплата за просмотры лучше обычной рекламы?',
+          a: 'Вы платите только за подтверждённый живой охват, а не за факт публикации. Никаких фиксированных гонораров за ролик, который может набрать ноль просмотров.',
+        },
+        {
+          q: 'Как вы защищаете от накруток и ботов?',
+          a: 'Умные фильтры отсекают ботов и «левый» трафик. В отчёт попадают только живые органические просмотры от реальной аудитории.',
+        },
+        {
+          q: 'Сколько времени занимает запуск кампании?',
+          a: 'До 48 часов. Вы ставите бриф — платформа сама раздаёт заказы проверенным авторам и запускает публикации.',
+        },
+        {
+          q: 'Что такое UGC и почему это работает?',
+          a: 'UGC — короткие видео от реальных людей на их живых аккаунтах. Аудитория доверяет такому контенту больше, чем прямой рекламе.',
+        },
+        {
+          q: 'Где я вижу результаты кампании?',
+          a: 'В интерактивном live-дашборде: подтверждённые просмотры, охват и прозрачный отчёт по каждому ролику.',
+        },
+        {
+          q: 'На каких платформах вы работаете?',
+          a: 'Instagram, TikTok, YouTube Shorts и другие — мультиплатформенный охват одной кампанией.',
+        },
+      ],
+    },
     finalTitle: 'Получить консультацию',
     finalText: 'Оставьте заявку — мы свяжемся с вами, разберём задачу и покажем, как запустить кампанию.',
   },
@@ -182,6 +212,36 @@ const COPY = {
       title: 'Who we are',
       alt: 'A partnership handshake — trust and long-term relationships with brands',
       lead: 'CLICKI is a technology performance platform from Astana. Trust, expertise and a clear vision of how organic reach works. Behind us — a built creator network, a launched pilot and a ready product.',
+    },
+    faq: {
+      title: 'FAQ',
+      sub: 'Everything worth knowing before launching a campaign',
+      items: [
+        {
+          q: 'Why is pay-per-view better than classic advertising?',
+          a: 'You pay only for confirmed real reach, not for the fact of posting. No fixed blogger fees for a video that may get zero views.',
+        },
+        {
+          q: 'How do you protect against bots and fake views?',
+          a: 'Smart filters cut out bots and junk traffic. Only real organic views from a live audience make it into the report.',
+        },
+        {
+          q: 'How long does it take to launch a campaign?',
+          a: 'Up to 48 hours. You set a brief — the platform assigns tasks to vetted creators and starts the posts.',
+        },
+        {
+          q: 'What is UGC and why does it work?',
+          a: 'UGC is short videos by real people on their real accounts. Audiences trust this content more than direct ads.',
+        },
+        {
+          q: 'Where do I see campaign results?',
+          a: 'In an interactive live dashboard: confirmed views, reach and a transparent report for every clip.',
+        },
+        {
+          q: 'Which platforms do you work on?',
+          a: 'Instagram, TikTok, YouTube Shorts and more — multi-platform reach in a single campaign.',
+        },
+      ],
     },
     finalTitle: 'Get a consultation',
     finalText: 'Leave a request — we’ll contact you, dig into your goal and show how to launch a campaign.',
@@ -315,6 +375,26 @@ export default function Business() {
             <p className="lead">{t.about.lead}</p>
           </div>
         </Section>
+
+        {/* FAQ — dropdown accordion */}
+        <section className="section">
+          <div className="container">
+            <Reveal as="header" className="section__head section__head--center">
+              <h2 className="section__title">{t.faq.title}</h2>
+              <p className="faq__sub">{t.faq.sub}</p>
+            </Reveal>
+            <Reveal>
+              <div className="faq">
+                {t.faq.items.map((it) => (
+                  <details key={it.q} className="faq__item">
+                    <summary className="faq__q">{it.q}</summary>
+                    <p className="faq__a">{it.a}</p>
+                  </details>
+                ))}
+              </div>
+            </Reveal>
+          </div>
+        </section>
 
         {/* 5.13 Final CTA + form */}
         <section id="consult" className="cta-section">

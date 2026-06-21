@@ -29,6 +29,8 @@ export async function initDb() {
   }
 }
 
+/* ---------------- Showcase videos (CMS feed) ---------------- */
+
 export async function getVideos() {
   const result = await pool.query('SELECT * FROM videos ORDER BY id ASC');
   return result.rows.map(row => ({

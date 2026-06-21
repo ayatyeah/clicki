@@ -9,21 +9,27 @@ import ThankYou from './pages/ThankYou.jsx';
 import NotFound from './pages/NotFound.jsx';
 import Admin from './pages/Admin.jsx';
 import Playground from './components/Playground.jsx';
+import { initAnalytics, trackPageview } from './lib/analytics.js';
 
-// Scroll to top on route change so each funnel page starts at its hero.
-function ScrollToTop() {
+// Scroll to top + report a pageview on every route change.
+function RouteEffects() {
   const { pathname } = useLocation();
   useEffect(() => {
     window.scrollTo(0, 0);
+    trackPageview(pathname);
   }, [pathname]);
   return null;
 }
 
 export default function App() {
+  useEffect(() => {
+    initAnalytics();
+  }, []);
+
   return (
     <>
       <Playground />
-      <ScrollToTop />
+      <RouteEffects />
       <Routes>
         <Route path="/" element={<Hub />} />
         <Route path="/business" element={<Business />} />

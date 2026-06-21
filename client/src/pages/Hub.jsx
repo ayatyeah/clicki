@@ -12,7 +12,7 @@ const COPY = {
     accent: 'залетает',
     subtitle: 'Живая органика без накруток и фейка. Выбирай свою сторону — и погнали 👇',
     bizEyebrow: 'Я бизнес',
-    bizTitle: 'Нужны просмотры',
+    bizTitle: 'Хочу охваты',
     bizDesc: 'Продвигай продукт через живой контент и плати только за результат.',
     crEyebrow: 'Я креатор',
     crTitle: 'Хочу зарабатывать',
@@ -27,7 +27,7 @@ const COPY = {
     accent: 'takes off',
     subtitle: 'Real organic reach — no bots, no fakes. Pick your side and let’s go 👇',
     bizEyebrow: 'I’m a business',
-    bizTitle: 'I need views',
+    bizTitle: 'I want reach',
     bizDesc: 'Promote your product through real content and pay only for results.',
     crEyebrow: 'I’m a creator',
     crTitle: 'I want to earn',
@@ -53,7 +53,9 @@ export default function Hub() {
             <img className="hub__mark" src="/logo-mark.png" alt="" width="56" height="56" />
             <span className="hub__wordmark">CLICKI</span>
           </div>
-          <LangSwitch />
+          <div className="hub__topnav">
+            <LangSwitch />
+          </div>
         </div>
         <h1 className="hub__title">
           {t.title1}
@@ -78,9 +80,11 @@ export default function Hub() {
           </Link>
         </div>
 
-        <Link to="/contacts" className="hub__link">
-          {t.contact}
-        </Link>
+        <div className="hub__links">
+          <Link to="/contacts" className="hub__link">
+            {t.contact}
+          </Link>
+        </div>
       </div>
     </main>
   );
