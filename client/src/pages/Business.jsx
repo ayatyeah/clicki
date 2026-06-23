@@ -105,10 +105,6 @@ const COPY = {
           a: 'Вы платите только за подтверждённый живой охват, а не за факт публикации. Никаких фиксированных гонораров за ролик, который может набрать ноль просмотров.',
         },
         {
-          q: 'Как вы защищаете от накруток и ботов?',
-          a: 'Умные фильтры отсекают ботов и «левый» трафик. В отчёт попадают только живые органические просмотры от реальной аудитории.',
-        },
-        {
           q: 'Сколько времени занимает запуск кампании?',
           a: 'До 48 часов. Вы ставите бриф — платформа сама раздаёт заказы проверенным авторам и запускает публикации.',
         },
@@ -220,10 +216,6 @@ const COPY = {
         {
           q: 'Why is pay-per-view better than classic advertising?',
           a: 'You pay only for confirmed real reach, not for the fact of posting. No fixed blogger fees for a video that may get zero views.',
-        },
-        {
-          q: 'How do you protect against bots and fake views?',
-          a: 'Smart filters cut out bots and junk traffic. Only real organic views from a live audience make it into the report.',
         },
         {
           q: 'How long does it take to launch a campaign?',
