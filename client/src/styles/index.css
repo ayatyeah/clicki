@@ -260,12 +260,25 @@ img, video {
   position: absolute;
   border-radius: 50%;
   will-change: transform;
-  transform: translate3d(calc(var(--mx) * var(--depth)), calc(var(--my) * var(--depth) + var(--scroll) * var(--depthY)), 0);
+  /* X = mouse parallax; Y = mouse + scroll parallax (* 1px gives the unitless
+     scroll value a length, otherwise the whole calc() is invalid). depthY sets
+     the layer speed: far orbs ~5–9%, near dots ~10–14% of scroll. */
+  transform: translate3d(
+    calc(var(--mx) * var(--depth)),
+    calc(var(--my) * var(--depth) + var(--scroll) * var(--depthY) * 1px),
+    0
+  );
   animation: pgFloat var(--dur, 14s) ease-in-out infinite;
 }
 .pg-orb {
   filter: blur(60px);
   opacity: 0.5;
+}
+/* Lighter blur on phones — blur(60px) over several orbs is costly on mobile GPUs. */
+@media (max-width: 640px) {
+  .pg-orb {
+    filter: blur(40px);
+  }
 }
 .pg-orb--violet {
   background: radial-gradient(circle at 35% 35%, #a78bfa, #7c3aed 70%);

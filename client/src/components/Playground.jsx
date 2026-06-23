@@ -31,6 +31,7 @@ export default function Playground() {
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     let raf = 0;
+    let scrollRaf = 0;
     let tx = 0;
     let ty = 0;
     let cx = 0;
@@ -41,7 +42,14 @@ export default function Playground() {
       ty = (e.clientY / window.innerHeight - 0.5) * 2;
       if (!raf) raf = requestAnimationFrame(tick);
     };
-    const onScroll = () => el.style.setProperty('--scroll', String(window.scrollY));
+    // rAF-batched so a burst of scroll events writes the var at most once a frame.
+    const onScroll = () => {
+      if (scrollRaf) return;
+      scrollRaf = requestAnimationFrame(() => {
+        scrollRaf = 0;
+        el.style.setProperty('--scroll', String(window.scrollY));
+      });
+    };
     const tick = () => {
       raf = 0;
       cx += (tx - cx) * 0.06;
@@ -60,6 +68,7 @@ export default function Playground() {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('scroll', onScroll);
       if (raf) cancelAnimationFrame(raf);
+      if (scrollRaf) cancelAnimationFrame(scrollRaf);
     };
   }, []);
 
@@ -69,7 +78,15 @@ export default function Playground() {
         <span
           key={`orb-${i}`}
           className={`pg-orb pg-orb--${o.tone}`}
-          style={{ top: o.top, left: o.left, width: o.size, height: o.size, '--depth': `${o.depth}px`, '--depthY': o.depthY }}
+          style={{
+            top: o.top,
+            left: o.left,
+            // Adaptive: capped in px on desktop, scales down with the viewport on mobile.
+            width: `min(${o.size}px, ${Math.round(o.size / 11)}vw)`,
+            height: `min(${o.size}px, ${Math.round(o.size / 11)}vw)`,
+            '--depth': `${o.depth}px`,
+            '--depthY': o.depthY,
+          }}
         />
       ))}
       {DOTS.map((d, i) => (
