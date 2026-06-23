@@ -150,6 +150,15 @@ app.post('/api/admin/upload', requireAdmin, upload.single('file'), async (req, r
       const url = await uploadToSpaces(req.file.buffer, req.file.mimetype);
       return res.json({ ok: true, url });
     }
+    // No object storage configured: never let heavy media into Postgres (it
+    // pins the DB CPU). Only small images may fall back to DB storage.
+    const isVideo = req.file.mimetype.startsWith('video/');
+    if (isVideo || req.file.size > 4 * 1024 * 1024) {
+      return res.status(400).json({
+        ok: false,
+        errors: ['Хранилище Spaces не настроено — видео и крупные файлы загружать нельзя. Задайте переменные SPACES_*.'],
+      });
+    }
     const id = await saveMedia(req.file.mimetype, req.file.buffer);
     res.json({ ok: true, url: `/api/media/${id}` });
   } catch (err) {
