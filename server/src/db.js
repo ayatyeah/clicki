@@ -24,6 +24,14 @@ export async function initDb() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS media (
+        id SERIAL PRIMARY KEY,
+        mime VARCHAR(120) NOT NULL,
+        data BYTEA NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
   } finally {
     client.release();
   }
@@ -45,14 +53,14 @@ export async function saveVideos(videos) {
   try {
     await client.query('BEGIN');
     await client.query('DELETE FROM videos');
-    
+
     for (const v of videos) {
       await client.query(
         'INSERT INTO videos (type, src, poster) VALUES ($1, $2, $3)',
         [v.type, v.src, v.poster]
       );
     }
-    
+
     await client.query('COMMIT');
   } catch (e) {
     await client.query('ROLLBACK');
@@ -60,4 +68,32 @@ export async function saveVideos(videos) {
   } finally {
     client.release();
   }
+}
+
+/* ---------------- Media blobs (uploaded images/videos) ---------------- */
+
+/** Store an uploaded file's bytes; returns its new id. */
+export async function saveMedia(mime, buffer) {
+  const result = await pool.query(
+    'INSERT INTO media (mime, data) VALUES ($1, $2) RETURNING id',
+    [mime, buffer]
+  );
+  return result.rows[0].id;
+}
+
+/** Fetch a media blob by id, or null if missing. */
+export async function getMedia(id) {
+  const result = await pool.query('SELECT mime, data FROM media WHERE id = $1', [id]);
+  if (result.rows.length === 0) return null;
+  return { mime: result.rows[0].mime, data: result.rows[0].data };
+}
+
+/**
+ * Fetch only a media row's mime — cheap: selecting just `mime` does NOT
+ * de-TOAST the big `data` column, so this avoids reading the blob per request.
+ */
+export async function getMediaMeta(id) {
+  const result = await pool.query('SELECT mime FROM media WHERE id = $1', [id]);
+  if (result.rows.length === 0) return null;
+  return { mime: result.rows[0].mime };
 }

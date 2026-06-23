@@ -1,7 +1,9 @@
 import 'dotenv/config';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, createReadStream, statSync, mkdirSync } from 'node:fs';
+import { writeFile } from 'node:fs/promises';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -13,12 +15,17 @@ import { verifyRecaptcha } from './recaptcha.js';
 import { dispatchLead } from './notify.js';
 import { saveLead, readLeads } from './store.js';
 import { readContent, writeContent } from './content.js';
-import { initDb } from './db.js';
+import { initDb, saveMedia, getMedia, getMediaMeta } from './db.js';
+import { uploadToSpaces, spacesEnabled } from './storage.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIST = path.join(__dirname, '..', '..', 'client', 'dist');
-const UPLOADS = path.join(__dirname, '..', 'uploads');
-mkdirSync(UPLOADS, { recursive: true });
+
+// Ephemeral local cache for media blobs. The DB is the source of truth, but we
+// read each blob from it at most once, then stream playback from disk so video
+// range-requests don't hammer Postgres (managed DBs choke on repeated 90 MB reads).
+const MEDIA_CACHE = path.join(os.tmpdir(), 'clicki-media');
+mkdirSync(MEDIA_CACHE, { recursive: true });
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -29,26 +36,18 @@ app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json({ limit: '32kb' }));
 
-// Uploaded media (showcase videos, device screen images).
-app.use('/uploads', express.static(UPLOADS, { maxAge: '7d' }));
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOADS),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).slice(0, 12).replace(/[^.\w]/g, '');
-    cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
-  },
-});
+// Media is stored in Postgres (not local disk) so it survives redeploys on
+// ephemeral-filesystem hosts. Uploads are buffered in memory, then inserted.
 const upload = multer({
-  storage,
-  limits: { fileSize: 80 * 1024 * 1024 }, // 80 MB
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 150 * 1024 * 1024 }, // 150 MB per file
   fileFilter: (_req, file, cb) => {
     const ok = /^(image|video)\//.test(file.mimetype);
     cb(ok ? null : new Error('Только изображения и видео'), ok);
   },
 });
 
-const origins = (process.env.CORS_ORIGINS || 'http://localhost:5173')
+const origins = (process.env.CORS_ORIGINS || 'http://localhost:5174')
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean);
@@ -142,10 +141,69 @@ app.get('/api/admin/leads', requireAdmin, async (_req, res) => {
   res.json({ ok: true, count: leads.length, leads });
 });
 
-// Upload a media file (image/video) → returns its public URL.
-app.post('/api/admin/upload', requireAdmin, upload.single('file'), (req, res) => {
+// Upload a media file (image/video) → Spaces if configured (keeps big video out
+// of Postgres), otherwise fall back to storing the bytes in the DB.
+app.post('/api/admin/upload', requireAdmin, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ ok: false, errors: ['Файл не получен'] });
-  res.json({ ok: true, url: `/uploads/${req.file.filename}` });
+  try {
+    if (spacesEnabled) {
+      const url = await uploadToSpaces(req.file.buffer, req.file.mimetype);
+      return res.json({ ok: true, url });
+    }
+    const id = await saveMedia(req.file.mimetype, req.file.buffer);
+    res.json({ ok: true, url: `/api/media/${id}` });
+  } catch (err) {
+    console.error('[media] failed to save upload:', err);
+    res.status(500).json({ ok: false, errors: ['Не удалось сохранить файл'] });
+  }
+});
+
+// Serve a media file (public). The bytes live in Postgres, but we cache each
+// blob on local disk on first access and stream from there — so video range
+// requests during playback hit the disk, not the DB. Supports HTTP Range, which
+// browsers require to play <video> (otherwise playback silently fails).
+app.get('/api/media/:id', async (req, res) => {
+  const id = Number.parseInt(req.params.id, 10);
+  if (!Number.isInteger(id)) return res.status(400).end();
+  try {
+    // Cheap query — does NOT read the big `data` column.
+    const meta = await getMediaMeta(id);
+    if (!meta) return res.status(404).end();
+
+    const file = path.join(MEDIA_CACHE, String(id));
+    if (!existsSync(file)) {
+      const full = await getMedia(id); // one-time blob read, then cached to disk
+      if (!full) return res.status(404).end();
+      await writeFile(file, full.data);
+    }
+
+    const total = statSync(file).size;
+    res.set('Content-Type', meta.mime);
+    res.set('Accept-Ranges', 'bytes');
+    res.set('Cache-Control', 'public, max-age=604800, immutable');
+
+    const range = req.headers.range;
+    if (range) {
+      const match = /bytes=(\d*)-(\d*)/.exec(range);
+      let start = match && match[1] ? Number.parseInt(match[1], 10) : 0;
+      let end = match && match[2] ? Number.parseInt(match[2], 10) : total - 1;
+      if (!Number.isInteger(start) || start < 0) start = 0;
+      if (!Number.isInteger(end) || end >= total) end = total - 1;
+      if (start > end) {
+        return res.status(416).set('Content-Range', `bytes */${total}`).end();
+      }
+      res.status(206);
+      res.set('Content-Range', `bytes ${start}-${end}/${total}`);
+      res.set('Content-Length', String(end - start + 1));
+      return createReadStream(file, { start, end }).pipe(res);
+    }
+
+    res.set('Content-Length', String(total));
+    createReadStream(file).pipe(res);
+  } catch (err) {
+    console.error('[media] failed to read media:', err);
+    res.status(500).end();
+  }
 });
 
 // Save site content (showcase feed + device screen images).

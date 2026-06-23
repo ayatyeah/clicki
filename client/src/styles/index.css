@@ -6,18 +6,18 @@
    ============================================================ */
 
 :root {
-  /* Surfaces — airy, lavender-tinted */
-  --sky: #f6f4fe;
-  --paper: #ffffff;
-  --veil: #f1edfb;
+  /* Surfaces — dark violet (trendsee-style); --white kept for text-on-accent */
+  --sky: #0e0b20;
+  --paper: #181235;
+  --veil: #241c46;
   --white: #ffffff;
 
-  /* Ink — deep indigo headings, muted violet-grey body */
-  --ink: #1b1740;
+  /* Ink — white headings, muted-white body, faint borders (dark theme) */
+  --ink: #ffffff;
   --charcoal: #6d28d9; /* primary filled action = violet */
-  --stone: #5d5878;
-  --fog: #9b97b5;
-  --line: #e8e3f6; /* light hairline borders */
+  --stone: rgba(255, 255, 255, 0.66);
+  --fog: rgba(255, 255, 255, 0.42);
+  --line: rgba(255, 255, 255, 0.1); /* faint hairline borders */
 
   /* Accents — violet + green only */
   --cornflower: #8b5cf6;
@@ -28,21 +28,22 @@
   --cobalt: #5b21b6;
   --green: #16a34a;
 
-  /* Tints */
-  --morning: #efe9fe;
-  --lilac: #f3effe;
-  --sprout: #e6f8ee;
+  /* Tints — translucent violet/green over dark */
+  --morning: rgba(124, 58, 237, 0.16);
+  --lilac: rgba(139, 92, 246, 0.13);
+  --sprout: rgba(34, 197, 94, 0.13);
   --grad-buttery: linear-gradient(180deg, #f3efff 0%, #e9dcff 100%);
-  --grad-lilac: linear-gradient(180deg, #f4efff 0%, #e9dcff 100%);
+  --grad-lilac: linear-gradient(180deg, rgba(124, 58, 237, 0.22) 0%, rgba(139, 92, 246, 0.08) 100%);
   --grad-sky: linear-gradient(180deg, #f1ecff 0%, #ddd0ff 100%);
   --grad-sunset: linear-gradient(180deg, #eafaef 0%, #c9f2d8 100%);
   --grad-brand: linear-gradient(135deg, #7c3aed 0%, #22c55e 100%);
 
-  --shadow-card: rgba(76, 29, 149, 0.13) 0px 24px 48px -16px;
-  --shadow-soft: rgba(76, 29, 149, 0.06) 0px 8px 24px -10px;
+  /* Flatter, more neutral shadows — Folk-clean, not puffy */
+  --shadow-card: rgba(27, 23, 64, 0.08) 0px 14px 30px -18px;
+  --shadow-soft: rgba(27, 23, 64, 0.04) 0px 6px 16px -12px;
 
   --container: 1200px;
-  --r-card: 32px;
+  --r-card: 28px;
   --r-icon: 16px;
   --r-inner: 8px;
   --r-pill: 9999px;
@@ -417,7 +418,7 @@ img, video {
 }
 .hub__inner {
   position: relative;
-  padding-block: 96px;
+  padding-block: 64px;
   width: 100%;
   text-align: center;
 }
@@ -450,19 +451,19 @@ img, video {
   color: var(--ink);
 }
 .hub__title {
-  font-size: clamp(3rem, 12vw, 9rem);
+  font-size: clamp(2.6rem, 9vw, 6rem);
   font-weight: 900;
-  line-height: 0.88;
+  line-height: 0.92;
   letter-spacing: -0.05em;
-  margin: 0 auto 28px;
+  margin: 0 auto 18px;
   max-width: 14ch;
   overflow-wrap: break-word;
 }
 .hub__subtitle {
-  font-size: clamp(1.1rem, 2.4vw, 1.6rem);
+  font-size: clamp(1.05rem, 2.2vw, 1.4rem);
   color: var(--stone);
   max-width: 46ch;
-  margin: 0 auto 56px;
+  margin: 0 auto 36px;
 }
 .hub__choices {
   display: grid;
@@ -652,7 +653,7 @@ img, video {
 
 /* ---------- Sections (whitespace as divider) ---------- */
 .section {
-  padding: clamp(56px, 7vw, 104px) 0;
+  padding: clamp(44px, 6vw, 84px) 0;
 }
 .section--violet,
 .section--green,
@@ -695,7 +696,7 @@ img, video {
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--r-card);
-  padding: 36px;
+  padding: 28px;
   box-shadow: var(--shadow-soft);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -1370,6 +1371,151 @@ img, video {
   color: #16a34a;
   font-weight: 600;
 }
+
+/* Upload progress bar (admin media uploads) */
+.admin-upload {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0 4px;
+}
+.admin-upload__row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  color: var(--stone);
+}
+.admin-upload__track {
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--veil);
+  overflow: hidden;
+}
+.admin-upload__bar {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--grad-brand);
+  transition: width 0.2s ease;
+}
+
+/* ---------- Admin sidebar layout ---------- */
+.admin-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+  align-items: start;
+}
+.admin-sidebar {
+  position: sticky;
+  top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  padding: 16px;
+}
+.admin-sidebar__brand {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--ink);
+  font-size: 1.05rem;
+  padding: 6px 10px 12px;
+}
+.admin-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.admin-nav__btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: var(--r-icon);
+  padding: 10px 12px;
+  color: var(--stone);
+  font: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.admin-nav__btn:hover {
+  background: var(--veil);
+  color: var(--ink);
+}
+.admin-nav__btn.is-active {
+  background: var(--morning);
+  color: #c4b5fd;
+  font-weight: 600;
+}
+.admin-nav__icon {
+  width: 20px;
+  text-align: center;
+  flex: 0 0 auto;
+}
+.admin-sidebar__logout {
+  margin-top: 12px;
+}
+.admin-main {
+  min-width: 0;
+}
+.admin-main .admin-block:first-child {
+  margin-top: 0;
+}
+.admin-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+}
+.admin-stat {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  padding: 20px 22px;
+}
+.admin-stat__value {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--ink);
+}
+.admin-stat__label {
+  margin-top: 6px;
+  color: var(--stone);
+  font-size: 0.9rem;
+}
+.admin-placeholder {
+  background: var(--paper);
+  border: 1px dashed var(--line);
+  border-radius: var(--r-card);
+  padding: 32px;
+  color: var(--stone);
+  max-width: 60ch;
+}
+@media (max-width: 760px) {
+  .admin-layout {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+  .admin-sidebar {
+    position: static;
+  }
+  .admin-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .admin-nav__btn {
+    width: auto;
+  }
+}
 .showcase__card img {
   width: 100%;
   height: 100%;
@@ -1797,4 +1943,145 @@ canvas {
     width: 50px;
     height: 50px;
   }
+}
+
+/* ============================================================
+   Hub — trendsee-style dark violet landing
+   ============================================================ */
+.hub {
+  background:
+    radial-gradient(60% 45% at 50% -5%, rgba(124, 58, 237, 0.38), transparent 70%),
+    radial-gradient(45% 40% at 88% 84%, rgba(139, 92, 246, 0.22), transparent 72%),
+    radial-gradient(42% 40% at 8% 72%, rgba(34, 197, 94, 0.12), transparent 72%),
+    #110d24;
+  color: #fff;
+  overflow: hidden;
+}
+.hub .hub__inner {
+  z-index: 1;
+}
+.hub .hub__wordmark,
+.hub .hub__title {
+  color: #fff;
+}
+.hub .hub__subtitle {
+  color: rgba(255, 255, 255, 0.68);
+}
+.hub .lang-switch,
+.hub .lang-switch button {
+  color: rgba(255, 255, 255, 0.7);
+}
+.hub .lang-switch button.is-active {
+  color: #c4b5fd;
+}
+.hub .hub__link {
+  color: rgba(255, 255, 255, 0.6);
+}
+.hub .hub__link:hover {
+  color: #fff;
+}
+
+/* Choices as dark violet glass cards */
+.hub .choice--business,
+.hub .choice--creator {
+  background: rgba(124, 58, 237, 0.12);
+  border: 1px solid rgba(168, 139, 250, 0.28);
+}
+.hub .choice:hover {
+  background: rgba(124, 58, 237, 0.2);
+  box-shadow: 0 24px 48px -20px rgba(124, 58, 237, 0.6);
+}
+.hub .choice__title,
+.hub .choice__arrow {
+  color: #fff;
+}
+.hub .choice__desc {
+  color: rgba(255, 255, 255, 0.62);
+}
+.hub .choice__eyebrow,
+.hub .choice--creator .choice__eyebrow {
+  color: #c4b5fd;
+}
+
+/* Big faded social logos in the background */
+.hub__logos {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.hub__logos img {
+  position: absolute;
+  opacity: 0.06;
+  filter: brightness(0) invert(1); /* render logos as faint white, trendsee-style */
+}
+.hub__logos img:nth-child(1) { top: 6%; left: 3%; width: 200px; height: 200px; transform: rotate(-12deg); }
+.hub__logos img:nth-child(2) { top: 56%; left: 79%; width: 230px; height: 230px; transform: rotate(10deg); }
+.hub__logos img:nth-child(3) { top: 74%; left: 7%; width: 160px; height: 160px; transform: rotate(8deg); }
+.hub__logos img:nth-child(4) { top: 12%; left: 82%; width: 150px; height: 150px; transform: rotate(-8deg); }
+.hub__logos img:nth-child(5) { top: 38%; left: 45%; width: 250px; height: 250px; opacity: 0.04; transform: rotate(6deg); }
+
+/* Persistent centered CTA docked at the bottom */
+.hub__cta-dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 24px;
+  z-index: 45;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.hub__cta-dock .btn {
+  pointer-events: auto;
+  box-shadow: 0 16px 40px -12px rgba(124, 58, 237, 0.7);
+}
+@media (max-width: 640px) {
+  .hub__logos img:nth-child(5) { display: none; }
+  .hub__cta-dock {
+    bottom: 16px;
+  }
+}
+
+/* ============================================================
+   Dark theme — contrast fixups for tinted accents
+   (these used deep-violet/green text that vanishes on dark)
+   ============================================================ */
+.badge {
+  color: #c4b5fd;
+}
+.badge--green {
+  color: #6ee7a8;
+}
+.section__eyebrow,
+.funnel--business .section__eyebrow {
+  color: #a78bfa;
+}
+.section--green .section__eyebrow {
+  color: #6ee7a8;
+}
+/* Lead form surface must be dark, not the literal white */
+.lead-form {
+  background: var(--paper);
+}
+.btn--ghost:hover {
+  background: var(--veil);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+.compare__us {
+  color: #c4b5fd !important;
+}
+.faq__item[open] .faq__q::after {
+  color: #c4b5fd;
+}
+.cta-section__contacts a:hover {
+  color: #c4b5fd;
+}
+.thanks__check {
+  color: #6ee7a8;
+}
+.slogans__item:nth-child(4n + 4) {
+  background: rgba(245, 158, 11, 0.14);
 }

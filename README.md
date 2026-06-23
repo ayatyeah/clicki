@@ -47,7 +47,7 @@ cp client/.env.example client/.env      # необязательно
 
 # 3. В двух терминалах:
 npm run dev:server      # http://localhost:4000
-npm run dev:client      # http://localhost:5173
+npm run dev:client      # http://localhost:5174
 ```
 
 Vite проксирует `/api/*` на бэкенд (`vite.config.js`), поэтому фронт ходит на относительные пути.

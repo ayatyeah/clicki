@@ -47,6 +47,13 @@ export default function Hub() {
     <main className="hub">
       <Seo title={t.seoTitle} description={t.seoDesc} path="/" />
       <div className="hub__bg" aria-hidden="true" />
+      <div className="hub__logos" aria-hidden="true">
+        <img src="/social/tiktok.svg" alt="" />
+        <img src="/social/instagram.svg" alt="" />
+        <img src="/social/youtube.svg" alt="" />
+        <img src="/social/x.svg" alt="" />
+        <img src="/social/threads.svg" alt="" />
+      </div>
       <div className="container hub__inner">
         <div className="hub__topbar">
           <div className="hub__brand">
@@ -85,6 +92,13 @@ export default function Hub() {
             {t.contact}
           </Link>
         </div>
+      </div>
+
+      {/* Persistent centered CTA docked at the bottom (trendsee-style) */}
+      <div className="hub__cta-dock">
+        <Link to="/contacts" className="btn btn--primary btn--lg">
+          {t.contact}
+        </Link>
       </div>
     </main>
   );

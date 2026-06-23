@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import { API_BASE } from '../lib/config.js';
 
 const TOKEN_KEY = 'clicki_admin_token';
-const FUNNEL = { client: '🟣 Клиент', creator: '🟢 Креатор' };
 const EMPTY = { showcase: [], devices: { iphone: { image: '' }, laptop: { image: '' } } };
 
 export default function Admin() {
@@ -17,6 +16,8 @@ export default function Admin() {
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(null); // null = idle, 0–100 = uploading
+  const [view, setView] = useState('dashboard');
 
   const authFetch = useCallback(
     (url, opts = {}) => fetch(`${API_BASE}${url}`, { ...opts, headers: { ...(opts.headers || {}), Authorization: `Bearer ${token}` } }),
@@ -81,13 +82,35 @@ export default function Admin() {
     setLeads([]);
   }
 
-  async function uploadFile(file) {
-    const fd = new FormData();
-    fd.append('file', file);
-    const res = await authFetch('/api/admin/upload', { method: 'POST', body: fd });
-    const data = await res.json();
-    if (!res.ok) throw new Error((data.errors && data.errors[0]) || 'Ошибка загрузки');
-    return data.url;
+  // XHR (not fetch) so we can report real upload progress for large videos.
+  function uploadFile(file) {
+    setProgress(0);
+    return new Promise((resolve, reject) => {
+      const fd = new FormData();
+      fd.append('file', file);
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_BASE}/api/admin/upload`);
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100));
+      };
+      xhr.onload = () => {
+        setProgress(null);
+        let data = {};
+        try {
+          data = JSON.parse(xhr.responseText);
+        } catch {
+          /* non-JSON response */
+        }
+        if (xhr.status >= 200 && xhr.status < 300) resolve(data.url);
+        else reject(new Error((data.errors && data.errors[0]) || 'Ошибка загрузки'));
+      };
+      xhr.onerror = () => {
+        setProgress(null);
+        reject(new Error('Ошибка сети при загрузке'));
+      };
+      xhr.send(fd);
+    });
   }
 
   async function addShowcase(file) {
@@ -178,106 +201,245 @@ export default function Admin() {
     );
   }
 
+  const businessLeads = leads.filter((l) => l.funnel === 'client');
+  const creatorLeads = leads.filter((l) => l.funnel === 'creator');
+  const NAV = [
+    { key: 'dashboard', label: 'Дашборд', icon: '▦' },
+    { key: 'ai', label: 'ИИ Аналитика', icon: '✦' },
+    { key: 'analytics', label: 'Аналитика', icon: '📈' },
+    { key: 'leads-business', label: 'Заявки Бизнеса', icon: '🟣' },
+    { key: 'leads-creators', label: 'Заявки Креаторов', icon: '🟢' },
+    { key: 'videos', label: 'Загрузка видео', icon: '🎬' },
+    { key: 'content', label: 'Контент сайта', icon: '🖼' },
+  ];
+
   return (
     <main className="admin">
       <Helmet>
         <title>CLICKI — админка</title>
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
-      <div className="container admin-panel">
-        <div className="admin-panel__head">
-          <h1 className="page__title">Админка</h1>
-          <div className="admin-panel__actions">
-            <button className="btn btn--ghost btn--sm" onClick={logout}>Выйти</button>
-          </div>
-        </div>
-
-        {error && <p className="lead-form__errors">{error}</p>}
-
-        {/* ---- Showcase feed ---- */}
-        <section className="admin-block">
-          <h2 className="admin-block__title">Лента нашей рекламы</h2>
-          <p className="muted-note" style={{ textAlign: 'left', marginTop: 0 }}>
-            Видео и фото для блока «Лента нашей рекламы». Формат 9:16. Перетаскивайте порядок стрелками.
-          </p>
-          <div className="admin-media-grid">
-            {content.showcase.map((it, i) => (
-              <div className="admin-media" key={it.src}>
-                {it.type === 'image' ? <img src={it.src} alt="" /> : <video src={it.src} muted loop playsInline />}
-                <div className="admin-media__bar">
-                  <button onClick={() => moveShowcase(i, -1)} title="Влево">←</button>
-                  <button onClick={() => moveShowcase(i, 1)} title="Вправо">→</button>
-                  <button onClick={() => removeShowcase(i)} title="Удалить" className="admin-media__del">✕</button>
-                </div>
-              </div>
+      <div className="admin-layout">
+        <aside className="admin-sidebar">
+          <div className="admin-sidebar__brand">CLICKI · админка</div>
+          <nav className="admin-nav">
+            {NAV.map((n) => (
+              <button
+                key={n.key}
+                className={`admin-nav__btn ${view === n.key ? 'is-active' : ''}`}
+                onClick={() => setView(n.key)}
+              >
+                <span className="admin-nav__icon" aria-hidden="true">{n.icon}</span>
+                {n.label}
+              </button>
             ))}
-            <label className="admin-media admin-media--add">
-              <input type="file" accept="image/*,video/*" hidden onChange={(e) => addShowcase(e.target.files?.[0])} />
-              <span>＋ Добавить</span>
-            </label>
-          </div>
-        </section>
-
-        {/* ---- Device screens ---- */}
-        <section className="admin-block">
-          <h2 className="admin-block__title">Экраны устройств</h2>
-          <div className="admin-devices">
-            <DeviceField label="Экран iPhone (креаторы)" image={content.devices.iphone.image} onPick={(f) => setDevice('iphone', f)} onClear={() => setContent((c) => ({ ...c, devices: { ...c.devices, iphone: { image: '' } } }))} />
-            <DeviceField label="Экран ноутбука (бизнес)" image={content.devices.laptop.image} onPick={(f) => setDevice('laptop', f)} onClear={() => setContent((c) => ({ ...c, devices: { ...c.devices, laptop: { image: '' } } }))} />
-          </div>
-        </section>
-
-        <div className="admin-save">
-          <button className="btn btn--primary" onClick={saveContent} disabled={busy}>
-            {busy ? 'Сохраняю…' : 'Сохранить изменения'}
+          </nav>
+          <button className="btn btn--ghost btn--sm admin-sidebar__logout" onClick={logout}>
+            Выйти
           </button>
-          {msg && <span className="admin-save__msg">{msg}</span>}
-        </div>
+        </aside>
 
-        {/* ---- Leads ---- */}
-        <section className="admin-block">
-          <div className="admin-panel__head">
-            <h2 className="admin-block__title">Заявки ({leads.length})</h2>
-            <button className="btn btn--ghost btn--sm" onClick={loadLeads} disabled={loading}>
-              {loading ? 'Обновляю…' : 'Обновить'}
-            </button>
-          </div>
-          <div className="admin-table-wrap">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Воронка</th>
-                  <th>Данные</th>
-                  <th>Страница</th>
-                  <th>Время</th>
-                </tr>
-              </thead>
-              <tbody>
-                {leads.map((lead, i) => (
-                  <tr key={i}>
-                    <td>{FUNNEL[lead.funnel] || lead.funnel}</td>
-                    <td>
-                      {Object.entries(lead.fields || {}).map(([k, v]) => (
-                        <div key={k}>
-                          <b>{k}:</b> {v}
-                        </div>
-                      ))}
-                    </td>
-                    <td>{lead.page || '—'}</td>
-                    <td>{new Date(lead.createdAt).toLocaleString('ru-RU')}</td>
-                  </tr>
+        <div className="admin-main">
+          {error && <p className="lead-form__errors">{error}</p>}
+
+          {progress !== null && (
+            <div className="admin-upload" role="status" aria-live="polite">
+              <div className="admin-upload__row">
+                <span>Загрузка файла…</span>
+                <span>{progress}%</span>
+              </div>
+              <div className="admin-upload__track">
+                <div className="admin-upload__bar" style={{ width: `${progress}%` }} />
+              </div>
+            </div>
+          )}
+
+          {view === 'dashboard' && (
+            <section className="admin-block">
+              <div className="admin-panel__head">
+                <h2 className="admin-block__title">Дашборд</h2>
+                <button className="btn btn--ghost btn--sm" onClick={loadLeads} disabled={loading}>
+                  {loading ? 'Обновляю…' : 'Обновить'}
+                </button>
+              </div>
+              <div className="admin-stats">
+                <Stat label="Всего заявок" value={leads.length} />
+                <Stat label="Заявки бизнеса" value={businessLeads.length} />
+                <Stat label="Заявки креаторов" value={creatorLeads.length} />
+                <Stat label="Видео в ленте" value={content.showcase.length} />
+              </div>
+            </section>
+          )}
+
+          {view === 'ai' && (
+            <section className="admin-block">
+              <h2 className="admin-block__title">ИИ Аналитика</h2>
+              <div className="admin-placeholder">
+                Раздел в разработке. Здесь появится ИИ-аналитика заявок: сегментация аудитории,
+                прогноз конверсии и подсказки по контенту.
+              </div>
+            </section>
+          )}
+
+          {view === 'analytics' && (
+            <section className="admin-block">
+              <h2 className="admin-block__title">Аналитика</h2>
+              <div className="admin-stats">
+                <Stat label="Всего заявок" value={leads.length} />
+                <Stat label="Бизнес" value={businessLeads.length} />
+                <Stat label="Креаторы" value={creatorLeads.length} />
+              </div>
+              <AnalyticsByPage leads={leads} />
+            </section>
+          )}
+
+          {view === 'leads-business' && (
+            <LeadsSection title="Заявки Бизнеса" leads={businessLeads} loading={loading} onReload={loadLeads} />
+          )}
+
+          {view === 'leads-creators' && (
+            <LeadsSection title="Заявки Креаторов" leads={creatorLeads} loading={loading} onReload={loadLeads} />
+          )}
+
+          {view === 'videos' && (
+            <section className="admin-block">
+              <h2 className="admin-block__title">Загрузка видео</h2>
+              <p className="muted-note" style={{ textAlign: 'left', marginTop: 0 }}>
+                Видео и фото для блока «Лента нашей рекламы». Формат 9:16. Перетаскивайте порядок стрелками.
+              </p>
+              <div className="admin-media-grid">
+                {content.showcase.map((it, i) => (
+                  <div className="admin-media" key={it.src}>
+                    {it.type === 'image' ? <img src={it.src} alt="" /> : <video src={it.src} muted loop playsInline />}
+                    <div className="admin-media__bar">
+                      <button onClick={() => moveShowcase(i, -1)} title="Влево">←</button>
+                      <button onClick={() => moveShowcase(i, 1)} title="Вправо">→</button>
+                      <button onClick={() => removeShowcase(i)} title="Удалить" className="admin-media__del">✕</button>
+                    </div>
+                  </div>
                 ))}
-                {!leads.length && !loading && (
-                  <tr>
-                    <td colSpan={4} className="admin-table__empty">Пока нет заявок</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                <label className="admin-media admin-media--add">
+                  <input type="file" accept="image/*,video/*" hidden onChange={(e) => addShowcase(e.target.files?.[0])} />
+                  <span>＋ Добавить</span>
+                </label>
+              </div>
+              <div className="admin-save">
+                <button className="btn btn--primary" onClick={saveContent} disabled={busy}>
+                  {busy ? 'Сохраняю…' : 'Сохранить изменения'}
+                </button>
+                {msg && <span className="admin-save__msg">{msg}</span>}
+              </div>
+            </section>
+          )}
+
+          {view === 'content' && (
+            <section className="admin-block">
+              <h2 className="admin-block__title">Контент сайта</h2>
+              <p className="muted-note" style={{ textAlign: 'left', marginTop: 0 }}>
+                Экраны устройств в героях страниц.
+              </p>
+              <div className="admin-devices">
+                <DeviceField label="Экран iPhone (креаторы)" image={content.devices.iphone.image} onPick={(f) => setDevice('iphone', f)} onClear={() => setContent((c) => ({ ...c, devices: { ...c.devices, iphone: { image: '' } } }))} />
+                <DeviceField label="Экран ноутбука (бизнес)" image={content.devices.laptop.image} onPick={(f) => setDevice('laptop', f)} onClear={() => setContent((c) => ({ ...c, devices: { ...c.devices, laptop: { image: '' } } }))} />
+              </div>
+              <div className="admin-save">
+                <button className="btn btn--primary" onClick={saveContent} disabled={busy}>
+                  {busy ? 'Сохраняю…' : 'Сохранить изменения'}
+                </button>
+                {msg && <span className="admin-save__msg">{msg}</span>}
+              </div>
+            </section>
+          )}
+        </div>
       </div>
     </main>
+  );
+}
+
+function Stat({ label, value }) {
+  return (
+    <div className="admin-stat">
+      <div className="admin-stat__value">{value}</div>
+      <div className="admin-stat__label">{label}</div>
+    </div>
+  );
+}
+
+function LeadsSection({ title, leads, loading, onReload }) {
+  return (
+    <section className="admin-block">
+      <div className="admin-panel__head">
+        <h2 className="admin-block__title">
+          {title} ({leads.length})
+        </h2>
+        <button className="btn btn--ghost btn--sm" onClick={onReload} disabled={loading}>
+          {loading ? 'Обновляю…' : 'Обновить'}
+        </button>
+      </div>
+      <div className="admin-table-wrap">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>Данные</th>
+              <th>Страница</th>
+              <th>Время</th>
+            </tr>
+          </thead>
+          <tbody>
+            {leads.map((lead, i) => (
+              <tr key={i}>
+                <td>
+                  {Object.entries(lead.fields || {}).map(([k, v]) => (
+                    <div key={k}>
+                      <b>{k}:</b> {v}
+                    </div>
+                  ))}
+                </td>
+                <td>{lead.page || '—'}</td>
+                <td>{new Date(lead.createdAt).toLocaleString('ru-RU')}</td>
+              </tr>
+            ))}
+            {!leads.length && !loading && (
+              <tr>
+                <td colSpan={3} className="admin-table__empty">
+                  Пока нет заявок
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function AnalyticsByPage({ leads }) {
+  const byPage = {};
+  for (const l of leads) {
+    const p = l.page || '—';
+    byPage[p] = (byPage[p] || 0) + 1;
+  }
+  const rows = Object.entries(byPage).sort((a, b) => b[1] - a[1]);
+  if (!rows.length) return null;
+  return (
+    <div className="admin-table-wrap" style={{ marginTop: 16 }}>
+      <table className="admin-table">
+        <thead>
+          <tr>
+            <th>Страница</th>
+            <th>Заявок</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(([page, n]) => (
+            <tr key={page}>
+              <td>{page}</td>
+              <td>{n}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
