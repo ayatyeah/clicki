@@ -6,7 +6,7 @@ import Reveal from '../components/Reveal.jsx';
 import LeadForm from '../components/LeadForm.jsx';
 import VideoShowcase from '../components/VideoShowcase.jsx';
 import PlatformChips from '../components/PlatformChips.jsx';
-import LaptopScene from '../three/LaptopScene.jsx';
+import MacbookScroll from '../components/MacbookScroll.jsx';
 import { useLang } from '../i18n.jsx';
 import { useContent } from '../content.jsx';
 import { PHONE, PHONE_TEL, TELEGRAM_URL, EMAIL, EMAIL_URL } from '../lib/config.js';
@@ -22,6 +22,7 @@ const COPY = {
     heroSub: 'Первая платформа, где вы платите за живые просмотры, а не за обещания. Запуск за пару дней и никакого слитого бюджета.',
     consult: 'Получить консультацию',
     how: 'Как это работает',
+    macbookTitle: 'Вся кампания — в одном дашборде',
     fields: [
       { name: 'name', label: 'Имя', required: true, autoComplete: 'name', placeholder: 'Как к вам обращаться' },
       { name: 'company', label: 'Компания', placeholder: 'Название бренда' },
@@ -135,6 +136,7 @@ const COPY = {
     heroSub: 'The first platform where you pay for real views, not promises. Launch in days — no wasted budget.',
     consult: 'Get a consultation',
     how: 'How it works',
+    macbookTitle: 'Your whole campaign in one dashboard',
     fields: [
       { name: 'name', label: 'Name', required: true, autoComplete: 'name', placeholder: 'How should we address you' },
       { name: 'company', label: 'Company', placeholder: 'Brand name' },
@@ -253,7 +255,7 @@ export default function Business() {
       <main className="funnel funnel--business">
         {/* 5.1 Hero */}
         <section className="hero">
-          <div className="container hero__inner">
+          <div className="container hero__inner hero__inner--single">
             <Reveal as="div" className="hero__copy">
               <span className="badge">{t.badge}</span>
               <h1 className="hero__title">
@@ -274,15 +276,10 @@ export default function Business() {
                 ☎ {PHONE}
               </a>
             </Reveal>
-            <Reveal className="hero__art hero__art--device">
-              <LaptopScene
-                interactive
-                className="hero__device hero__device--lg"
-                screenImage={content.devices?.laptop?.image}
-              />
-            </Reveal>
           </div>
         </section>
+
+        <MacbookScroll src={content.devices?.laptop?.image} title={t.macbookTitle} />
 
         <Section id="problem" eyebrow={t.problem.eyebrow} title={t.problem.title}>
           <div className="cards cards--2">
