@@ -4,10 +4,9 @@ import Footer from '../components/Footer.jsx';
 import FloatingContacts from '../components/FloatingContacts.jsx';
 import Reveal from '../components/Reveal.jsx';
 import LeadForm from '../components/LeadForm.jsx';
-import VideoShowcase from '../components/VideoShowcase.jsx';
+import { ThreeDMarquee } from '../components/ui/3d-marquee';
 import PlatformChips from '../components/PlatformChips.jsx';
 import { MacbookScroll } from '../components/ui/macbook-scroll';
-import { CanvasText } from '../components/ui/canvas-text';
 import { useLang } from '../i18n.jsx';
 import { useContent } from '../content.jsx';
 import { PHONE, PHONE_TEL, TELEGRAM_URL, EMAIL, EMAIL_URL } from '../lib/config.js';
@@ -245,10 +244,34 @@ const COPY = {
 
 const ICONS = [<IconTarget key="t" />, <IconAuto key="a" />, <IconShield key="s" />];
 
+// Branded gradient tiles used when the CMS feed has no preview images yet.
+const phImg = (a, b) =>
+  `data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns='http://www.w3.org/2000/svg' width='320' height='560'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='${a}'/><stop offset='1' stop-color='${b}'/></linearGradient></defs><rect width='100%' height='100%' rx='28' fill='url(#g)'/><text x='50%' y='52%' fill='rgba(255,255,255,0.9)' font-family='sans-serif' font-size='34' font-weight='700' text-anchor='middle'>CLICKI</text></svg>`,
+  )}`;
+const MARQUEE_PLACEHOLDERS = [
+  ['#7c3aed', '#22c55e'],
+  ['#8b5cf6', '#16a34a'],
+  ['#a78bfa', '#7c3aed'],
+  ['#6ee7a8', '#16a34a'],
+  ['#7c3aed', '#4c1d95'],
+  ['#22c55e', '#0f766e'],
+  ['#a78bfa', '#22c55e'],
+  ['#8b5cf6', '#6ee7a8'],
+].map(([a, b]) => phImg(a, b));
+
 export default function Business() {
   const { lang } = useLang();
   const content = useContent();
   const t = COPY[lang] || COPY.ru;
+
+  // 3D marquee needs images. Use CMS image/poster previews; fall back to tiles.
+  const previews = (content.showcase || [])
+    .map((it) => (it?.type === 'image' ? it.src : it?.poster))
+    .filter(Boolean);
+  const base = previews.length ? previews : MARQUEE_PLACEHOLDERS;
+  const marqueeImages = Array.from({ length: Math.max(16, base.length) }, (_, i) => base[i % base.length]);
+
   return (
     <>
       <Seo title={t.seoTitle} description={t.seoDesc} path="/business" />
@@ -280,22 +303,25 @@ export default function Business() {
           </div>
         </section>
 
-        <MacbookScroll
-          src={content.devices?.laptop?.image}
-          screen={
-            content.devices?.laptop?.image ? undefined : (
-              <div className="flex h-full w-full items-center justify-center bg-[#0a0a12]">
-                <CanvasText
-                  text="CLICKI"
-                  className="text-7xl font-extrabold tracking-tight"
-                  backgroundClassName="bg-[#0a0a12]"
-                  colors={['#a78bfa', '#7c3aed', '#6ee7a8', '#22c55e']}
-                />
-              </div>
-            )
-          }
-          title={t.macbookTitle}
-        />
+        <section className="relative isolate overflow-hidden bg-[#0a0a12]">
+          <MacbookScroll
+            src={content.devices?.laptop?.image}
+            screen={
+              content.devices?.laptop?.image ? undefined : (
+                <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-[#1b1340] via-[#0b0a1c] to-[#08160f] p-6 text-white">
+                  <span className="text-5xl font-extrabold tracking-tight">CLICKI</span>
+                  <span className="text-sm text-white/55">live-дашборд кампании</span>
+                  <div className="mt-3 flex w-3/4 gap-2">
+                    <div className="h-16 flex-1 rounded-lg bg-violet-500/30" />
+                    <div className="h-16 flex-1 rounded-lg bg-emerald-500/30" />
+                    <div className="h-16 flex-1 rounded-lg bg-violet-400/20" />
+                  </div>
+                </div>
+              )
+            }
+            title={t.macbookTitle}
+          />
+        </section>
 
         <Section id="problem" eyebrow={t.problem.eyebrow} title={t.problem.title}>
           <div className="cards cards--2">
@@ -368,7 +394,7 @@ export default function Business() {
         </Section>
 
         <Section eyebrow={t.showcase.eyebrow} title={t.showcase.title}>
-          <VideoShowcase />
+          <ThreeDMarquee images={marqueeImages} />
           <p className="muted-note">{t.showcase.note}</p>
         </Section>
 
