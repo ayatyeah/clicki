@@ -1790,7 +1790,8 @@ img, video {
 }
 .funnel--creator .card {
   box-shadow: none;
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(124, 58, 237, 0.16);
+  border-color: rgba(168, 139, 250, 0.24);
 }
 .funnel--creator .cards {
   gap: 28px;
