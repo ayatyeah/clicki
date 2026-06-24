@@ -5,6 +5,7 @@ import { HelmetProvider } from 'react-helmet-async';
 import App from './App.jsx';
 import { LangProvider } from './i18n.jsx';
 import { ContentProvider } from './content.jsx';
+import './styles/tailwind.css';
 import './styles/index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(

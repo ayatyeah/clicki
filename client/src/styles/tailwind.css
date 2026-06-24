@@ -1,0 +1,9 @@
+/* Tailwind v4 — utilities only (NO preflight), so it can't reset the project's
+   hand-written CSS. Just enough for the Aceternity MacBook scroll component. */
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+/* Class-based dark mode — the site is always dark, so <html class="dark">
+   activates the component's dark: color variants. */
+@custom-variant dark (&:where(.dark, .dark *));

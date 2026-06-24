@@ -6,7 +6,7 @@ import Reveal from '../components/Reveal.jsx';
 import LeadForm from '../components/LeadForm.jsx';
 import VideoShowcase from '../components/VideoShowcase.jsx';
 import PlatformChips from '../components/PlatformChips.jsx';
-import MacbookScroll from '../components/MacbookScroll.jsx';
+import { MacbookScroll } from '../components/ui/macbook-scroll';
 import { useLang } from '../i18n.jsx';
 import { useContent } from '../content.jsx';
 import { PHONE, PHONE_TEL, TELEGRAM_URL, EMAIL, EMAIL_URL } from '../lib/config.js';
