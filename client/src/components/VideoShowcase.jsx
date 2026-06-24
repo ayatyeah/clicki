@@ -1,10 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useContent } from '../content.jsx';
 
 /**
- * Vertical 9:16 showcase (ТЗ 5.11 / 7.3). Pulls its items from the CMS
- * (`content.showcase`, managed in /admin); renders placeholders when empty.
- * Videos autoplay muted in view, unmute on click; images render as posters.
+ * Showcase feed (ТЗ 5.11 / 7.3). Pulls items from the CMS (`content.showcase`,
+ * managed in /admin); renders placeholders when empty. Each card adopts the
+ * media's real aspect ratio, so widescreen and vertical clips both display
+ * without cropping. Videos autoplay muted in view; unmute on click.
  */
 export default function VideoShowcase({ items }) {
   const content = useContent();
@@ -35,31 +36,63 @@ export default function VideoShowcase({ items }) {
   return (
     <div className="showcase" ref={containerRef}>
       {cards.map((item, i) => (
-        <article className="showcase__card" key={item.src || i}>
-          {item.type === 'image' && item.src ? (
-            <img src={item.src} alt="" loading="lazy" />
-          ) : item.src ? (
-            <video
-              src={item.src}
-              poster={item.poster}
-              muted
-              loop
-              playsInline
-              preload="none"
-              onClick={(e) => {
-                e.currentTarget.muted = !e.currentTarget.muted;
-              }}
-            />
-          ) : (
-            <div className="showcase__placeholder" aria-label="Превью видео">
-              <svg width="44" height="44" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M8 5v14l11-7z" />
-              </svg>
-            </div>
-          )}
-        </article>
+        <ShowcaseItem item={item} key={item.src || i} />
       ))}
     </div>
+  );
+}
+
+/** One card — sizes itself to the media's natural aspect ratio once known. */
+function ShowcaseItem({ item }) {
+  const [ratio, setRatio] = useState(null);
+  const style = ratio ? { aspectRatio: String(ratio) } : undefined;
+
+  if (item.type === 'image' && item.src) {
+    return (
+      <article className="showcase__card" style={style}>
+        <img
+          src={item.src}
+          alt=""
+          loading="lazy"
+          onLoad={(e) => {
+            const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
+            if (w && h) setRatio(w / h);
+          }}
+        />
+      </article>
+    );
+  }
+
+  if (item.src) {
+    return (
+      <article className="showcase__card" style={style}>
+        <video
+          src={item.src}
+          poster={item.poster}
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          onLoadedMetadata={(e) => {
+            const { videoWidth: w, videoHeight: h } = e.currentTarget;
+            if (w && h) setRatio(w / h);
+          }}
+          onClick={(e) => {
+            e.currentTarget.muted = !e.currentTarget.muted;
+          }}
+        />
+      </article>
+    );
+  }
+
+  return (
+    <article className="showcase__card">
+      <div className="showcase__placeholder" aria-label="Превью видео">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M8 5v14l11-7z" />
+        </svg>
+      </div>
+    </article>
   );
 }
 
