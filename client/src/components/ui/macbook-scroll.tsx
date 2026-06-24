@@ -27,11 +27,13 @@ import { IconCaretDownFilled } from "@tabler/icons-react";
 
 export const MacbookScroll = ({
   src,
+  screen,
   showGradient,
   title,
   badge,
 }: {
   src?: string;
+  screen?: React.ReactNode;
   showGradient?: boolean;
   title?: string | React.ReactNode;
   badge?: React.ReactNode;
@@ -86,6 +88,7 @@ export const MacbookScroll = ({
       {/* Lid */}
       <Lid
         src={src}
+        screen={screen}
         scaleX={scaleX}
         scaleY={scaleY}
         rotate={rotate}
@@ -125,12 +128,14 @@ export const Lid = ({
   rotate,
   translate,
   src,
+  screen,
 }: {
   scaleX: MotionValue<number>;
   scaleY: MotionValue<number>;
   rotate: MotionValue<number>;
   translate: MotionValue<number>;
   src?: string;
+  screen?: React.ReactNode;
 }) => {
   return (
     <div className="relative [perspective:800px]">
@@ -165,11 +170,15 @@ export const Lid = ({
         className="absolute inset-0 h-96 w-[32rem] rounded-2xl bg-[#010101] p-2"
       >
         <div className="absolute inset-0 rounded-lg bg-[#272729]" />
-        <img
-          src={src as string}
-          alt="aceternity logo"
-          className="absolute inset-0 h-full w-full rounded-lg object-cover object-left-top"
-        />
+        {screen ? (
+          <div className="absolute inset-0 overflow-hidden rounded-lg">{screen}</div>
+        ) : src ? (
+          <img
+            src={src}
+            alt=""
+            className="absolute inset-0 h-full w-full rounded-lg object-cover object-left-top"
+          />
+        ) : null}
       </motion.div>
     </div>
   );

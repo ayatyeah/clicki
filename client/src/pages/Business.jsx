@@ -7,6 +7,7 @@ import LeadForm from '../components/LeadForm.jsx';
 import VideoShowcase from '../components/VideoShowcase.jsx';
 import PlatformChips from '../components/PlatformChips.jsx';
 import { MacbookScroll } from '../components/ui/macbook-scroll';
+import { CanvasText } from '../components/ui/canvas-text';
 import { useLang } from '../i18n.jsx';
 import { useContent } from '../content.jsx';
 import { PHONE, PHONE_TEL, TELEGRAM_URL, EMAIL, EMAIL_URL } from '../lib/config.js';
@@ -279,7 +280,22 @@ export default function Business() {
           </div>
         </section>
 
-        <MacbookScroll src={content.devices?.laptop?.image} title={t.macbookTitle} />
+        <MacbookScroll
+          src={content.devices?.laptop?.image}
+          screen={
+            content.devices?.laptop?.image ? undefined : (
+              <div className="flex h-full w-full items-center justify-center bg-[#0a0a12]">
+                <CanvasText
+                  text="CLICKI"
+                  className="text-7xl font-extrabold tracking-tight"
+                  backgroundClassName="bg-[#0a0a12]"
+                  colors={['#a78bfa', '#7c3aed', '#6ee7a8', '#22c55e']}
+                />
+              </div>
+            )
+          }
+          title={t.macbookTitle}
+        />
 
         <Section id="problem" eyebrow={t.problem.eyebrow} title={t.problem.title}>
           <div className="cards cards--2">
