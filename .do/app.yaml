@@ -34,7 +34,7 @@ services:
         value: "CLICKI_App"
       - key: VITE_EMAIL
         scope: BUILD_TIME
-        value: "hello@clicki.kz"
+        value: "info@clicki-platform.com"
       - key: VITE_RECAPTCHA_SITE_KEY
         scope: BUILD_TIME
         value: ""
