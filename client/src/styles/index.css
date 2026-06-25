@@ -1965,6 +1965,16 @@ canvas {
   }
 }
 
+/* Creators — iPhone rotated to landscape, framed 16:9 */
+.creator-phone16x9 {
+  width: min(440px, 92vw);
+  aspect-ratio: 16 / 9;
+  margin: 0 auto;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
 /* Creators — single widescreen video */
 .creator-video {
   max-width: 900px;

@@ -188,7 +188,9 @@ export default function Creators() {
               </div>
             </Reveal>
             <ScrollAway className="hero__art hero__art--device" distance={260}>
-              <Iphone src={content.devices?.iphone?.image} className="block w-full max-w-[260px] mx-auto" />
+              <div className="creator-phone16x9">
+                <Iphone src={content.devices?.iphone?.image} className="rotate-90 w-[210px] max-w-none" />
+              </div>
             </ScrollAway>
           </div>
         </section>
