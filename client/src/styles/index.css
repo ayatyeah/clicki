@@ -567,8 +567,21 @@ img, video {
 .hero__actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 14px;
   margin-bottom: 22px;
+}
+/* Single-column hero (business): center everything so the flip pill, badge,
+   title, subtitle and CTAs all line up. */
+.hero__inner--single .hero__copy {
+  text-align: center;
+}
+.hero__inner--single .hero__subtitle {
+  margin-left: auto;
+  margin-right: auto;
+}
+.hero__inner--single .hero__actions {
+  justify-content: center;
 }
 .hero__cta-noise {
   display: inline-flex;
@@ -1986,11 +1999,8 @@ canvas {
   display: grid;
   place-items: center;
   aspect-ratio: 16 / 9;
-  padding: 20px;
-  text-align: center;
-  color: var(--fog);
-  font-size: 0.95rem;
-  background: var(--veil);
+  color: rgba(255, 255, 255, 0.7);
+  background: var(--grad-brand);
 }
 
 /* ============================================================

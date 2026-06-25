@@ -191,10 +191,10 @@ export default function Creators() {
                 {content.creatorVideo ? (
                   <video src={content.creatorVideo} muted loop autoPlay playsInline controls />
                 ) : (
-                  <div className="creator-video__empty">
-                    Здесь будет видео
-                    <br />
-                    загрузите его в админке (Контент сайта)
+                  <div className="creator-video__empty" aria-label="Видео">
+                    <svg viewBox="0 0 24 24" width="56" height="56" fill="currentColor" aria-hidden="true">
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
                   </div>
                 )}
               </div>

@@ -34,7 +34,7 @@ export default function App() {
   return (
     <>
       <Suspense fallback={null}>
-        <Aurora colorStops={['#7cff67', '#B497CF', '#5227FF']} blend={0.5} amplitude={1.0} speed={1} />
+        <Aurora colorStops={['#7cff67', '#B497CF', '#5227FF']} blend={0.5} amplitude={0.7} speed={0.8} />
       </Suspense>
       <Playground />
       <RouteEffects />
