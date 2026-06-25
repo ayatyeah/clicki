@@ -55,36 +55,26 @@ export const MacbookScroll = ({
   const scaleX = useTransform(
     scrollYProgress,
     [0, 0.3],
-    [1.2, isMobile ? 1 : 1.5],
+    [1.1, isMobile ? 1 : 1.25],
   );
   const scaleY = useTransform(
     scrollYProgress,
     [0, 0.3],
-    [0.6, isMobile ? 1 : 1.5],
+    [0.6, isMobile ? 1 : 1.25],
   );
   const translate = useTransform(scrollYProgress, [0, 1], [0, 1500]);
   const rotate = useTransform(scrollYProgress, [0.1, 0.12, 0.3], [-28, -28, 0]);
-  const textTransform = useTransform(scrollYProgress, [0, 0.3], [0, 100]);
-  const textOpacity = useTransform(scrollYProgress, [0, 0.45], [1, 0]);
 
   return (
     <div
       ref={ref}
       className="flex min-h-[120vh] shrink-0 scale-[0.55] transform flex-col items-center justify-center py-10 [perspective:800px] sm:scale-75 md:min-h-[140vh] md:scale-90 md:py-20"
     >
-      <motion.h2
-        style={{
-          translateY: textTransform,
-          opacity: textOpacity,
-        }}
-        className="mb-10 text-center text-3xl font-bold text-white md:text-5xl"
-      >
-        {title || (
-          <span>
-            This Macbook is built with Tailwindcss. <br /> No kidding.
-          </span>
-        )}
-      </motion.h2>
+      {title && (
+        <h2 className="mb-16 text-center text-3xl font-bold text-white md:text-5xl">
+          {title}
+        </h2>
+      )}
       {/* Lid */}
       <Lid
         src={src}
