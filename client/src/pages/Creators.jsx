@@ -167,7 +167,7 @@ export default function Creators() {
         <section className="hero hero--creator">
           <div className="container hero__inner">
             <Reveal className="hero__copy">
-              <div style={{ marginBottom: 18 }}>
+              <div style={{ marginBottom: 18, display: 'flex', justifyContent: 'center' }}>
                 <ContainerTextFlip words={t.flipWords} />
               </div>
               <span className="badge badge--green">{t.badge}</span>

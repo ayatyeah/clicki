@@ -284,7 +284,7 @@ export default function Business() {
         <section className="hero">
           <div className="container hero__inner hero__inner--single">
             <Reveal as="div" className="hero__copy">
-              <div style={{ marginBottom: 18 }}>
+              <div style={{ marginBottom: 18, display: 'flex', justifyContent: 'center' }}>
                 <ContainerTextFlip words={t.flipWords} />
               </div>
               <span className="badge">{t.badge}</span>
@@ -309,7 +309,7 @@ export default function Business() {
           </div>
         </section>
 
-        <section className="relative isolate overflow-hidden bg-[#0a0a12]">
+        <section className="relative isolate overflow-hidden">
           <MacbookScroll
             src={content.devices?.laptop?.image}
             screen={
