@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { API_BASE } from '../lib/config.js';
 
 const TOKEN_KEY = 'clicki_admin_token';
-const EMPTY = { showcase: [], devices: { iphone: { image: '' }, laptop: { image: '' } } };
+const EMPTY = { showcase: [], devices: { iphone: { image: '' }, laptop: { image: '' } }, creatorVideo: '' };
 
 export default function Admin() {
   const [token, setToken] = useState(() => sessionStorage.getItem(TOKEN_KEY) || '');
@@ -45,7 +45,7 @@ export default function Admin() {
     try {
       const res = await fetch(`${API_BASE}/api/content`);
       const data = await res.json();
-      setContent({ showcase: data.showcase || [], devices: { iphone: { image: data?.devices?.iphone?.image || '' }, laptop: { image: data?.devices?.laptop?.image || '' } } });
+      setContent({ showcase: data.showcase || [], devices: { iphone: { image: data?.devices?.iphone?.image || '' }, laptop: { image: data?.devices?.laptop?.image || '' } }, creatorVideo: data?.creatorVideo || '' });
     } catch {
       /* keep empty */
     }
@@ -148,6 +148,20 @@ export default function Admin() {
     try {
       const url = await uploadFile(file);
       setContent((c) => ({ ...c, devices: { ...c.devices, [which]: { image: url } } }));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function setCreatorVideo(file) {
+    if (!file) return;
+    setBusy(true);
+    setError('');
+    try {
+      const url = await uploadFile(file);
+      setContent((c) => ({ ...c, creatorVideo: url }));
     } catch (e) {
       setError(e.message);
     } finally {
@@ -342,6 +356,29 @@ export default function Admin() {
                 <DeviceField label="Экран iPhone (креаторы)" image={content.devices.iphone.image} onPick={(f) => setDevice('iphone', f)} onClear={() => setContent((c) => ({ ...c, devices: { ...c.devices, iphone: { image: '' } } }))} />
                 <DeviceField label="Экран ноутбука (бизнес)" image={content.devices.laptop.image} onPick={(f) => setDevice('laptop', f)} onClear={() => setContent((c) => ({ ...c, devices: { ...c.devices, laptop: { image: '' } } }))} />
               </div>
+
+              <div className="admin-device" style={{ marginTop: 16 }}>
+                <div className="admin-device__label">Видео для креаторов (широкоформат, 16:9)</div>
+                <div className="admin-device__preview" style={{ height: 'auto', aspectRatio: '16 / 9' }}>
+                  {content.creatorVideo ? (
+                    <video src={content.creatorVideo} muted loop playsInline controls style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  ) : (
+                    <span className="admin-device__empty">не задано</span>
+                  )}
+                </div>
+                <div className="admin-device__actions">
+                  <label className="btn btn--ghost btn--sm">
+                    Загрузить видео
+                    <input type="file" accept="video/*" hidden onChange={(e) => setCreatorVideo(e.target.files?.[0])} />
+                  </label>
+                  {content.creatorVideo && (
+                    <button className="btn btn--ghost btn--sm" onClick={() => setContent((c) => ({ ...c, creatorVideo: '' }))}>
+                      Сбросить
+                    </button>
+                  )}
+                </div>
+              </div>
+
               <div className="admin-save">
                 <button className="btn btn--primary" onClick={saveContent} disabled={busy}>
                   {busy ? 'Сохраняю…' : 'Сохранить изменения'}

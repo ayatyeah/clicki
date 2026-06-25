@@ -10,6 +10,7 @@ const FILE = path.join(DATA_DIR, 'content.json');
 const DEFAULTS = {
   showcase: [], // now mostly fetched from DB, but keeping structure for compatibility
   devices: { iphone: { image: '' }, laptop: { image: '' } },
+  creatorVideo: '', // one widescreen video shown on the creators funnel
 };
 
 const clip = (v, n = 300) => String(v || '').slice(0, n);
@@ -39,6 +40,7 @@ export async function readContent() {
       iphone: { image: clip(parsed?.devices?.iphone?.image) },
       laptop: { image: clip(parsed?.devices?.laptop?.image) },
     },
+    creatorVideo: clip(parsed?.creatorVideo),
   };
 }
 
@@ -70,6 +72,7 @@ export async function writeContent(obj) {
       iphone: { image: clip(obj?.devices?.iphone?.image) },
       laptop: { image: clip(obj?.devices?.laptop?.image) },
     },
+    creatorVideo: clip(obj?.creatorVideo),
   };
   await fs.writeFile(FILE, JSON.stringify(safe, null, 2), 'utf8');
   return safe;

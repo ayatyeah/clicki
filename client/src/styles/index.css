@@ -1961,6 +1961,23 @@ canvas {
   }
 }
 
+/* Creators — single widescreen video */
+.creator-video {
+  max-width: 900px;
+  margin: 0 auto;
+  border-radius: var(--r-card);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #000;
+  box-shadow: var(--shadow-card);
+}
+.creator-video video {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  display: block;
+}
+
 /* ============================================================
    Hub — trendsee-style dark violet landing
    ============================================================ */

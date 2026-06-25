@@ -7,6 +7,7 @@ import LeadForm from '../components/LeadForm.jsx';
 import { ThreeDMarquee } from '../components/ui/3d-marquee';
 import PlatformChips from '../components/PlatformChips.jsx';
 import { MacbookScroll } from '../components/ui/macbook-scroll';
+import { ContainerTextFlip } from '../components/ui/container-text-flip';
 import { useLang } from '../i18n.jsx';
 import { useContent } from '../content.jsx';
 import { PHONE, PHONE_TEL, TELEGRAM_URL, EMAIL, EMAIL_URL } from '../lib/config.js';
@@ -23,6 +24,7 @@ const COPY = {
     consult: 'Получить консультацию',
     how: 'Как это работает',
     macbookTitle: 'Вся кампания — в одном дашборде',
+    flipWords: ['органика', 'просмотры', 'охваты', 'результат'],
     fields: [
       { name: 'name', label: 'Имя', required: true, autoComplete: 'name', placeholder: 'Как к вам обращаться' },
       { name: 'company', label: 'Компания', placeholder: 'Название бренда' },
@@ -137,6 +139,7 @@ const COPY = {
     consult: 'Get a consultation',
     how: 'How it works',
     macbookTitle: 'Your whole campaign in one dashboard',
+    flipWords: ['organic', 'views', 'reach', 'results'],
     fields: [
       { name: 'name', label: 'Name', required: true, autoComplete: 'name', placeholder: 'How should we address you' },
       { name: 'company', label: 'Company', placeholder: 'Brand name' },
@@ -281,6 +284,9 @@ export default function Business() {
         <section className="hero">
           <div className="container hero__inner hero__inner--single">
             <Reveal as="div" className="hero__copy">
+              <div style={{ marginBottom: 18 }}>
+                <ContainerTextFlip words={t.flipWords} />
+              </div>
               <span className="badge">{t.badge}</span>
               <h1 className="hero__title">
                 {t.heroPre}

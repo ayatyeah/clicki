@@ -6,6 +6,7 @@ import Reveal from '../components/Reveal.jsx';
 import LeadForm from '../components/LeadForm.jsx';
 import PlatformChips from '../components/PlatformChips.jsx';
 import DeviceScene from '../three/DeviceScene.jsx';
+import { ContainerTextFlip } from '../components/ui/container-text-flip';
 import { useLang } from '../i18n.jsx';
 import { useContent } from '../content.jsx';
 import { TELEGRAM_URL } from '../lib/config.js';
@@ -20,6 +21,7 @@ const COPY = {
     heroSub: 'Бери телефон, снимай короткие видео из дома и превращай свой рост в реальный доход. Без графика, без начальника, без потолка.',
     start: 'Стать креатором',
     how: 'Как это работает',
+    flipWords: ['снимай', 'выкладывай', 'зарабатывай', 'расти'],
     fields: [
       { name: 'name', label: 'Имя', required: true, autoComplete: 'name', placeholder: 'Как тебя зовут' },
       { name: 'contact', label: 'Телефон / Telegram', required: true, placeholder: '+7 ___ или @username' },
@@ -89,6 +91,7 @@ const COPY = {
     heroSub: 'Grab your phone, film short videos from home and turn your growth into real income. No schedule, no boss, no ceiling.',
     start: 'Become a creator',
     how: 'How it works',
+    flipWords: ['film', 'post', 'earn', 'grow'],
     fields: [
       { name: 'name', label: 'Name', required: true, autoComplete: 'name', placeholder: 'What’s your name' },
       { name: 'contact', label: 'Phone / Telegram', required: true, placeholder: '+7 ___ or @username' },
@@ -164,6 +167,9 @@ export default function Creators() {
         <section className="hero hero--creator">
           <div className="container hero__inner">
             <Reveal className="hero__copy">
+              <div style={{ marginBottom: 18 }}>
+                <ContainerTextFlip words={t.flipWords} />
+              </div>
               <span className="badge badge--green">{t.badge}</span>
               <h1 className="hero__title">
                 {t.hero1}
@@ -203,6 +209,16 @@ export default function Creators() {
             </div>
           </div>
         </section>
+
+        {content.creatorVideo && (
+          <section className="section">
+            <div className="container">
+              <Reveal className="creator-video">
+                <video src={content.creatorVideo} muted loop autoPlay playsInline controls />
+              </Reveal>
+            </div>
+          </section>
+        )}
 
         <Section id="essence" eyebrow={t.essence.eyebrow} title={t.essence.title}>
           <ol className="steps">
