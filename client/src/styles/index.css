@@ -1965,18 +1965,9 @@ canvas {
   }
 }
 
-/* Creators — iPhone rotated to landscape, framed 16:9 */
-.creator-phone16x9 {
-  width: min(440px, 92vw);
-  aspect-ratio: 16 / 9;
-  margin: 0 auto;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-}
-
-/* Creators — single widescreen video */
+/* Creators — single widescreen 16:9 video plate */
 .creator-video {
+  width: 100%;
   max-width: 900px;
   margin: 0 auto;
   border-radius: var(--r-card);
@@ -1990,6 +1981,16 @@ canvas {
   aspect-ratio: 16 / 9;
   object-fit: contain;
   display: block;
+}
+.creator-video__empty {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 9;
+  padding: 20px;
+  text-align: center;
+  color: var(--fog);
+  font-size: 0.95rem;
+  background: var(--veil);
 }
 
 /* ============================================================

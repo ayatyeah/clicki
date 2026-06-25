@@ -5,7 +5,6 @@ import FloatingContacts from '../components/FloatingContacts.jsx';
 import Reveal from '../components/Reveal.jsx';
 import LeadForm from '../components/LeadForm.jsx';
 import PlatformChips from '../components/PlatformChips.jsx';
-import { Iphone } from '../components/ui/iphone';
 import { ContainerTextFlip } from '../components/ui/container-text-flip';
 import ScrollAway from '../components/ScrollAway.jsx';
 import { useLang } from '../i18n.jsx';
@@ -187,9 +186,17 @@ export default function Creators() {
                 </a>
               </div>
             </Reveal>
-            <ScrollAway className="hero__art hero__art--device" distance={260}>
-              <div className="creator-phone16x9">
-                <Iphone src={content.devices?.iphone?.image} className="rotate-90 w-[210px] max-w-none" />
+            <ScrollAway className="hero__art" distance={220}>
+              <div className="creator-video">
+                {content.creatorVideo ? (
+                  <video src={content.creatorVideo} muted loop autoPlay playsInline controls />
+                ) : (
+                  <div className="creator-video__empty">
+                    Здесь будет видео
+                    <br />
+                    загрузите его в админке (Контент сайта)
+                  </div>
+                )}
               </div>
             </ScrollAway>
           </div>
@@ -207,16 +214,6 @@ export default function Creators() {
             </div>
           </div>
         </section>
-
-        {content.creatorVideo && (
-          <section className="section">
-            <div className="container">
-              <Reveal className="creator-video">
-                <video src={content.creatorVideo} muted loop autoPlay playsInline controls />
-              </Reveal>
-            </div>
-          </section>
-        )}
 
         <Section id="essence" eyebrow={t.essence.eyebrow} title={t.essence.title}>
           <ol className="steps">
