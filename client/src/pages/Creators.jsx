@@ -7,6 +7,7 @@ import LeadForm from '../components/LeadForm.jsx';
 import PlatformChips from '../components/PlatformChips.jsx';
 import { Iphone } from '../components/ui/iphone';
 import { ContainerTextFlip } from '../components/ui/container-text-flip';
+import ScrollAway from '../components/ScrollAway.jsx';
 import { useLang } from '../i18n.jsx';
 import { useContent } from '../content.jsx';
 import { TELEGRAM_URL } from '../lib/config.js';
@@ -186,9 +187,9 @@ export default function Creators() {
                 </a>
               </div>
             </Reveal>
-            <Reveal className="hero__art hero__art--device">
+            <ScrollAway className="hero__art hero__art--device" distance={260}>
               <Iphone src={content.devices?.iphone?.image} className="block w-full max-w-[260px] mx-auto" />
-            </Reveal>
+            </ScrollAway>
           </div>
         </section>
 
