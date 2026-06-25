@@ -71,7 +71,7 @@ export const MacbookScroll = ({
       className="flex min-h-[120vh] shrink-0 scale-[0.55] transform flex-col items-center justify-center py-10 [perspective:800px] sm:scale-75 md:min-h-[140vh] md:scale-90 md:py-20"
     >
       {title && (
-        <h2 className="mb-16 text-center text-3xl font-bold text-white md:text-5xl">
+        <h2 className="mb-32 text-center text-3xl font-bold text-white md:text-5xl">
           {title}
         </h2>
       )}
