@@ -14,5 +14,7 @@ const ITEMS = [
 }));
 
 export default function PlatformChips() {
-  return <FloatingDock items={ITEMS} />;
+  // Force the horizontal magnify dock on every screen; hide the (broken inline)
+  // mobile collapse variant.
+  return <FloatingDock items={ITEMS} desktopClassName="flex" mobileClassName="hidden" />;
 }
