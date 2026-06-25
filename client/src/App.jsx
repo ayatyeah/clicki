@@ -13,6 +13,8 @@ const Privacy = lazy(() => import('./pages/Privacy.jsx'));
 const ThankYou = lazy(() => import('./pages/ThankYou.jsx'));
 const NotFound = lazy(() => import('./pages/NotFound.jsx'));
 const Admin = lazy(() => import('./pages/Admin.jsx'));
+// WebGL aurora backdrop — lazy so it never blocks first paint.
+const Aurora = lazy(() => import('./components/Aurora.jsx'));
 
 // Scroll to top + report a pageview on every route change.
 function RouteEffects() {
@@ -31,6 +33,9 @@ export default function App() {
 
   return (
     <>
+      <Suspense fallback={null}>
+        <Aurora colorStops={['#7cff67', '#B497CF', '#5227FF']} blend={0.5} amplitude={1.0} speed={1} />
+      </Suspense>
       <Playground />
       <RouteEffects />
       <Suspense fallback={null}>

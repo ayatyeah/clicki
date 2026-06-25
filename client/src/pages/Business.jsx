@@ -8,6 +8,7 @@ import { ThreeDMarquee } from '../components/ui/3d-marquee';
 import PlatformChips from '../components/PlatformChips.jsx';
 import { MacbookScroll } from '../components/ui/macbook-scroll';
 import { ContainerTextFlip } from '../components/ui/container-text-flip';
+import { NoiseBackground } from '../components/ui/noise-background';
 import { useLang } from '../i18n.jsx';
 import { useContent } from '../content.jsx';
 import { PHONE, PHONE_TEL, TELEGRAM_URL, EMAIL, EMAIL_URL } from '../lib/config.js';
@@ -295,8 +296,15 @@ export default function Business() {
               </h1>
               <p className="hero__subtitle">{t.heroSub}</p>
               <div className="hero__actions">
-                <a href="#consult" className="btn btn--primary btn--lg">
-                  {t.consult}
+                <a href="#consult" className="hero__cta-noise">
+                  <NoiseBackground
+                    gradientColors={['#7c3aed', '#a78bfa', '#22c55e']}
+                    noiseIntensity={0.18}
+                    containerClassName="rounded-full p-0"
+                    className="px-7 py-3.5 text-base font-semibold text-white"
+                  >
+                    {t.consult}
+                  </NoiseBackground>
                 </a>
                 <a href="#how" className="btn btn--ghost btn--lg">
                   {t.how}
@@ -331,8 +339,10 @@ export default function Business() {
 
         <Section id="problem" eyebrow={t.problem.eyebrow} title={t.problem.title}>
           <div className="cards cards--2">
-            {t.problem.cards.map((c) => (
-              <Card key={c.title} {...c} />
+            {t.problem.cards.map((c, i) => (
+              <Reveal key={c.title} delay={i * 80}>
+                <Card {...c} />
+              </Reveal>
             ))}
           </div>
         </Section>
@@ -343,8 +353,10 @@ export default function Business() {
 
         <Section eyebrow={t.why.eyebrow} title={t.why.title}>
           <div className="cards cards--4">
-            {t.why.cards.map((c) => (
-              <Card key={c.title} {...c} />
+            {t.why.cards.map((c, i) => (
+              <Reveal key={c.title} delay={i * 80}>
+                <Card {...c} />
+              </Reveal>
             ))}
           </div>
         </Section>

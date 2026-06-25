@@ -570,6 +570,10 @@ img, video {
   gap: 14px;
   margin-bottom: 22px;
 }
+.hero__cta-noise {
+  display: inline-flex;
+  border-radius: 9999px;
+}
 .hero__call {
   display: inline-block;
   color: var(--ink);

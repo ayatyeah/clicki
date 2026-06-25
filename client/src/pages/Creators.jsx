@@ -5,7 +5,7 @@ import FloatingContacts from '../components/FloatingContacts.jsx';
 import Reveal from '../components/Reveal.jsx';
 import LeadForm from '../components/LeadForm.jsx';
 import PlatformChips from '../components/PlatformChips.jsx';
-import DeviceScene from '../three/DeviceScene.jsx';
+import { Iphone } from '../components/ui/iphone';
 import { ContainerTextFlip } from '../components/ui/container-text-flip';
 import { useLang } from '../i18n.jsx';
 import { useContent } from '../content.jsx';
@@ -187,12 +187,7 @@ export default function Creators() {
               </div>
             </Reveal>
             <Reveal className="hero__art hero__art--device">
-              <DeviceScene
-                variant="green"
-                interactive
-                className="hero__device hero__device--lg"
-                screenImage={content.devices?.iphone?.image}
-              />
+              <Iphone src={content.devices?.iphone?.image} className="block w-full max-w-[260px] mx-auto" />
             </Reveal>
           </div>
         </section>
@@ -230,8 +225,10 @@ export default function Creators() {
 
         <Section eyebrow={t.why.eyebrow} title={t.why.title} tone="green">
           <div className="cards cards--3">
-            {t.why.cards.map((c) => (
-              <Card key={c.title} {...c} />
+            {t.why.cards.map((c, i) => (
+              <Reveal key={c.title} delay={i * 80}>
+                <Card {...c} />
+              </Reveal>
             ))}
           </div>
         </Section>
@@ -251,8 +248,10 @@ export default function Creators() {
 
         <Section eyebrow={t.requirements.eyebrow} title={t.requirements.title}>
           <div className="cards cards--4">
-            {t.requirements.cards.map((c) => (
-              <Card key={c.title} {...c} />
+            {t.requirements.cards.map((c, i) => (
+              <Reveal key={c.title} delay={i * 80}>
+                <Card {...c} />
+              </Reveal>
             ))}
           </div>
         </Section>

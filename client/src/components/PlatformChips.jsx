@@ -1,20 +1,18 @@
 import { FloatingDock } from './ui/floating-dock';
 
-/* Social networks shown as an Aceternity floating dock (icons magnify on hover).
-   TODO: swap hrefs for CLICKI's real profile URLs when available. */
-const SOCIALS = [
-  { key: 'tiktok', title: 'TikTok', href: 'https://www.tiktok.com' },
-  { key: 'instagram', title: 'Instagram', href: 'https://www.instagram.com' },
-  { key: 'youtube', title: 'YouTube', href: 'https://www.youtube.com' },
-  { key: 'x', title: 'X (Twitter)', href: 'https://x.com' },
-  { key: 'threads', title: 'Threads', href: 'https://www.threads.net' },
-];
+/* Social platforms as a macOS-style floating dock (Aceternity), brand SVG icons. */
+const ITEMS = [
+  { title: 'TikTok', href: 'https://www.tiktok.com', src: '/social/tiktok.svg' },
+  { title: 'Instagram', href: 'https://www.instagram.com', src: '/social/instagram.svg' },
+  { title: 'YouTube', href: 'https://www.youtube.com', src: '/social/youtube.svg' },
+  { title: 'Threads', href: 'https://www.threads.net', src: '/social/threads.svg' },
+  { title: 'X', href: 'https://www.x.com', src: '/social/x.svg' },
+].map((it) => ({
+  title: it.title,
+  href: it.href,
+  icon: <img src={it.src} alt="" className="h-full w-full" />,
+}));
 
 export default function PlatformChips() {
-  const items = SOCIALS.map((s) => ({
-    title: s.title,
-    href: s.href,
-    icon: <img src={`/social/${s.key}.svg`} alt={s.title} className="h-full w-full" />,
-  }));
-  return <FloatingDock items={items} desktopClassName="mx-0" />;
+  return <FloatingDock items={ITEMS} />;
 }
