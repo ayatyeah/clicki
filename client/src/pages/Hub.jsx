@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import Seo from '../components/Seo.jsx';
 import LangSwitch from '../components/LangSwitch.jsx';
+import IntroAnimation from '../components/ui/scroll-morph-hero';
 import { useLang } from '../i18n.jsx';
 
 const COPY = {
@@ -54,6 +55,7 @@ export default function Hub() {
         <img src="/social/x.svg" alt="" />
         <img src="/social/threads.svg" alt="" />
       </div>
+      <section className="hub__hero">
       <div className="container hub__inner">
         <div className="hub__topbar">
           <div className="hub__brand">
@@ -117,6 +119,11 @@ export default function Hub() {
           </a>
         </div>
       </div>
+      </section>
+
+      <section className="hub__morph">
+        <IntroAnimation />
+      </section>
 
       {/* Persistent centered CTA docked at the bottom (trendsee-style) */}
       <div className="hub__cta-dock">

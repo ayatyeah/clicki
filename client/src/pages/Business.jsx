@@ -9,7 +9,6 @@ import PlatformChips from '../components/PlatformChips.jsx';
 import { MacbookScroll } from '../components/ui/macbook-scroll';
 import { ContainerTextFlip } from '../components/ui/container-text-flip';
 import { NoiseBackground } from '../components/ui/noise-background';
-import ScrollAway from '../components/ScrollAway.jsx';
 import { useLang } from '../i18n.jsx';
 import { useContent } from '../content.jsx';
 import { PHONE, PHONE_TEL, TELEGRAM_URL, EMAIL, EMAIL_URL } from '../lib/config.js';
@@ -418,12 +417,7 @@ export default function Business() {
         </Section>
 
         <Section eyebrow={t.about.eyebrow} title={t.about.title} tone="violet">
-          <div className="about-grid">
-            <ScrollAway className="about-photo" distance={140}>
-              <img src="/handshake.png" alt={t.about.alt} width="740" height="375" loading="lazy" />
-            </ScrollAway>
-            <p className="lead">{t.about.lead}</p>
-          </div>
+          <p className="lead">{t.about.lead}</p>
         </Section>
 
         {/* FAQ - dropdown accordion */}

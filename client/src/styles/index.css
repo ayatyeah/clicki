@@ -418,9 +418,17 @@ img, video {
 /* ---------- Hub (entry / hook screen) ---------- */
 .hub {
   position: relative;
+}
+.hub__hero {
+  position: relative;
   min-height: 100vh;
   display: flex;
   align-items: center;
+}
+.hub__morph {
+  position: relative;
+  z-index: 1;
+  height: 100vh;
 }
 .hub__bg {
   display: none;
