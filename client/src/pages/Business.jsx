@@ -333,7 +333,6 @@ export default function Business() {
                 </div>
               )
             }
-            title={t.macbookTitle}
           />
         </section>
 
