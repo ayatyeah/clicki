@@ -1555,6 +1555,191 @@ img, video {
   color: var(--stone);
   max-width: 60ch;
 }
+
+/* ---------- Operator CRM (platform) ---------- */
+.pf-form {
+  display: grid;
+  gap: 8px;
+  max-width: 520px;
+}
+.pf-form--row {
+  display: flex;
+  max-width: none;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.pf-row {
+  display: flex;
+  gap: 8px;
+}
+.pf-form input,
+.pf-form select,
+.admin-table select,
+.admin-table input {
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+}
+.pf-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--stone);
+  font-size: 0.9rem;
+}
+.pf-actions {
+  display: grid;
+  gap: 6px;
+}
+.pf-badge {
+  background: var(--morning);
+  color: #c4b5fd;
+  border-radius: 6px;
+  padding: 1px 6px;
+  font-size: 0.72rem;
+}
+.pf-status {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+}
+.pf-status--pending {
+  background: rgba(245, 158, 11, 0.18);
+  color: #f59e0b;
+}
+.pf-status--accepted,
+.pf-status--paid {
+  background: rgba(34, 197, 94, 0.18);
+  color: #6ee7a8;
+}
+.pf-status--rejected {
+  background: rgba(239, 68, 68, 0.18);
+  color: #fca5a5;
+}
+.pf-status--rework {
+  background: rgba(124, 58, 237, 0.18);
+  color: #c4b5fd;
+}
+
+/* ---------- Creator portal ---------- */
+.creator-portal {
+  min-height: 100vh;
+  padding: 40px 0 80px;
+}
+.creator-portal__inner {
+  max-width: 640px;
+}
+.creator-portal__head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.creator-portal__brand {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.4rem;
+  color: var(--ink);
+}
+.creator-portal__tag {
+  color: var(--fog);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+.creator-portal__title {
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  margin-bottom: 8px;
+}
+.creator-portal__h2 {
+  font-size: 1.3rem;
+  margin: 28px 0 12px;
+  color: var(--ink);
+}
+.creator-portal__muted {
+  color: var(--stone);
+  margin: 4px 0;
+}
+.creator-portal__err {
+  color: #fca5a5;
+}
+.creator-portal__card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  padding: 20px;
+  display: grid;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.creator-portal__card input,
+.creator-portal__card select {
+  font: inherit;
+  padding: 11px 13px;
+  border-radius: var(--r-icon);
+  border: 1px solid var(--fog);
+  background: var(--paper);
+  color: var(--ink);
+}
+.creator-portal__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.creator-portal__wallet-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1.1rem;
+  color: var(--ink);
+}
+.creator-portal__bar {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--veil);
+  overflow: hidden;
+}
+.creator-portal__bar div {
+  height: 100%;
+  background: var(--grad-brand);
+}
+.creator-portal__q {
+  display: grid;
+  gap: 6px;
+}
+.creator-portal__q-title {
+  font-weight: 600;
+  color: var(--ink);
+}
+.creator-portal__opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--stone);
+}
+.creator-portal__brief-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.creator-portal__req {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--stone);
+  font-size: 0.9rem;
+}
+.creator-portal__sub {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--veil);
+}
+.creator-portal__sub:last-child {
+  border-bottom: 0;
+}
 @media (max-width: 760px) {
   .admin-layout {
     grid-template-columns: 1fr;

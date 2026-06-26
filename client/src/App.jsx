@@ -13,6 +13,7 @@ const Privacy = lazy(() => import('./pages/Privacy.jsx'));
 const ThankYou = lazy(() => import('./pages/ThankYou.jsx'));
 const NotFound = lazy(() => import('./pages/NotFound.jsx'));
 const Admin = lazy(() => import('./pages/Admin.jsx'));
+const CreatorPortal = lazy(() => import('./pages/CreatorPortal.jsx'));
 // WebGL aurora backdrop - lazy so it never blocks first paint.
 const Aurora = lazy(() => import('./components/Aurora.jsx'));
 
@@ -47,6 +48,7 @@ export default function App() {
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/thanks/:type" element={<ThankYou />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/creator" element={<CreatorPortal />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>

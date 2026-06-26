@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import { API_BASE } from '../lib/config.js';
+import { BriefsView, ReviewView, CreatorsView, PayoutsView } from './AdminPlatform.jsx';
 
 const TOKEN_KEY = 'clicki_admin_token';
 const EMPTY = { showcase: [], devices: { iphone: { image: '' }, laptop: { image: '' } }, creatorVideo: '' };
@@ -223,6 +224,10 @@ export default function Admin() {
     { key: 'analytics', label: 'Аналитика', icon: '📈' },
     { key: 'leads-business', label: 'Заявки Бизнеса', icon: '🟣' },
     { key: 'leads-creators', label: 'Заявки Креаторов', icon: '🟢' },
+    { key: 'briefs', label: 'Брифы', icon: '📋' },
+    { key: 'review', label: 'Проверка видео', icon: '✅' },
+    { key: 'creators', label: 'Креаторы', icon: '👤' },
+    { key: 'payouts', label: 'Выплаты', icon: '💸' },
     { key: 'videos', label: 'Загрузка видео', icon: '🎬' },
     { key: 'content', label: 'Контент сайта', icon: '🖼' },
   ];
@@ -345,6 +350,11 @@ export default function Admin() {
               </div>
             </section>
           )}
+
+          {view === 'briefs' && <BriefsView authFetch={authFetch} />}
+          {view === 'review' && <ReviewView authFetch={authFetch} />}
+          {view === 'creators' && <CreatorsView authFetch={authFetch} />}
+          {view === 'payouts' && <PayoutsView authFetch={authFetch} />}
 
           {view === 'content' && (
             <section className="admin-block">

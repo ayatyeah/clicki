@@ -15,7 +15,32 @@ import { verifyRecaptcha } from './recaptcha.js';
 import { dispatchLead } from './notify.js';
 import { saveLead, readLeads } from './store.js';
 import { readContent, writeContent } from './content.js';
-import { initDb, saveMedia, getMedia, getMediaMeta } from './db.js';
+import {
+  initDb,
+  saveMedia,
+  getMedia,
+  getMediaMeta,
+  getRates,
+  getSettings,
+  listCreators,
+  getCreator,
+  createCreator,
+  updateCreator,
+  listBriefs,
+  createBrief,
+  setBriefStatus,
+  assignBrief,
+  listAssignmentsForCreator,
+  createSubmission,
+  listSubmissions,
+  listCreatorSubmissions,
+  reviewSubmission,
+  recordViews,
+  getCreatorWallet,
+  listPayouts,
+  createPayout,
+  markPayoutPaid,
+} from './db.js';
 import { uploadToSpaces, spacesEnabled } from './storage.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -220,6 +245,82 @@ app.post('/api/admin/content', requireAdmin, async (req, res) => {
   const saved = await writeContent(req.body || {});
   res.json({ ok: true, content: saved });
 });
+
+/* =========================================================================
+   PLATFORM API (ТЗ) — creators, briefs, submissions, review, wallet, payouts
+   ========================================================================= */
+const ok = (res, data) => res.json({ ok: true, ...data });
+const wrap = (fn) => async (req, res) => {
+  try {
+    await fn(req, res);
+  } catch (err) {
+    console.error('[platform]', err);
+    res.status(500).json({ ok: false, errors: ['Внутренняя ошибка'] });
+  }
+};
+
+// Public rates/thresholds (ТЗ §2)
+app.get('/api/rates', wrap(async (_req, res) => ok(res, { rates: await getRates(), settings: await getSettings() })));
+
+// ---- Creator portal (lightweight web auth: id kept client-side; Telegram = V2) ----
+app.post(
+  '/api/creator/register',
+  leadLimiter,
+  wrap(async (req, res) => {
+    const { name, contact, socials, city, referred_by } = req.body || {};
+    if (!name || !contact) return res.status(400).json({ ok: false, errors: ['Имя и контакт обязательны'] });
+    ok(res, { creator: await createCreator({ name, contact, socials, city, referred_by }) });
+  })
+);
+app.get(
+  '/api/creator/:id',
+  wrap(async (req, res) => {
+    const c = await getCreator(Number(req.params.id));
+    if (!c) return res.status(404).json({ ok: false, errors: ['Креатор не найден'] });
+    ok(res, {
+      creator: c,
+      wallet: await getCreatorWallet(c.id),
+      briefs: await listAssignmentsForCreator(c.id),
+      submissions: await listCreatorSubmissions(c.id),
+    });
+  })
+);
+// Onboarding test passed → unlock briefs (ТЗ §3 step 2)
+app.post(
+  '/api/creator/:id/onboarding',
+  wrap(async (req, res) => {
+    ok(res, { creator: await updateCreator(Number(req.params.id), { onboarding_passed: true, account_open: true }) });
+  })
+);
+// Submit a video (ТЗ §3 step 4)
+app.post(
+  '/api/creator/:id/submit',
+  wrap(async (req, res) => {
+    const b = req.body || {};
+    if (!b.platform || !b.video_url || !b.rights_confirmed) {
+      return res.status(400).json({ ok: false, errors: ['Укажите видео, платформу и подтвердите права'] });
+    }
+    ok(res, { submission: await createSubmission({ ...b, creator_id: Number(req.params.id) }) });
+  })
+);
+
+// ---- Admin / operator CRM (ТЗ §13) ----
+app.get('/api/admin/rates', requireAdmin, wrap(async (_req, res) => ok(res, { rates: await getRates(), settings: await getSettings() })));
+app.get('/api/admin/creators', requireAdmin, wrap(async (_req, res) => ok(res, { creators: await listCreators() })));
+app.post('/api/admin/creators/:id', requireAdmin, wrap(async (req, res) => ok(res, { creator: await updateCreator(Number(req.params.id), req.body || {}) })));
+
+app.get('/api/admin/briefs', requireAdmin, wrap(async (_req, res) => ok(res, { briefs: await listBriefs() })));
+app.post('/api/admin/briefs', requireAdmin, wrap(async (req, res) => ok(res, { brief: await createBrief(req.body || {}) })));
+app.post('/api/admin/briefs/:id/status', requireAdmin, wrap(async (req, res) => ok(res, { brief: await setBriefStatus(Number(req.params.id), req.body?.status) })));
+app.post('/api/admin/briefs/:id/assign', requireAdmin, wrap(async (req, res) => ok(res, { assignment: await assignBrief(Number(req.params.id), Number(req.body?.creator_id)) })));
+
+app.get('/api/admin/submissions', requireAdmin, wrap(async (req, res) => ok(res, { submissions: await listSubmissions(req.query.status) })));
+app.post('/api/admin/submissions/:id/review', requireAdmin, wrap(async (req, res) => ok(res, { submission: await reviewSubmission(Number(req.params.id), req.body || {}) })));
+app.post('/api/admin/submissions/:id/views', requireAdmin, wrap(async (req, res) => ok(res, { submission: await recordViews(Number(req.params.id), Number(req.body?.views) || 0, !!req.body?.final) })));
+
+app.get('/api/admin/payouts', requireAdmin, wrap(async (_req, res) => ok(res, { payouts: await listPayouts() })));
+app.post('/api/admin/payouts', requireAdmin, wrap(async (req, res) => ok(res, { payout: await createPayout(Number(req.body?.creator_id), Number(req.body?.amount)) })));
+app.post('/api/admin/payouts/:id/paid', requireAdmin, wrap(async (req, res) => ok(res, { payout: await markPayoutPaid(Number(req.params.id)) })));
 
 // Upload/multer error handler → JSON instead of HTML.
 app.use('/api', (err, _req, res, _next) => {
