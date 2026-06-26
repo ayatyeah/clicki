@@ -6,7 +6,7 @@ import { EMAIL, EMAIL_URL } from '../lib/config.js';
 
 const COPY = {
   ru: {
-    seoTitle: 'Политика конфиденциальности — CLICKI',
+    seoTitle: 'Политика конфиденциальности - CLICKI',
     seoDesc: 'Политика обработки персональных данных CLICKI в соответствии с законом РК 94-V.',
     title: 'Политика конфиденциальности',
     lead: 'Настоящая политика описывает порядок обработки и защиты персональных данных пользователей сайта CLICKI в соответствии с Законом Республики Казахстан «О персональных данных и их защите» № 94-V.',
@@ -21,7 +21,7 @@ const COPY = {
     rights1: 'Вы вправе запросить доступ к своим данным, их исправление или удаление, а также отозвать согласие на обработку, направив запрос на ',
   },
   en: {
-    seoTitle: 'Privacy policy — CLICKI',
+    seoTitle: 'Privacy policy - CLICKI',
     seoDesc: 'CLICKI personal data processing policy in line with RK law 94-V.',
     title: 'Privacy policy',
     lead: 'This policy describes how the personal data of CLICKI website users is processed and protected, in accordance with the Republic of Kazakhstan law “On Personal Data and Its Protection” No. 94-V.',

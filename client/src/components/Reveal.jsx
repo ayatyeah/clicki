@@ -3,7 +3,7 @@ import { motion, useReducedMotion } from 'motion/react';
 
 /**
  * Scroll-reveal wrapper (ТЗ 9.4). Slides + fades its children up as they enter
- * the viewport — applied across the whole site via Section/cards/hero/cta.
+ * the viewport - applied across the whole site via Section/cards/hero/cta.
  * Honors prefers-reduced-motion (renders static).
  */
 export default function Reveal({ children, as = 'div', className = '', delay = 0 }) {

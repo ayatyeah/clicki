@@ -3,7 +3,7 @@ import { motion, useScroll, useTransform, useReducedMotion } from 'motion/react'
 
 /**
  * Scroll-linked "drift down + fade out" wrapper. As the element scrolls toward
- * the top of the viewport it sinks by `distance`px and fades away — the same
+ * the top of the viewport it sinks by `distance`px and fades away - the same
  * kind of scroll-driven motion as the MacBook. Honors reduced-motion.
  */
 export default function ScrollAway({ children, className = '', distance = 220 }) {

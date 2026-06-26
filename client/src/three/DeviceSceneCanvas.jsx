@@ -223,7 +223,7 @@ function makeScreenTexture(variant, aspect) {
   // music line
   ctx.fillStyle = 'rgba(255,255,255,0.9)';
   ctx.font = '500 22px Inter, Arial, sans-serif';
-  ctx.fillText('♪  оригинальный звук — CLICKI', 40, h * 0.944);
+  ctx.fillText('♪  оригинальный звук - CLICKI', 40, h * 0.944);
 
   // progress bar
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
@@ -393,7 +393,7 @@ function PhoneRig({ interactive, variant, screenImage }) {
   const content = (
     <ScrollMotion>
       <Float speed={1.4} rotationIntensity={0.25} floatIntensity={0.45}>
-        {/* Flattering 3/4 hero pose — screen clearly readable, a touch of depth. */}
+        {/* Flattering 3/4 hero pose - screen clearly readable, a touch of depth. */}
         <group rotation={[0.14, -0.12, 0.05]}>
           <PhoneModel variant={variant} screenImage={screenImage} />
         </group>
@@ -415,7 +415,7 @@ function PhoneRig({ interactive, variant, screenImage }) {
   );
 }
 
-/** Heavy three.js canvas — imported lazily by DeviceScene so three is code-split. */
+/** Heavy three.js canvas - imported lazily by DeviceScene so three is code-split. */
 export default function DeviceSceneCanvas({ variant = 'violet', interactive = true, screenImage = '' }) {
   return (
     <Canvas

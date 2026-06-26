@@ -16,7 +16,7 @@ import { PHONE, PHONE_TEL, TELEGRAM_URL, EMAIL, EMAIL_URL } from '../lib/config.
 
 const COPY = {
   ru: {
-    seoTitle: 'CLICKI для бизнеса — реклама с оплатой за просмотры',
+    seoTitle: 'CLICKI для бизнеса - реклама с оплатой за просмотры',
     seoDesc: 'Первая автоматизированная платформа рекламы с оплатой за органические просмотры. Получите консультацию.',
     badge: 'Performance-маркетинг нового поколения',
     heroPre: 'Платишь за ',
@@ -25,7 +25,7 @@ const COPY = {
     heroSub: 'Первая платформа, где вы платите за живые просмотры, а не за обещания. Запуск за пару дней и никакого слитого бюджета.',
     consult: 'Получить консультацию',
     how: 'Как это работает',
-    macbookTitle: 'Вся кампания — в одном дашборде',
+    macbookTitle: 'Вся кампания - в одном дашборде',
     flipWords: ['органика', 'просмотры', 'охваты', 'результат'],
     fields: [
       { name: 'name', label: 'Имя', required: true, autoComplete: 'name', placeholder: 'Как к вам обращаться' },
@@ -39,14 +39,14 @@ const COPY = {
       eyebrow: 'Проблема',
       title: 'Почему классическая реклама сливает бюджет',
       cards: [
-        { title: 'Слив бюджета', text: 'Платите блогеру фиксированный гонорар, а видео не набирает просмотров — деньги потеряны.' },
+        { title: 'Слив бюджета', text: 'Платите блогеру фиксированный гонорар, а видео не набирает просмотров - деньги потеряны.' },
         { title: 'Нет гарантий', text: 'Результат интеграций непредсказуем: стоимость привлечения растёт, отдача стремится к нулю.' },
       ],
     },
     ugc: {
       eyebrow: 'Контекст',
       title: 'Что такое UGC',
-      lead: 'UGC (User Generated Content) — короткие видео от реальных людей на их живых аккаунтах. Аудитория доверяет таким роликам больше, чем прямой рекламе. Никаких фейков и накруток — только живой контент.',
+      lead: 'UGC (User Generated Content) - короткие видео от реальных людей на их живых аккаунтах. Аудитория доверяет таким роликам больше, чем прямой рекламе. Никаких фейков и накруток - только живой контент.',
     },
     why: {
       eyebrow: 'Зачем это бизнесу',
@@ -89,7 +89,7 @@ const COPY = {
       rows: [
         ['За что платит бренд', 'За публикацию (может набрать 0)', 'За гарантированные просмотры'],
         ['Время на запуск', '2–4 недели', 'До 48 часов, автоматически'],
-        ['Риски слива бюджета', 'Огромные', 'Нулевые — оплата за результат'],
+        ['Риски слива бюджета', 'Огромные', 'Нулевые - оплата за результат'],
         ['Прозрачность', 'Скриншоты в Excel', 'Интерактивный live-дашборд'],
       ],
     },
@@ -98,8 +98,8 @@ const COPY = {
     about: {
       eyebrow: 'О нас',
       title: 'Кто мы',
-      alt: 'Партнёрское рукопожатие — доверие и долгосрочные отношения с брендами',
-      lead: 'CLICKI — технологическая performance-платформа из Астаны. Доверие, экспертиза и ясное видение того, как работает органический охват. За плечами — собранная сеть авторов, запущенный пилот и готовый продукт.',
+      alt: 'Партнёрское рукопожатие - доверие и долгосрочные отношения с брендами',
+      lead: 'CLICKI - технологическая performance-платформа из Астаны. Доверие, экспертиза и ясное видение того, как работает органический охват. За плечами - собранная сеть авторов, запущенный пилот и готовый продукт.',
     },
     faq: {
       title: 'Частые вопросы',
@@ -111,11 +111,11 @@ const COPY = {
         },
         {
           q: 'Сколько времени занимает запуск кампании?',
-          a: 'До 48 часов. Вы ставите бриф — платформа сама раздаёт заказы проверенным авторам и запускает публикации.',
+          a: 'До 48 часов. Вы ставите бриф - платформа сама раздаёт заказы проверенным авторам и запускает публикации.',
         },
         {
           q: 'Что такое UGC и почему это работает?',
-          a: 'UGC — короткие видео от реальных людей на их живых аккаунтах. Аудитория доверяет такому контенту больше, чем прямой рекламе.',
+          a: 'UGC - короткие видео от реальных людей на их живых аккаунтах. Аудитория доверяет такому контенту больше, чем прямой рекламе.',
         },
         {
           q: 'Где я вижу результаты кампании?',
@@ -123,21 +123,21 @@ const COPY = {
         },
         {
           q: 'На каких платформах вы работаете?',
-          a: 'Instagram, TikTok, YouTube Shorts и другие — мультиплатформенный охват одной кампанией.',
+          a: 'Instagram, TikTok, YouTube Shorts и другие - мультиплатформенный охват одной кампанией.',
         },
       ],
     },
     finalTitle: 'Получить консультацию',
-    finalText: 'Оставьте заявку — мы свяжемся с вами, разберём задачу и покажем, как запустить кампанию.',
+    finalText: 'Оставьте заявку - мы свяжемся с вами, разберём задачу и покажем, как запустить кампанию.',
   },
   en: {
-    seoTitle: 'CLICKI for business — pay-for-views advertising',
+    seoTitle: 'CLICKI for business - pay-for-views advertising',
     seoDesc: 'The first automated pay-for-organic-views advertising platform. Get a consultation.',
     badge: 'Next-generation performance marketing',
     heroPre: 'You pay for ',
     heroAccent: 'results',
     heroPost: ', not for hope',
-    heroSub: 'The first platform where you pay for real views, not promises. Launch in days — no wasted budget.',
+    heroSub: 'The first platform where you pay for real views, not promises. Launch in days - no wasted budget.',
     consult: 'Get a consultation',
     how: 'How it works',
     macbookTitle: 'Your whole campaign in one dashboard',
@@ -154,14 +154,14 @@ const COPY = {
       eyebrow: 'Problem',
       title: 'Why classic advertising burns budget',
       cards: [
-        { title: 'Wasted budget', text: 'You pay a blogger a fixed fee, the video gets no views — the money is gone.' },
+        { title: 'Wasted budget', text: 'You pay a blogger a fixed fee, the video gets no views - the money is gone.' },
         { title: 'No guarantees', text: 'Integration results are unpredictable: acquisition cost rises, ROI trends to zero.' },
       ],
     },
     ugc: {
       eyebrow: 'Context',
       title: 'What is UGC',
-      lead: 'UGC (User Generated Content) — short videos by real people on their real accounts. Audiences trust them more than direct ads. No fakes, no bots — only real content.',
+      lead: 'UGC (User Generated Content) - short videos by real people on their real accounts. Audiences trust them more than direct ads. No fakes, no bots - only real content.',
     },
     why: {
       eyebrow: 'Why business needs it',
@@ -204,7 +204,7 @@ const COPY = {
       rows: [
         ['What the brand pays for', 'For posting (may get 0)', 'For guaranteed views'],
         ['Time to launch', '2–4 weeks', 'Up to 48 hours, automatically'],
-        ['Budget-waste risk', 'Huge', 'Zero — pay for results'],
+        ['Budget-waste risk', 'Huge', 'Zero - pay for results'],
         ['Transparency', 'Screenshots in Excel', 'Interactive live dashboard'],
       ],
     },
@@ -213,8 +213,8 @@ const COPY = {
     about: {
       eyebrow: 'About',
       title: 'Who we are',
-      alt: 'A partnership handshake — trust and long-term relationships with brands',
-      lead: 'CLICKI is a technology performance platform from Astana. Trust, expertise and a clear vision of how organic reach works. Behind us — a built creator network, a launched pilot and a ready product.',
+      alt: 'A partnership handshake - trust and long-term relationships with brands',
+      lead: 'CLICKI is a technology performance platform from Astana. Trust, expertise and a clear vision of how organic reach works. Behind us - a built creator network, a launched pilot and a ready product.',
     },
     faq: {
       title: 'FAQ',
@@ -226,7 +226,7 @@ const COPY = {
         },
         {
           q: 'How long does it take to launch a campaign?',
-          a: 'Up to 48 hours. You set a brief — the platform assigns tasks to vetted creators and starts the posts.',
+          a: 'Up to 48 hours. You set a brief - the platform assigns tasks to vetted creators and starts the posts.',
         },
         {
           q: 'What is UGC and why does it work?',
@@ -238,12 +238,12 @@ const COPY = {
         },
         {
           q: 'Which platforms do you work on?',
-          a: 'Instagram, TikTok, YouTube Shorts and more — multi-platform reach in a single campaign.',
+          a: 'Instagram, TikTok, YouTube Shorts and more - multi-platform reach in a single campaign.',
         },
       ],
     },
     finalTitle: 'Get a consultation',
-    finalText: 'Leave a request — we’ll contact you, dig into your goal and show how to launch a campaign.',
+    finalText: 'Leave a request - we’ll contact you, dig into your goal and show how to launch a campaign.',
   },
 };
 
@@ -426,7 +426,7 @@ export default function Business() {
           </div>
         </Section>
 
-        {/* FAQ — dropdown accordion */}
+        {/* FAQ - dropdown accordion */}
         <section className="section">
           <div className="container">
             <Reveal as="header" className="section__head section__head--center">

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-/* Soft gradient orbs in the brand palette — premium "investor teaser" backdrop.
+/* Soft gradient orbs in the brand palette - premium "investor teaser" backdrop.
    depth = mouse-parallax px, depthY = scroll-parallax factor. */
 const ORBS = [
   { tone: 'violet', top: '-12%', left: '-8%', size: 560, depth: 26, depthY: 0.05 },

@@ -42,7 +42,7 @@ export default function VideoShowcase({ items }) {
   );
 }
 
-/** One card — sizes itself to the media's natural aspect ratio once known. */
+/** One card - sizes itself to the media's natural aspect ratio once known. */
 function ShowcaseItem({ item }) {
   const [ratio, setRatio] = useState(null);
   const style = ratio ? { aspectRatio: String(ratio) } : undefined;

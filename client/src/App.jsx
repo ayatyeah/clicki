@@ -13,7 +13,7 @@ const Privacy = lazy(() => import('./pages/Privacy.jsx'));
 const ThankYou = lazy(() => import('./pages/ThankYou.jsx'));
 const NotFound = lazy(() => import('./pages/NotFound.jsx'));
 const Admin = lazy(() => import('./pages/Admin.jsx'));
-// WebGL aurora backdrop — lazy so it never blocks first paint.
+// WebGL aurora backdrop - lazy so it never blocks first paint.
 const Aurora = lazy(() => import('./components/Aurora.jsx'));
 
 // Scroll to top + report a pageview on every route change.

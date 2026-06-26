@@ -35,7 +35,7 @@ const L = {
  * @param {'client'|'creator'} funnel
  * @param {Array<{name,label,type?,required?,placeholder?,autoComplete?}>} fields
  * @param {string} submitLabel
- * @param {boolean} requireAdult — show + require the 18+ checkbox (creators)
+ * @param {boolean} requireAdult - show + require the 18+ checkbox (creators)
  */
 export default function LeadForm({ funnel, fields, submitLabel, requireAdult = false }) {
   const navigate = useNavigate();
@@ -106,7 +106,7 @@ export default function LeadForm({ funnel, fields, submitLabel, requireAdult = f
         </label>
       ))}
 
-      {/* Honeypot — hidden from humans, catches bots. */}
+      {/* Honeypot - hidden from humans, catches bots. */}
       <input
         type="text"
         name="website"

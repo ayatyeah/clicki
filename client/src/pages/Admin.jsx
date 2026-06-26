@@ -194,7 +194,7 @@ export default function Admin() {
     return (
       <main className="admin">
         <Helmet>
-          <title>CLICKI — админка</title>
+          <title>CLICKI - админка</title>
           <meta name="robots" content="noindex, nofollow" />
         </Helmet>
         <form className="admin-login lead-form" onSubmit={onLogin}>
@@ -230,7 +230,7 @@ export default function Admin() {
   return (
     <main className="admin">
       <Helmet>
-        <title>CLICKI — админка</title>
+        <title>CLICKI - админка</title>
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
       <div className="admin-layout">
@@ -432,7 +432,7 @@ function LeadsSection({ title, leads, loading, onReload }) {
                     </div>
                   ))}
                 </td>
-                <td>{lead.page || '—'}</td>
+                <td>{lead.page || '-'}</td>
                 <td>{new Date(lead.createdAt).toLocaleString('ru-RU')}</td>
               </tr>
             ))}
@@ -453,7 +453,7 @@ function LeadsSection({ title, leads, loading, onReload }) {
 function AnalyticsByPage({ leads }) {
   const byPage = {};
   for (const l of leads) {
-    const p = l.page || '—';
+    const p = l.page || '-';
     byPage[p] = (byPage[p] || 0) + 1;
   }
   const rows = Object.entries(byPage).sort((a, b) => b[1] - a[1]);

@@ -1,7 +1,7 @@
 import { Suspense, lazy } from 'react';
 import { useShouldRender3D } from './useShouldRender3D.js';
 
-// three.js stays out of the main bundle — fetched only when the laptop renders.
+// three.js stays out of the main bundle - fetched only when the laptop renders.
 const LaptopSceneCanvas = lazy(() => import('./LaptopSceneCanvas.jsx'));
 
 /**

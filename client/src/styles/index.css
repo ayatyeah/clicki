@@ -394,14 +394,10 @@ img, video {
   color: var(--ink);
 }
 .logo__img {
-  width: 40px;
-  height: 40px;
+  width: auto;
+  height: 42px;
   object-fit: contain;
-  background: var(--white);
-  border: 1px solid var(--line);
-  border-radius: 11px;
-  padding: 4px;
-  box-shadow: var(--shadow-soft);
+  display: block;
 }
 .logo__word {
   font-family: var(--font-display);
@@ -447,14 +443,10 @@ img, video {
   gap: 12px;
 }
 .hub__mark {
-  width: 64px;
-  height: 64px;
+  width: auto;
+  height: 60px;
   object-fit: contain;
-  background: var(--white);
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  padding: 9px;
-  box-shadow: var(--shadow-card);
+  display: block;
 }
 .hub__wordmark {
   font-family: var(--font-display);
@@ -539,6 +531,29 @@ img, video {
 }
 .hub__link:hover {
   color: var(--ink);
+}
+.hub__social {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  margin-top: 22px;
+}
+.hub__social-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: rgba(124, 58, 237, 0.18);
+  border: 1px solid rgba(168, 139, 250, 0.3);
+  color: #fff;
+  transition: background 0.16s ease, transform 0.16s ease;
+}
+.hub__social-btn:hover {
+  background: rgba(124, 58, 237, 0.38);
+  color: #fff;
+  transform: translateY(-2px);
 }
 
 /* ---------- Hero (funnels) ---------- */

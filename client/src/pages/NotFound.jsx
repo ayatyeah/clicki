@@ -4,8 +4,8 @@ import Logo from '../components/Logo.jsx';
 import { useLang } from '../i18n.jsx';
 
 const COPY = {
-  ru: { title: 'Страница не найдена — CLICKI', text: 'Такой страницы нет. Вернёмся на главную?', home: 'На главную' },
-  en: { title: 'Page not found — CLICKI', text: 'This page doesn’t exist. Back to home?', home: 'Home' },
+  ru: { title: 'Страница не найдена - CLICKI', text: 'Такой страницы нет. Вернёмся на главную?', home: 'На главную' },
+  en: { title: 'Page not found - CLICKI', text: 'This page doesn’t exist. Back to home?', home: 'Home' },
 };
 
 export default function NotFound() {

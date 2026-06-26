@@ -6,7 +6,7 @@ import { PHONE, PHONE_TEL, TELEGRAM, TELEGRAM_URL, EMAIL, EMAIL_URL } from '../l
 
 const COPY = {
   ru: {
-    seoTitle: 'CLICKI — контакты',
+    seoTitle: 'CLICKI - контакты',
     seoDesc: 'Свяжитесь с командой CLICKI.',
     title: 'Контакты',
     lead: 'Performance-платформа органических просмотров. Астана, Казахстан.',
@@ -14,7 +14,7 @@ const COPY = {
     email: 'Email',
   },
   en: {
-    seoTitle: 'CLICKI — contacts',
+    seoTitle: 'CLICKI - contacts',
     seoDesc: 'Get in touch with the CLICKI team.',
     title: 'Contacts',
     lead: 'Performance platform for organic views. Astana, Kazakhstan.',

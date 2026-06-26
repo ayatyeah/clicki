@@ -13,7 +13,7 @@ import { TELEGRAM_URL } from '../lib/config.js';
 
 const COPY = {
   ru: {
-    seoTitle: 'CLICKI для креаторов — снимай и зарабатывай на органике',
+    seoTitle: 'CLICKI для креаторов - снимай и зарабатывай на органике',
     seoDesc: 'Стань UGC-креатором: снимай короткие видео из дома, расти в органике и развивай портфолио.',
     badge: 'Для тех, кто живёт в телефоне 📱',
     hero1: 'Снимай. Выкладывай.',
@@ -30,7 +30,7 @@ const COPY = {
       { name: 'examples', label: 'Примеры контента', type: 'textarea', placeholder: 'Ссылки на твои ролики (по желанию)' },
     ],
     slogans: [
-      'Твой рост — твой доход.',
+      'Твой рост - твой доход.',
       'Снимай из дома. Зарабатывай на органике.',
       'Стань UGC-креатором для десятков брендов, а не заложником одного.',
       'Построй портфолио, которое работает на тебя.',
@@ -41,7 +41,7 @@ const COPY = {
       steps: [
         { title: 'Получаешь бриф', text: 'Платформа присылает задание от бренда.' },
         { title: 'Снимаешь видео', text: 'Короткое вертикальное видео на свой открытый аккаунт.' },
-        { title: 'Публикуешь', text: 'Чем больше живых органических просмотров — тем выше доход.' },
+        { title: 'Публикуешь', text: 'Чем больше живых органических просмотров - тем выше доход.' },
         { title: 'Всё удалённо', text: 'Со своего телефона, в удобное время.' },
       ],
     },
@@ -49,7 +49,7 @@ const COPY = {
       eyebrow: 'Почему стоит идти к нам',
       title: 'Что ты получаешь',
       cards: [
-        { title: 'Работа с разными брендами', text: 'Ты не заложник одного заказчика — снимаешь для десятков компаний и ниш.' },
+        { title: 'Работа с разными брендами', text: 'Ты не заложник одного заказчика - снимаешь для десятков компаний и ниш.' },
         { title: 'Свой шанс стать креатором', text: 'Не «контент для одного бренда», а полноценная профессия и репутация.' },
         { title: 'Собственное портфолио', text: 'Каждое задание прокачивает твою папку кейсов, с которой можно расти дальше.' },
         { title: 'Реальный маркетинг', text: 'Учишься тому, как устроены продвижение и виральность, изнутри.' },
@@ -79,11 +79,11 @@ const COPY = {
       ],
     },
     finalTitle: 'Старт креатором',
-    finalText: 'Заполни анкету — мы проверим заявку и пришлём первые брифы. Это бесплатно и ни к чему не обязывает.',
+    finalText: 'Заполни анкету - мы проверим заявку и пришлём первые брифы. Это бесплатно и ни к чему не обязывает.',
     community: 'Telegram-сообщество',
   },
   en: {
-    seoTitle: 'CLICKI for creators — film and earn on organic reach',
+    seoTitle: 'CLICKI for creators - film and earn on organic reach',
     seoDesc: 'Become a UGC creator: film short videos from home, grow in organic reach and build a portfolio.',
     badge: 'For those who live on their phone 📱',
     hero1: 'Film it. Post it.',
@@ -100,7 +100,7 @@ const COPY = {
       { name: 'examples', label: 'Content samples', type: 'textarea', placeholder: 'Links to your clips (optional)' },
     ],
     slogans: [
-      'Your growth — your income.',
+      'Your growth - your income.',
       'Film from home. Earn on organic reach.',
       'Become a UGC creator for dozens of brands, not a hostage of one.',
       'Build a portfolio that works for you.',
@@ -111,7 +111,7 @@ const COPY = {
       steps: [
         { title: 'Get a brief', text: 'The platform sends a task from a brand.' },
         { title: 'Film a video', text: 'A short vertical video on your public account.' },
-        { title: 'Publish it', text: 'The more real organic views — the higher your income.' },
+        { title: 'Publish it', text: 'The more real organic views - the higher your income.' },
         { title: 'Fully remote', text: 'From your phone, whenever it suits you.' },
       ],
     },
@@ -119,7 +119,7 @@ const COPY = {
       eyebrow: 'Why come to us',
       title: 'What you get',
       cards: [
-        { title: 'Work with many brands', text: 'You’re not tied to one client — you film for dozens of companies and niches.' },
+        { title: 'Work with many brands', text: 'You’re not tied to one client - you film for dozens of companies and niches.' },
         { title: 'Your shot at being a creator', text: 'Not “content for one brand”, but a real profession and reputation.' },
         { title: 'Your own portfolio', text: 'Every task grows your case folder to go further with.' },
         { title: 'Real marketing', text: 'Learn how promotion and virality actually work, from the inside.' },
@@ -149,7 +149,7 @@ const COPY = {
       ],
     },
     finalTitle: 'Start as a creator',
-    finalText: 'Fill in the form — we’ll review your application and send the first briefs. It’s free and non-binding.',
+    finalText: 'Fill in the form - we’ll review your application and send the first briefs. It’s free and non-binding.',
     community: 'Telegram community',
   },
 };
@@ -202,7 +202,7 @@ export default function Creators() {
           </div>
         </section>
 
-        {/* Slogans — right after the hero */}
+        {/* Slogans - right after the hero */}
         <section className="slogans">
           <div className="container">
             <div className="slogans__grid">
