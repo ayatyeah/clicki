@@ -13,6 +13,48 @@ const REJECT_CODES = [
   { code: 'other', label: 'Другое' },
 ];
 
+/* ---------------- AI analysis (Gemini, cached) ---------------- */
+export function AiAnalysisView({ authFetch }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const load = async (refresh) => {
+    setLoading(true);
+    try {
+      const r = await (await authFetch(`/api/admin/ai-analysis${refresh ? '?refresh=1' : ''}`)).json();
+      setData(r);
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
+    load(false);
+  }, []); // eslint-disable-line
+
+  return (
+    <section className="admin-block">
+      <div className="admin-panel__head">
+        <h2 className="admin-block__title">ИИ Аналитика</h2>
+        <button className="btn btn--ghost btn--sm" onClick={() => load(true)} disabled={loading}>
+          {loading ? 'Анализирую…' : 'Обновить'}
+        </button>
+      </div>
+      {!data ? (
+        <p className="muted-note">Загрузка…</p>
+      ) : !data.enabled ? (
+        <div className="admin-placeholder">Gemini не настроен — добавьте ключи GEMINI_API_KEY в окружение сервера.</div>
+      ) : (
+        <>
+          <div className="admin-placeholder" style={{ whiteSpace: 'pre-wrap' }}>{data.analysis}</div>
+          <p className="muted-note">
+            {data.cached ? '⚡ из кэша (экономия запросов)' : '🆕 свежий анализ'}
+            {data.at ? ` · ${new Date(data.at).toLocaleString('ru-RU')}` : ''}
+          </p>
+        </>
+      )}
+    </section>
+  );
+}
+
 /* ---------------- Briefs ---------------- */
 export function BriefsView({ authFetch }) {
   const [briefs, setBriefs] = useState([]);

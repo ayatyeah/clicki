@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import { API_BASE } from '../lib/config.js';
-import { BriefsView, ReviewView, CreatorsView, PayoutsView } from './AdminPlatform.jsx';
+import { AiAnalysisView, BriefsView, ReviewView, CreatorsView, PayoutsView } from './AdminPlatform.jsx';
 
 const TOKEN_KEY = 'clicki_admin_token';
 const EMPTY = { showcase: [], devices: { iphone: { image: '' }, laptop: { image: '' } }, creatorVideo: '' };
@@ -291,15 +291,7 @@ export default function Admin() {
             </section>
           )}
 
-          {view === 'ai' && (
-            <section className="admin-block">
-              <h2 className="admin-block__title">ИИ Аналитика</h2>
-              <div className="admin-placeholder">
-                Раздел в разработке. Здесь появится ИИ-аналитика заявок: сегментация аудитории,
-                прогноз конверсии и подсказки по контенту.
-              </div>
-            </section>
-          )}
+          {view === 'ai' && <AiAnalysisView authFetch={authFetch} />}
 
           {view === 'analytics' && (
             <section className="admin-block">

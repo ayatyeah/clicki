@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import os from 'node:os';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync, createReadStream, statSync, mkdirSync } from 'node:fs';
@@ -42,7 +43,10 @@ import {
   markPayoutPaid,
   getLeaderboard,
   levelFromXp,
+  getAiCache,
+  saveAiCache,
 } from './db.js';
+import { geminiGenerate, geminiEnabled } from './gemini.js';
 import { uploadToSpaces, spacesEnabled } from './storage.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -348,6 +352,47 @@ app.post('/api/admin/submissions/:id/views', requireAdmin, wrap(async (req, res)
 app.get('/api/admin/payouts', requireAdmin, wrap(async (_req, res) => ok(res, { payouts: await listPayouts() })));
 app.post('/api/admin/payouts', requireAdmin, wrap(async (req, res) => ok(res, { payout: await createPayout(Number(req.body?.creator_id), Number(req.body?.amount)) })));
 app.post('/api/admin/payouts/:id/paid', requireAdmin, wrap(async (req, res) => ok(res, { payout: await markPayoutPaid(Number(req.params.id)) })));
+
+// AI analysis (Gemini) — cached in DB so we call the API only when data changed
+// or the operator forces a refresh (economical).
+app.get(
+  '/api/admin/ai-analysis',
+  requireAdmin,
+  wrap(async (req, res) => {
+    if (!geminiEnabled) return ok(res, { enabled: false });
+    const [leads, creators, subs, briefs] = [await readLeads(), await listCreators(), await listSubmissions(), await listBriefs()];
+    const byFunnel = leads.reduce((a, l) => ({ ...a, [l.funnel]: (a[l.funnel] || 0) + 1 }), {});
+    const subStatus = subs.reduce((a, s) => ({ ...a, [s.status]: (a[s.status] || 0) + 1 }), {});
+    const stats = {
+      leads: leads.length,
+      leadsByFunnel: byFunnel,
+      creators: creators.length,
+      onboarded: creators.filter((c) => c.onboarding_passed).length,
+      submissions: subs.length,
+      subStatus,
+      acceptedViews: subs.filter((s) => s.status === 'accepted').reduce((a, s) => a + (s.views || 0), 0),
+      briefs: briefs.length,
+    };
+    const input = JSON.stringify(stats);
+    const hash = crypto.createHash('sha1').update(input).digest('hex');
+    const TTL = 6 * 60 * 60 * 1000; // 6h cap → a few API calls/day at most
+    const refresh = req.query.refresh === '1';
+    const cache = await getAiCache();
+    const fresh = cache && Date.now() - new Date(cache.created_at).getTime() < TTL;
+    // Reuse cache when data is unchanged OR within TTL (unless forced refresh).
+    if (cache && !refresh && (cache.input_hash === hash || fresh)) {
+      return ok(res, { enabled: true, cached: true, analysis: cache.result, stats, at: cache.created_at });
+    }
+    const prompt =
+      `Ты аналитик платформы CLICKI (реклама с оплатой за органические просмотры через UGC-креаторов). ` +
+      `Агрегированные данные:\n${input}\n\n` +
+      `Дай краткий анализ состояния (3-4 предложения) и 3-5 конкретных рекомендаций, что делать дальше. ` +
+      `Только по-русски, по делу, без воды. Рекомендации — маркированным списком.`;
+    const analysis = await geminiGenerate(prompt);
+    await saveAiCache(hash, analysis);
+    ok(res, { enabled: true, cached: false, analysis, stats, at: new Date().toISOString() });
+  })
+);
 
 // Upload/multer error handler → JSON instead of HTML.
 app.use('/api', (err, _req, res, _next) => {

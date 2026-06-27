@@ -29,6 +29,11 @@ export async function initDb() {
         data BYTEA NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`);
+    // Persistent site content (device images + creator video) — survives redeploys
+    await client.query(`CREATE TABLE IF NOT EXISTS site_content (id INT PRIMARY KEY DEFAULT 1, data JSONB NOT NULL DEFAULT '{}'::jsonb)`);
+    await client.query(`INSERT INTO site_content (id, data) VALUES (1, '{}'::jsonb) ON CONFLICT (id) DO NOTHING`);
+    // AI analysis cache (economical Gemini usage)
+    await client.query(`CREATE TABLE IF NOT EXISTS ai_cache (id INT PRIMARY KEY DEFAULT 1, input_hash TEXT, result TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
 
     // ---- Platform (ТЗ) ----
     // Rates per platform — single source of truth (ТЗ §2)
@@ -195,6 +200,31 @@ export async function getMediaMeta(id) {
   const result = await pool.query('SELECT mime FROM media WHERE id = $1', [id]);
   if (result.rows.length === 0) return null;
   return { mime: result.rows[0].mime };
+}
+
+/* ---------------- Persistent site content (devices + creator video) ---------------- */
+export async function getSiteContent() {
+  const r = await pool.query('SELECT data FROM site_content WHERE id=1');
+  return r.rows[0]?.data || {};
+}
+export async function saveSiteContent(data) {
+  await pool.query(
+    `INSERT INTO site_content (id, data) VALUES (1,$1) ON CONFLICT (id) DO UPDATE SET data=$1`,
+    [JSON.stringify(data)]
+  );
+}
+
+/* ---------------- AI analysis cache ---------------- */
+export async function getAiCache() {
+  const r = await pool.query('SELECT input_hash, result, created_at FROM ai_cache WHERE id=1');
+  return r.rows[0] || null;
+}
+export async function saveAiCache(hash, result) {
+  await pool.query(
+    `INSERT INTO ai_cache (id, input_hash, result, created_at) VALUES (1,$1,$2,CURRENT_TIMESTAMP)
+     ON CONFLICT (id) DO UPDATE SET input_hash=$1, result=$2, created_at=CURRENT_TIMESTAMP`,
+    [hash, result]
+  );
 }
 
 /* ---------------- Platform: rates & settings (ТЗ §2) ---------------- */
