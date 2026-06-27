@@ -132,13 +132,23 @@ export function ReviewView({ authFetch }) {
     load();
   }, []); // eslint-disable-line
 
-  const review = async (id, status, reject_code) => {
+  const review = async (id, status, reject_code, checklist) => {
     await authFetch(`/api/admin/submissions/${id}/review`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, reject_code }),
+      body: JSON.stringify({ status, reject_code, checklist }),
     });
     load();
+  };
+  const exportCsv = async () => {
+    const res = await authFetch('/api/admin/submissions/export');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'submissions.csv';
+    a.click();
+    URL.revokeObjectURL(url);
   };
   const setViews = async (id, views, final) => {
     await authFetch(`/api/admin/submissions/${id}/views`, {
@@ -151,7 +161,10 @@ export function ReviewView({ authFetch }) {
 
   return (
     <section className="admin-block">
-      <h2 className="admin-block__title">Видео на проверке</h2>
+      <div className="admin-panel__head">
+        <h2 className="admin-block__title">Видео на проверке</h2>
+        <button className="btn btn--ghost btn--sm" onClick={exportCsv}>Экспорт CSV</button>
+      </div>
       <div className="admin-table-wrap">
         <table className="admin-table">
           <thead>
@@ -176,7 +189,12 @@ export function ReviewView({ authFetch }) {
                   {s.rights_confirmed ? <span style={{ color: '#6ee7a8', fontSize: '0.8rem' }}>права ✓</span> : <span style={{ color: '#f59e0b', fontSize: '0.8rem' }}>права ✗</span>}
                 </td>
                 <td>
-                  <ReviewActions onReject={(code) => review(s.id, 'rejected', code)} onRework={() => review(s.id, 'rework')} onAccept={() => review(s.id, 'accepted')} status={s.status} />
+                  <ReviewActions
+                    submission={s}
+                    onAccept={(cl) => review(s.id, 'accepted', null, cl)}
+                    onRework={(cl) => review(s.id, 'rework', null, cl)}
+                    onReject={(code, cl) => review(s.id, 'rejected', code, cl)}
+                  />
                 </td>
                 <td>
                   <ViewsCell submission={s} onSave={setViews} />
@@ -195,19 +213,36 @@ export function ReviewView({ authFetch }) {
   );
 }
 
-function ReviewActions({ onAccept, onRework, onReject }) {
+function ReviewActions({ submission, onAccept, onRework, onReject }) {
+  // Structured checklist from the brief's binary requirements (ТЗ §9.2)
+  const reqs = [];
+  if (submission.req_hashtag) reqs.push(['hashtag', `Хэштег ${submission.req_hashtag}`]);
+  if (submission.req_mention) reqs.push(['mention', 'Упоминание в 3 сек']);
+  if (submission.req_cta_link) reqs.push(['cta', 'CTA-ссылка']);
+  reqs.push(['duration', `Хронометраж ${submission.duration_min}-${submission.duration_max}с`]);
+
+  const [checks, setChecks] = useState({});
   const [code, setCode] = useState('no_hashtag');
+  const toggle = (k) => setChecks((c) => ({ ...c, [k]: !c[k] }));
+
   return (
     <div className="pf-actions">
-      <button className="btn btn--primary btn--sm" onClick={onAccept}>Принять</button>
-      <button className="btn btn--ghost btn--sm" onClick={onRework}>Доработка</button>
+      <div className="pf-checklist">
+        {reqs.map(([k, label]) => (
+          <label key={k} className="pf-check">
+            <input type="checkbox" checked={!!checks[k]} onChange={() => toggle(k)} /> {label}
+          </label>
+        ))}
+      </div>
+      <button className="btn btn--primary btn--sm" onClick={() => onAccept(checks)}>Принять</button>
+      <button className="btn btn--ghost btn--sm" onClick={() => onRework(checks)}>Доработка</button>
       <div className="pf-row">
         <select value={code} onChange={(e) => setCode(e.target.value)}>
           {REJECT_CODES.map((r) => (
             <option key={r.code} value={r.code}>{r.label}</option>
           ))}
         </select>
-        <button className="btn btn--ghost btn--sm" onClick={() => onReject(code)}>Отклонить</button>
+        <button className="btn btn--ghost btn--sm" onClick={() => onReject(code, checks)}>Отклонить</button>
       </div>
     </div>
   );

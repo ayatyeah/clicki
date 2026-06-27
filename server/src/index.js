@@ -12,7 +12,7 @@ import multer from 'multer';
 
 import { validateLead } from './validate.js';
 import { verifyRecaptcha } from './recaptcha.js';
-import { dispatchLead } from './notify.js';
+import { dispatchLead, notifyOps } from './notify.js';
 import { saveLead, readLeads } from './store.js';
 import { readContent, writeContent } from './content.js';
 import {
@@ -40,6 +40,8 @@ import {
   listPayouts,
   createPayout,
   markPayoutPaid,
+  getLeaderboard,
+  levelFromXp,
 } from './db.js';
 import { uploadToSpaces, spacesEnabled } from './storage.js';
 
@@ -261,6 +263,8 @@ const wrap = (fn) => async (req, res) => {
 
 // Public rates/thresholds (ТЗ §2)
 app.get('/api/rates', wrap(async (_req, res) => ok(res, { rates: await getRates(), settings: await getSettings() })));
+// Public leaderboard (ТЗ §4.2)
+app.get('/api/leaderboard', wrap(async (_req, res) => ok(res, { leaderboard: await getLeaderboard() })));
 
 // ---- Creator portal (lightweight web auth: id kept client-side; Telegram = V2) ----
 app.post(
@@ -269,7 +273,9 @@ app.post(
   wrap(async (req, res) => {
     const { name, contact, socials, city, referred_by } = req.body || {};
     if (!name || !contact) return res.status(400).json({ ok: false, errors: ['Имя и контакт обязательны'] });
-    ok(res, { creator: await createCreator({ name, contact, socials, city, referred_by }) });
+    const creator = await createCreator({ name, contact, socials, city, referred_by });
+    notifyOps(`🆕 Новый креатор: ${name} (${contact})`);
+    ok(res, { creator });
   })
 );
 app.get(
@@ -279,6 +285,7 @@ app.get(
     if (!c) return res.status(404).json({ ok: false, errors: ['Креатор не найден'] });
     ok(res, {
       creator: c,
+      level: levelFromXp(c.xp),
       wallet: await getCreatorWallet(c.id),
       briefs: await listAssignmentsForCreator(c.id),
       submissions: await listCreatorSubmissions(c.id),
@@ -300,7 +307,9 @@ app.post(
     if (!b.platform || !b.video_url || !b.rights_confirmed) {
       return res.status(400).json({ ok: false, errors: ['Укажите видео, платформу и подтвердите права'] });
     }
-    ok(res, { submission: await createSubmission({ ...b, creator_id: Number(req.params.id) }) });
+    const submission = await createSubmission({ ...b, creator_id: Number(req.params.id) });
+    notifyOps(`🎬 Новое видео на проверку (${b.platform}) от креатора #${req.params.id}`);
+    ok(res, { submission });
   })
 );
 
@@ -315,6 +324,24 @@ app.post('/api/admin/briefs/:id/status', requireAdmin, wrap(async (req, res) => 
 app.post('/api/admin/briefs/:id/assign', requireAdmin, wrap(async (req, res) => ok(res, { assignment: await assignBrief(Number(req.params.id), Number(req.body?.creator_id)) })));
 
 app.get('/api/admin/submissions', requireAdmin, wrap(async (req, res) => ok(res, { submissions: await listSubmissions(req.query.status) })));
+// CSV export for client/internal reports (ТЗ §13)
+app.get(
+  '/api/admin/submissions/export',
+  requireAdmin,
+  wrap(async (_req, res) => {
+    const subs = await listSubmissions();
+    const head = ['id', 'creator', 'brief', 'platform', 'video_url', 'published_at', 'status', 'reject_code', 'views', 'rights'];
+    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const rows = subs.map((s) =>
+      [s.id, s.creator_name, s.brief_title, s.platform, s.video_url, s.published_at, s.status, s.reject_code, s.views, s.rights_confirmed]
+        .map(esc)
+        .join(',')
+    );
+    res.set('Content-Type', 'text/csv; charset=utf-8');
+    res.set('Content-Disposition', 'attachment; filename="submissions.csv"');
+    res.send('﻿' + [head.join(','), ...rows].join('\n'));
+  })
+);
 app.post('/api/admin/submissions/:id/review', requireAdmin, wrap(async (req, res) => ok(res, { submission: await reviewSubmission(Number(req.params.id), req.body || {}) })));
 app.post('/api/admin/submissions/:id/views', requireAdmin, wrap(async (req, res) => ok(res, { submission: await recordViews(Number(req.params.id), Number(req.body?.views) || 0, !!req.body?.final) })));
 

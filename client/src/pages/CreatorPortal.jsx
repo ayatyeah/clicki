@@ -34,7 +34,10 @@ export default function CreatorPortal() {
     if (id) load(id);
   }, [id, load]);
 
-  if (!id) return <Register onDone={(cid) => { localStorage.setItem(KEY, cid); setId(String(cid)); }} setError={setError} error={error} />;
+  if (!id) {
+    const refId = new URLSearchParams(window.location.search).get('ref');
+    return <Register refId={refId} onDone={(cid) => { localStorage.setItem(KEY, cid); setId(String(cid)); }} setError={setError} error={error} />;
+  }
   if (!data) return <Shell><p className="creator-portal__muted">Загрузка…</p></Shell>;
 
   const c = data.creator;
@@ -58,7 +61,7 @@ function Shell({ children }) {
   );
 }
 
-function Register({ onDone, setError, error }) {
+function Register({ onDone, setError, error, refId }) {
   const [f, setF] = useState({ name: '', contact: '', socials: '', city: '' });
   const [busy, setBusy] = useState(false);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
@@ -69,7 +72,7 @@ function Register({ onDone, setError, error }) {
     const res = await fetch(`${API_BASE}/api/creator/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(f),
+      body: JSON.stringify({ ...f, referred_by: refId ? Number(refId) : undefined }),
     });
     const d = await res.json();
     setBusy(false);
@@ -125,14 +128,14 @@ function Onboarding({ id, onDone }) {
 }
 
 function Dashboard({ id, data, reload, onLogout }) {
-  const { creator: c, wallet, briefs, submissions } = data;
+  const { creator: c, wallet, briefs, submissions, level } = data;
   const pct = Math.min(100, Math.round((wallet.balance / wallet.payout_threshold) * 100));
   return (
     <Shell>
       <div className="creator-portal__top">
         <div>
           <h1 className="creator-portal__title">Привет, {c.name.split(' ')[0]} {c.founding && <span className="pf-badge">Founding</span>}</h1>
-          <p className="creator-portal__muted">Стрик {c.streak}🔥 · XP {c.xp} · Trust {c.trust_score}</p>
+          <p className="creator-portal__muted">{level} · Стрик {c.streak}🔥 · XP {c.xp} · Trust {c.trust_score}</p>
         </div>
         <button className="btn btn--ghost btn--sm" onClick={onLogout}>Выйти</button>
       </div>
@@ -144,6 +147,12 @@ function Dashboard({ id, data, reload, onLogout }) {
         </div>
         <div className="creator-portal__bar"><div style={{ width: `${pct}%` }} /></div>
         <p className="creator-portal__muted">До выплаты {wallet.payout_threshold.toLocaleString('ru-RU')} ₸ осталось {Math.max(0, Math.round(wallet.payout_threshold - wallet.balance)).toLocaleString('ru-RU')} ₸</p>
+      </div>
+
+      <div className="creator-portal__card">
+        <div className="creator-portal__wallet-row"><span>Пригласи друга</span></div>
+        <p className="creator-portal__muted">Бонус +500 XP, когда у приглашённого засчитают первое видео.</p>
+        <input readOnly value={`${window.location.origin}/creator?ref=${c.id}`} onFocus={(e) => e.target.select()} />
       </div>
 
       <h2 className="creator-portal__h2">Твои брифы</h2>
@@ -181,7 +190,33 @@ function Dashboard({ id, data, reload, onLogout }) {
       ) : (
         <p className="creator-portal__muted">Пока ничего не сдано.</p>
       )}
+
+      <h2 className="creator-portal__h2">Лидерборд</h2>
+      <Leaderboard meId={c.id} />
     </Shell>
+  );
+}
+
+function Leaderboard({ meId }) {
+  const [rows, setRows] = useState([]);
+  useEffect(() => {
+    fetch(`${API_BASE}/api/leaderboard`)
+      .then((r) => r.json())
+      .then((d) => setRows(d.leaderboard || []))
+      .catch(() => {});
+  }, []);
+  if (!rows.length) return <p className="creator-portal__muted">Рейтинг пока пуст.</p>;
+  return (
+    <div className="creator-portal__card">
+      {rows.map((r, i) => (
+        <div key={r.id} className={`creator-portal__lb${r.id === meId ? ' is-me' : ''}`}>
+          <span className="creator-portal__lb-rank">#{i + 1}</span>
+          <b>{r.name}</b>
+          <span className="pf-badge">{r.level}</span>
+          <span className="creator-portal__muted">{r.xp} XP · {r.streak}🔥</span>
+        </div>
+      ))}
+    </div>
   );
 }
 

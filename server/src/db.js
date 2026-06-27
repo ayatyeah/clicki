@@ -62,6 +62,7 @@ export async function initDb() {
         last_streak_date DATE,
         founding BOOLEAN DEFAULT FALSE,
         referred_by INTEGER REFERENCES creators(id),
+        referral_qualified BOOLEAN DEFAULT FALSE,
         status VARCHAR(30) DEFAULT 'active',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`);
@@ -151,6 +152,8 @@ export async function initDb() {
     for (const [k, v] of seedSettings) {
       await client.query('INSERT INTO settings (key, value) VALUES ($1,$2) ON CONFLICT (key) DO NOTHING', [k, v]);
     }
+    // Migrations for already-created tables
+    await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS referral_qualified BOOLEAN DEFAULT FALSE');
   } finally {
     client.release();
   }
@@ -303,7 +306,8 @@ export async function listSubmissions(status) {
   const where = status ? 'WHERE s.status = $1' : '';
   const params = status ? [status] : [];
   const r = await pool.query(
-    `SELECT s.*, c.name AS creator_name, b.title AS brief_title
+    `SELECT s.*, c.name AS creator_name, b.title AS brief_title,
+            b.req_hashtag, b.req_mention, b.req_cta_link, b.duration_min, b.duration_max
        FROM submissions s
        LEFT JOIN creators c ON c.id = s.creator_id
        LEFT JOIN briefs b ON b.id = s.brief_id
@@ -316,7 +320,66 @@ export async function listCreatorSubmissions(creatorId) {
   const r = await pool.query('SELECT * FROM submissions WHERE creator_id = $1 ORDER BY id DESC', [creatorId]);
   return r.rows;
 }
-/** Operator review: status accepted/rework/rejected + reject code + checklist (ТЗ §3.5, §9.2). */
+/* ---- Gamification accrual (ТЗ §4) ---- */
+// XP = function of accumulated accepted views (ТЗ §4.3)
+async function recomputeXp(creatorId) {
+  await pool.query(
+    `UPDATE creators SET xp =
+       (SELECT FLOOR(COALESCE(SUM(views),0)/100) FROM submissions WHERE creator_id=$1 AND status='accepted')
+     WHERE id=$1`,
+    [creatorId]
+  );
+}
+// Streak: +1 per day with an accepted video; gap consumes a freeze-token or resets (ТЗ §4.1)
+async function applyStreak(creatorId) {
+  const c = (await pool.query('SELECT streak, freeze_tokens, last_streak_date FROM creators WHERE id=$1', [creatorId])).rows[0];
+  if (!c) return;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  let streak = c.streak;
+  let freeze = c.freeze_tokens;
+  if (c.last_streak_date) {
+    const last = new Date(c.last_streak_date);
+    last.setHours(0, 0, 0, 0);
+    const diff = Math.round((today - last) / 86400000);
+    if (diff === 0) return; // already counted today
+    if (diff === 1) streak += 1;
+    else if (freeze > 0) {
+      freeze -= 1;
+      streak += 1;
+    } else streak = 1;
+  } else {
+    streak = 1;
+  }
+  await pool.query('UPDATE creators SET streak=$1, freeze_tokens=$2, last_streak_date=CURRENT_DATE WHERE id=$3', [streak, freeze, creatorId]);
+}
+// Referral bonus on the referred creator's FIRST accepted video (ТЗ §4.5)
+async function handleReferralFirstAccept(creatorId) {
+  const c = (await pool.query('SELECT referred_by, referral_qualified FROM creators WHERE id=$1', [creatorId])).rows[0];
+  if (!c || !c.referred_by || c.referral_qualified) return;
+  const n = (await pool.query(`SELECT COUNT(*)::int AS n FROM submissions WHERE creator_id=$1 AND status='accepted'`, [creatorId])).rows[0].n;
+  if (n === 1) {
+    await pool.query('UPDATE creators SET referral_qualified=TRUE WHERE id=$1', [creatorId]);
+    await pool.query('UPDATE creators SET xp = xp + 500 WHERE id=$1', [c.referred_by]);
+  }
+}
+
+export function levelFromXp(xp) {
+  if (xp >= 15000) return 'Legend';
+  if (xp >= 5000) return 'Elite';
+  if (xp >= 2000) return 'Pro Creator';
+  if (xp >= 500) return 'Rising Star';
+  return 'Rookie';
+}
+
+export async function getLeaderboard() {
+  const r = await pool.query(
+    `SELECT id, name, xp, streak, founding FROM creators WHERE status='active' ORDER BY xp DESC, streak DESC LIMIT 30`
+  );
+  return r.rows.map((row) => ({ ...row, level: levelFromXp(row.xp) }));
+}
+
+/** Operator review (ТЗ §3.5, §9.2). Acceptance drives streak/XP + referral. */
 export async function reviewSubmission(id, { status, reject_code, checklist }) {
   const r = await pool.query(
     `UPDATE submissions SET status=$1, reject_code=$2,
@@ -324,16 +387,20 @@ export async function reviewSubmission(id, { status, reject_code, checklist }) {
       WHERE id=$4 RETURNING *`,
     [status, reject_code || null, checklist ? JSON.stringify(checklist) : null, id]
   );
-  return r.rows[0] || null;
+  const sub = r.rows[0] || null;
+  if (sub && status === 'accepted') {
+    await applyStreak(sub.creator_id);
+    await recomputeXp(sub.creator_id);
+    await handleReferralFirstAccept(sub.creator_id);
+  }
+  return sub;
 }
-/** Manual view entry (ТЗ §9 — until API integrations). final = 30-day window check done. */
+/** Manual view entry (ТЗ §9). final = 30-day window check done. Recomputes XP. */
 export async function recordViews(id, views, final) {
-  const r = await pool.query('UPDATE submissions SET views=$1, views_final=$2 WHERE id=$3 RETURNING *', [
-    views,
-    !!final,
-    id,
-  ]);
-  return r.rows[0] || null;
+  const r = await pool.query('UPDATE submissions SET views=$1, views_final=$2 WHERE id=$3 RETURNING *', [views, !!final, id]);
+  const sub = r.rows[0] || null;
+  if (sub) await recomputeXp(sub.creator_id);
+  return sub;
 }
 
 /* ---------------- Platform: wallet & payouts (ТЗ §8) ---------------- */

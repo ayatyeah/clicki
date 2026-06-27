@@ -35,6 +35,15 @@ async function notifyTelegram(text) {
   return { ok: true };
 }
 
+/** Best-effort operator alert to the Telegram ops group (never throws). */
+export async function notifyOps(text) {
+  try {
+    await notifyTelegram(text);
+  } catch (e) {
+    console.error('[notify] ops failed:', e.message);
+  }
+}
+
 let transporter = null;
 function getTransporter() {
   if (transporter) return transporter;
