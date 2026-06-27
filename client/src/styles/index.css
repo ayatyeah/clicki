@@ -1163,10 +1163,16 @@ img, video {
   color: var(--fog);
 }
 .lead-form input:focus,
-.lead-form textarea:focus {
+.lead-form textarea:focus,
+.pf-form input:focus,
+.pf-form select:focus,
+.admin-table input:focus,
+.admin-table select:focus,
+.creator-portal__card input:focus,
+.creator-portal__card select:focus {
   outline: none;
-  border-color: var(--signal);
-  box-shadow: 0 0 0 3px rgba(0, 153, 255, 0.15);
+  border-color: #a78bfa;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.22);
 }
 .lead-form textarea {
   resize: vertical;
@@ -1300,6 +1306,9 @@ img, video {
 .admin-table th {
   color: var(--ink);
   font-weight: 600;
+}
+.admin-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
 }
 .admin-table td b {
   color: var(--ink);
@@ -1559,14 +1568,19 @@ img, video {
 /* ---------- Operator CRM (platform) ---------- */
 .pf-form {
   display: grid;
-  gap: 8px;
-  max-width: 520px;
+  gap: 10px;
+  max-width: 560px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  padding: 18px;
 }
 .pf-form--row {
   display: flex;
   max-width: none;
   align-items: center;
   flex-wrap: wrap;
+  gap: 10px;
 }
 .pf-row {
   display: flex;
@@ -1577,11 +1591,12 @@ img, video {
 .admin-table select,
 .admin-table input {
   font: inherit;
-  padding: 8px 10px;
-  border-radius: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
   border: 1px solid var(--line);
-  background: var(--paper);
+  background: var(--veil);
   color: var(--ink);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .pf-check {
   display: inline-flex;
@@ -1677,11 +1692,17 @@ img, video {
 .creator-portal__card input,
 .creator-portal__card select {
   font: inherit;
-  padding: 11px 13px;
+  padding: 12px 14px;
   border-radius: var(--r-icon);
-  border: 1px solid var(--fog);
-  background: var(--paper);
+  border: 1px solid var(--line);
+  background: var(--veil);
   color: var(--ink);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+/* Wallet card — give the money block a branded accent */
+.creator-portal__card:has(.creator-portal__bar) {
+  background: linear-gradient(180deg, rgba(124, 58, 237, 0.14), var(--paper));
+  border-color: rgba(168, 139, 250, 0.28);
 }
 .creator-portal__top {
   display: flex;
