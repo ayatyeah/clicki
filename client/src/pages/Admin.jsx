@@ -229,6 +229,7 @@ export default function Admin() {
     { key: 'creators', label: 'Креаторы', icon: '👤' },
     { key: 'payouts', label: 'Выплаты', icon: '💸' },
     { key: 'videos', label: 'Загрузка видео', icon: '🎬' },
+    { key: 'creator-page', label: 'Видео креаторов', icon: '🎞' },
     { key: 'content', label: 'Контент сайта', icon: '🖼' },
   ];
 
@@ -355,6 +356,41 @@ export default function Admin() {
           {view === 'review' && <ReviewView authFetch={authFetch} />}
           {view === 'creators' && <CreatorsView authFetch={authFetch} />}
           {view === 'payouts' && <PayoutsView authFetch={authFetch} />}
+
+          {view === 'creator-page' && (
+            <section className="admin-block">
+              <h2 className="admin-block__title">Видео на странице креаторов (16:9)</h2>
+              <p className="muted-note" style={{ textAlign: 'left', marginTop: 0 }}>
+                Широкоформатное видео в hero страницы /creators. Загрузи и нажми «Сохранить».
+              </p>
+              <div className="admin-device" style={{ marginTop: 8, maxWidth: 640 }}>
+                <div className="admin-device__preview" style={{ height: 'auto', aspectRatio: '16 / 9' }}>
+                  {content.creatorVideo ? (
+                    <video src={content.creatorVideo} muted loop playsInline controls style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  ) : (
+                    <span className="admin-device__empty">не задано</span>
+                  )}
+                </div>
+                <div className="admin-device__actions">
+                  <label className="btn btn--ghost btn--sm">
+                    Загрузить видео
+                    <input type="file" accept="video/*" hidden onChange={(e) => setCreatorVideo(e.target.files?.[0])} />
+                  </label>
+                  {content.creatorVideo && (
+                    <button className="btn btn--ghost btn--sm" onClick={() => setContent((c) => ({ ...c, creatorVideo: '' }))}>
+                      Сбросить
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="admin-save">
+                <button className="btn btn--primary" onClick={saveContent} disabled={busy}>
+                  {busy ? 'Сохраняю…' : 'Сохранить'}
+                </button>
+                {msg && <span className="admin-save__msg">{msg}</span>}
+              </div>
+            </section>
+          )}
 
           {view === 'content' && (
             <section className="admin-block">
