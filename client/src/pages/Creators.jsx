@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import Seo from '../components/Seo.jsx';
 import Header from '../components/Header.jsx';
 import Footer from '../components/Footer.jsx';
@@ -178,9 +179,9 @@ export default function Creators() {
               </h1>
               <p className="hero__subtitle">{t.heroSub}</p>
               <div className="hero__actions">
-                <a href="#apply" className="btn btn--green btn--lg">
+                <Link to="/creator" className="btn btn--green btn--lg">
                   {t.start}
-                </a>
+                </Link>
                 <a href="#how" className="btn btn--ghost btn--lg">
                   {t.how}
                 </a>

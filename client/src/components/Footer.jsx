@@ -8,12 +8,14 @@ const L = {
     contacts: 'Контакты',
     privacy: 'Политика конфиденциальности',
     rights: 'Все права защищены.',
+    portal: 'Кабинет креатора',
   },
   en: {
     tagline: 'Performance platform for organic views. Astana, Kazakhstan.',
     contacts: 'Contacts',
     privacy: 'Privacy policy',
     rights: 'All rights reserved.',
+    portal: 'Creator portal',
   },
 };
 
@@ -36,6 +38,7 @@ export default function Footer() {
           <a href={EMAIL_URL}>{EMAIL}</a>
         </div>
         <nav className="site-footer__links">
+          <Link to="/creator">{t.portal}</Link>
           <Link to="/contacts">{t.contacts}</Link>
           <Link to="/privacy">{t.privacy}</Link>
         </nav>

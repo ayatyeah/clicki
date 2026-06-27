@@ -4,8 +4,8 @@ import LangSwitch from './LangSwitch.jsx';
 import { useLang } from '../i18n.jsx';
 
 const L = {
-  ru: { home: '← На главную', consult: 'Получить консультацию', start: 'Стать креатором', contacts: 'Контакты' },
-  en: { home: '← Home', consult: 'Get a consultation', start: 'Become a creator', contacts: 'Contacts' },
+  ru: { home: '← На главную', consult: 'Получить консультацию', start: 'Стать креатором', contacts: 'Контакты', portal: 'Кабинет' },
+  en: { home: '← Home', consult: 'Get a consultation', start: 'Become a creator', contacts: 'Contacts', portal: 'Portal' },
 };
 
 /**
@@ -32,9 +32,14 @@ export default function Header({ variant = 'hub' }) {
             </a>
           )}
           {variant === 'creator' && (
-            <a className="btn btn--ghost btn--sm" href="#apply">
-              {t.start}
-            </a>
+            <>
+              <Link className="site-header__home" to="/creator">
+                {t.portal}
+              </Link>
+              <a className="btn btn--ghost btn--sm" href="#apply">
+                {t.start}
+              </a>
+            </>
           )}
           {variant === 'hub' && (
             <Link className="btn btn--ghost btn--sm" to="/contacts">
