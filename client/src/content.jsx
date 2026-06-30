@@ -4,6 +4,8 @@ import { API_BASE } from './lib/config.js';
 const DEFAULTS = {
   showcase: [],
   devices: { iphone: { image: '' }, laptop: { image: '' } },
+  creatorVideo: '',
+  hubVideo: '',
 };
 
 const ContentContext = createContext(DEFAULTS);
@@ -24,6 +26,8 @@ export function ContentProvider({ children }) {
             iphone: { image: d?.devices?.iphone?.image || '' },
             laptop: { image: d?.devices?.laptop?.image || '' },
           },
+          creatorVideo: d?.creatorVideo || '',
+          hubVideo: d?.hubVideo || '',
         });
       })
       .catch(() => {});

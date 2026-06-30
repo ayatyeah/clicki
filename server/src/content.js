@@ -26,6 +26,7 @@ export async function readContent() {
       laptop: { image: clip(kv?.devices?.laptop?.image) },
     },
     creatorVideo: clip(kv?.creatorVideo),
+    hubVideo: clip(kv?.hubVideo),
   };
 }
 
@@ -54,6 +55,7 @@ export async function writeContent(obj) {
       laptop: { image: clip(obj?.devices?.laptop?.image) },
     },
     creatorVideo: clip(obj?.creatorVideo),
+    hubVideo: clip(obj?.hubVideo),
   };
   await saveSiteContent(kv);
 

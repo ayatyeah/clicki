@@ -1,0 +1,173 @@
+/* ============================================================
+   App surfaces (admin + creator portal) — light & minimalist.
+   Use together with .page-light (which flips the theme tokens).
+   ============================================================ */
+.app-light {
+  --r-card: 18px;
+  --shadow-card: rgba(99, 70, 168, 0.1) 0px 10px 26px -18px;
+  --shadow-soft: rgba(99, 70, 168, 0.05) 0px 6px 16px -14px;
+  background: linear-gradient(180deg, #fbfaff 0%, #f4f1fb 100%);
+}
+
+/* Calmer, lighter surfaces */
+.app-light .admin-table-wrap,
+.app-light .admin-sidebar,
+.app-light .admin-stat,
+.app-light .admin-placeholder,
+.app-light .pf-form,
+.app-light .creator-portal__card,
+.app-light .creator-portal__tabs {
+  box-shadow: none;
+}
+.app-light .admin-table tbody tr:hover {
+  background: rgba(124, 58, 237, 0.05);
+}
+
+/* Inputs: clean white fields with hairline borders */
+.app-light .pf-form input,
+.app-light .pf-form select,
+.app-light .admin-table input,
+.app-light .admin-table select,
+.app-light .creator-portal__card input,
+.app-light .creator-portal__card select {
+  background: #fff;
+  border-color: rgba(124, 58, 237, 0.18);
+}
+
+/* Sidebar nav — minimalist active state */
+.app-light .admin-nav__btn.is-active {
+  background: rgba(124, 58, 237, 0.1);
+  color: #6d28d9;
+}
+.app-light .admin-nav__btn:hover {
+  background: rgba(124, 58, 237, 0.06);
+  color: var(--ink);
+}
+
+/* Stat cards — flatter, more typographic */
+.app-light .admin-stat__value {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.app-light .admin-stat__label,
+.app-light .creator-portal__tag {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fog);
+}
+
+/* Badges / statuses readable on light */
+.app-light .pf-badge {
+  background: rgba(124, 58, 237, 0.1);
+  color: #6d28d9;
+}
+.app-light .pf-status--pending { background: rgba(245, 158, 11, 0.14); color: #b45309; }
+.app-light .pf-status--accepted,
+.app-light .pf-status--paid { background: rgba(22, 163, 74, 0.14); color: #15803d; }
+.app-light .pf-status--rejected { background: rgba(239, 68, 68, 0.14); color: #b91c1c; }
+.app-light .pf-status--rework { background: rgba(124, 58, 237, 0.12); color: #6d28d9; }
+
+/* Creator portal specifics */
+.app-light .creator-portal__err { color: #b91c1c; }
+.app-light .creator-portal__tab.is-active { background: #6d28d9; color: #fff; }
+.app-light .creator-portal__link:hover { color: var(--cobalt); }
+.app-light .creator-portal__applied-icon { background: rgba(22, 163, 74, 0.14); color: #15803d; }
+.app-light .creator-portal__card:has(.creator-portal__bar) {
+  background: linear-gradient(180deg, rgba(124, 58, 237, 0.08), #fff);
+  border-color: rgba(124, 58, 237, 0.18);
+}
+
+/* Headings — lighter, more refined */
+.app-light .creator-portal__title,
+.app-light .admin-login__title {
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+.app-light .creator-portal__h2 {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.app-light .admin-block__title {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* Admin top bar (mobile) on light */
+.app-light .admin-topbar {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+.app-light .admin-topbar__title { color: var(--ink); }
+.app-light .admin-topbar__burger span { background: var(--ink); }
+.app-light .admin-sidebar { background: #fff; }
+.app-light .admin-backdrop { background: rgba(20, 16, 38, 0.4); }
+
+/* Business cabinet — grouped brief-form blocks */
+.bp-block {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  display: grid;
+  gap: 16px;
+  background: #fbfaff;
+}
+.bp-block__title {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6d28d9;
+}
+.bp-form .creator-portal__q-title { font-size: 0.95rem; }
+.bp-form input[type='number'] { max-width: 140px; }
+
+/* Pipeline statuses + helpers */
+.app-light .pf-status--ai_passed { background: rgba(124, 58, 237, 0.12); color: #6d28d9; }
+.app-light .pf-status--sent_to_business { background: rgba(37, 99, 235, 0.12); color: #1d4ed8; }
+.app-light .pf-status--rework { background: rgba(245, 158, 11, 0.16); color: #b45309; }
+.app-light .pf-status--accepted { background: rgba(22, 163, 74, 0.14); color: #15803d; }
+.ai-score {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.03em;
+  color: #6d28d9;
+}
+.creator-portal__sub-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.creator-portal__sub-row:last-child { border-bottom: 0; }
+.creator-portal__sub { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.creator-portal__rework {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(245, 158, 11, 0.1);
+  color: #92400e;
+  font-size: 0.9rem;
+}
+.creator-portal__row-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* Expandable full-brief detail (creator cabinet) */
+.brief-detail {
+  margin: 6px 0 4px;
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+.brief-detail__row { display: grid; grid-template-columns: 160px 1fr; gap: 14px; align-items: baseline; }
+.brief-detail dt {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--fog);
+}
+.brief-detail dd { margin: 0; color: var(--ink); }
+@media (max-width: 520px) {
+  .brief-detail__row { grid-template-columns: 1fr; gap: 3px; }
+}

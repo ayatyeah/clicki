@@ -13,7 +13,7 @@ export default function NotFound() {
   const t = COPY[lang] || COPY.ru;
   return (
     <main className="thanks">
-      <Seo title={t.title} description="404" path="/404" />
+      <Seo title={t.title} description="404" path="/404" noindex />
       <div className="thanks__inner">
         <Logo />
         <h1 className="thanks__title">404</h1>

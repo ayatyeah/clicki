@@ -44,7 +44,7 @@ export default function ThankYou() {
 
   return (
     <main className="thanks">
-      <Seo title="CLICKI" description="Заявка отправлена." path={`/thanks/${type}`} />
+      <Seo title="Спасибо — CLICKI" description="Заявка отправлена." path={`/thanks/${type}`} noindex />
       <div className="thanks__inner">
         <Logo to={backTo} />
         <div className="thanks__check" aria-hidden="true">

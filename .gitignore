@@ -46,3 +46,10 @@ coverage/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# ---- Playwright MCP (browser screenshots / snapshots) ----
+.playwright-mcp/
+/admin-*.png
+/creator-*.png
+/page-*.png
+.mcp.json

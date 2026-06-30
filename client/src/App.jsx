@@ -3,6 +3,7 @@ import { useEffect, lazy, Suspense } from 'react';
 import Hub from './pages/Hub.jsx';
 import Playground from './components/Playground.jsx';
 import { initAnalytics, trackPageview } from './lib/analytics.js';
+import { initAppleEmoji, parseAppleEmoji } from './lib/appleEmoji.js';
 
 // Landing (Hub) ships in the main bundle for instant first paint;
 // every other route is code-split and fetched on demand.
@@ -14,6 +15,7 @@ const ThankYou = lazy(() => import('./pages/ThankYou.jsx'));
 const NotFound = lazy(() => import('./pages/NotFound.jsx'));
 const Admin = lazy(() => import('./pages/Admin.jsx'));
 const CreatorPortal = lazy(() => import('./pages/CreatorPortal.jsx'));
+const BusinessPortal = lazy(() => import('./pages/BusinessPortal.jsx'));
 // WebGL aurora backdrop - lazy so it never blocks first paint.
 const Aurora = lazy(() => import('./components/Aurora.jsx'));
 
@@ -23,6 +25,8 @@ function RouteEffects() {
   useEffect(() => {
     window.scrollTo(0, 0);
     trackPageview(pathname);
+    // Re-skin emoji that the new route just rendered.
+    requestAnimationFrame(() => parseAppleEmoji(document.body));
   }, [pathname]);
   return null;
 }
@@ -30,6 +34,7 @@ function RouteEffects() {
 export default function App() {
   useEffect(() => {
     initAnalytics();
+    initAppleEmoji();
   }, []);
 
   return (
@@ -49,6 +54,7 @@ export default function App() {
           <Route path="/thanks/:type" element={<ThankYou />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/creator" element={<CreatorPortal />} />
+          <Route path="/business-cabinet" element={<BusinessPortal />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>

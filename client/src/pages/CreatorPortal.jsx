@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import Seo from '../components/Seo.jsx';
 import { API_BASE } from '../lib/config.js';
 
-const KEY = 'clicki_creator_id';
+const KEY = 'clicki_creator_token';
 const PLATFORMS = ['TikTok', 'Instagram Reels', 'YouTube Shorts', 'Threads', 'X (Twitter)'];
 
 // Onboarding test (ТЗ §3 step 2) — filters "не по брифу" disputes before filming.
@@ -16,40 +16,62 @@ const QUIZ = [
 ];
 
 export default function CreatorPortal() {
-  const [id, setId] = useState(() => localStorage.getItem(KEY) || '');
+  const [token, setToken] = useState(() => localStorage.getItem(KEY) || '');
   const [data, setData] = useState(null);
-  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const load = useCallback(async (cid) => {
-    const res = await fetch(`${API_BASE}/api/creator/${cid}`);
-    if (!res.ok) {
+  const authFetch = useCallback(
+    (url, opts = {}) =>
+      fetch(`${API_BASE}${url}`, { ...opts, headers: { ...(opts.headers || {}), Authorization: `Bearer ${token}` } }),
+    [token]
+  );
+
+  const loadMe = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await authFetch('/api/creator/me');
+      if (!res.ok) throw new Error('unauth');
+      setData(await res.json());
+    } catch {
       localStorage.removeItem(KEY);
-      setId('');
-      return;
+      setToken('');
+      setData(null);
+    } finally {
+      setLoading(false);
     }
-    setData(await res.json());
-  }, []);
+  }, [authFetch]);
 
   useEffect(() => {
-    if (id) load(id);
-  }, [id, load]);
+    if (token && !data) loadMe();
+  }, [token, data, loadMe]);
 
-  if (!id) {
+  const onAuthed = (tok, payload) => {
+    localStorage.setItem(KEY, tok);
+    setToken(tok);
+    setData(payload);
+  };
+  const logout = () => {
+    localStorage.removeItem(KEY);
+    setToken('');
+    setData(null);
+  };
+
+  if (!token) {
     const refId = new URLSearchParams(window.location.search).get('ref');
-    return <Register refId={refId} onDone={(cid) => { localStorage.setItem(KEY, cid); setId(String(cid)); }} setError={setError} error={error} />;
+    return <AuthScreen refId={refId} onAuthed={onAuthed} />;
   }
-  if (!data) return <Shell><p className="creator-portal__muted">Загрузка…</p></Shell>;
+  if (!data) return <Shell><p className="creator-portal__muted">{loading ? 'Загрузка…' : '…'}</p></Shell>;
 
   const c = data.creator;
-  if (!c.onboarding_passed) return <Onboarding id={id} onDone={() => load(id)} />;
+  if (!c.onboarding_passed) return <Onboarding authFetch={authFetch} onDone={loadMe} />;
 
-  return <Dashboard id={id} data={data} reload={() => load(id)} onLogout={() => { localStorage.removeItem(KEY); setId(''); setData(null); }} />;
+  return <Dashboard data={data} authFetch={authFetch} reload={loadMe} onLogout={logout} />;
 }
 
 function Shell({ children }) {
   return (
-    <main className="creator-portal">
-      <Seo title="CLICKI — кабинет креатора" path="/creator" />
+    <main className="creator-portal page-light app-light">
+      <Seo title="CLICKI — кабинет креатора" path="/creator" description="Личный кабинет креатора CLICKI: брифы, сдача видео, кошелёк и рейтинг." noindex />
       <div className="container creator-portal__inner">
         <div className="creator-portal__head">
           <Link to="/" className="creator-portal__brand">CLICKI</Link>
@@ -61,48 +83,156 @@ function Shell({ children }) {
   );
 }
 
-function Register({ onDone, setError, error, refId }) {
-  const [f, setF] = useState({ name: '', contact: '', socials: '', city: '' });
-  const [busy, setBusy] = useState(false);
-  const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
-  const submit = async (e) => {
-    e.preventDefault();
-    setBusy(true);
-    setError('');
-    const res = await fetch(`${API_BASE}/api/creator/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...f, referred_by: refId ? Number(refId) : undefined }),
-    });
-    const d = await res.json();
-    setBusy(false);
-    if (!res.ok) return setError((d.errors && d.errors[0]) || 'Ошибка');
-    onDone(d.creator.id);
-  };
+/* ---------------- Auth: login + application tabs ---------------- */
+function AuthScreen({ onAuthed, refId }) {
+  const [mode, setMode] = useState('login'); // 'login' | 'apply'
+  const [applied, setApplied] = useState(false);
   return (
     <Shell>
-      <h1 className="creator-portal__title">Стать креатором CLICKI</h1>
-      <p className="creator-portal__muted">Заполни анкету — дальше короткий тест и первые брифы.</p>
-      <form className="creator-portal__card" onSubmit={submit}>
-        <input placeholder="Имя" value={f.name} onChange={(e) => set('name', e.target.value)} required />
-        <input placeholder="Телефон / Telegram" value={f.contact} onChange={(e) => set('contact', e.target.value)} required />
-        <input placeholder="Ссылки на соцсети (TikTok, Instagram…)" value={f.socials} onChange={(e) => set('socials', e.target.value)} />
-        <input placeholder="Город" value={f.city} onChange={(e) => set('city', e.target.value)} />
-        {error && <p className="creator-portal__err">{error}</p>}
-        <button className="btn btn--primary btn--block" disabled={busy}>{busy ? 'Отправляю…' : 'Продолжить'}</button>
-      </form>
+      <h1 className="creator-portal__title">Кабинет креатора</h1>
+      <p className="creator-portal__muted">
+        {mode === 'login'
+          ? 'Войди в аккаунт, который выдал оператор CLICKI.'
+          : 'Оставь заявку — оператор свяжется и выдаст доступ в кабинет.'}
+      </p>
+      <div className="creator-portal__tabs">
+        <button className={`creator-portal__tab ${mode === 'login' ? 'is-active' : ''}`} onClick={() => setMode('login')}>
+          Вход
+        </button>
+        <button
+          className={`creator-portal__tab ${mode === 'apply' ? 'is-active' : ''}`}
+          onClick={() => { setMode('apply'); setApplied(false); }}
+        >
+          Подать заявку
+        </button>
+      </div>
+      {mode === 'login' ? (
+        <LoginForm onAuthed={onAuthed} toApply={() => setMode('apply')} />
+      ) : applied ? (
+        <ApplyDone onToLogin={() => { setApplied(false); setMode('login'); }} />
+      ) : (
+        <ApplyForm refId={refId} onDone={() => setApplied(true)} />
+      )}
     </Shell>
   );
 }
 
-function Onboarding({ id, onDone }) {
+function LoginForm({ onAuthed, toApply }) {
+  const [f, setF] = useState({ username: '', password: '' });
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setBusy(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/creator/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(f),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error((d.errors && d.errors[0]) || 'Ошибка входа');
+      onAuthed(d.token, d);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form className="creator-portal__card" onSubmit={submit}>
+      <input placeholder="Логин" autoComplete="username" value={f.username} onChange={(e) => set('username', e.target.value)} required />
+      <input type="password" placeholder="Пароль" autoComplete="current-password" value={f.password} onChange={(e) => set('password', e.target.value)} required />
+      {error && <p className="creator-portal__err">{error}</p>}
+      <button className="btn btn--primary btn--block" disabled={busy}>{busy ? 'Вхожу…' : 'Войти'}</button>
+      <p className="creator-portal__muted creator-portal__switch">
+        Нет аккаунта?{' '}
+        <button type="button" className="creator-portal__link" onClick={toApply}>Подать заявку</button>
+      </p>
+    </form>
+  );
+}
+
+function ApplyForm({ refId, onDone }) {
+  const [f, setF] = useState({ name: '', contact: '', socials: '', city: '' });
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setBusy(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/creator/apply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...f, referred_by: refId ? Number(refId) : undefined }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error((d.errors && d.errors[0]) || 'Ошибка');
+      onDone();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form className="creator-portal__card" onSubmit={submit}>
+      <input placeholder="Имя" autoComplete="name" value={f.name} onChange={(e) => set('name', e.target.value)} required />
+      <input placeholder="Телефон / Telegram" value={f.contact} onChange={(e) => set('contact', e.target.value)} required />
+      <input placeholder="Ссылки на соцсети (TikTok, Instagram…)" value={f.socials} onChange={(e) => set('socials', e.target.value)} />
+      <input placeholder="Город" value={f.city} onChange={(e) => set('city', e.target.value)} />
+      {error && <p className="creator-portal__err">{error}</p>}
+      <button className="btn btn--primary btn--block" disabled={busy}>{busy ? 'Отправляю…' : 'Отправить заявку'}</button>
+      <p className="creator-portal__muted creator-portal__switch">
+        Доступ выдаёт оператор после проверки заявки.
+      </p>
+    </form>
+  );
+}
+
+function ApplyDone({ onToLogin }) {
+  return (
+    <div className="creator-portal__card">
+      <div className="creator-portal__applied">
+        <span className="creator-portal__applied-icon" aria-hidden="true">✓</span>
+        <h2 className="creator-portal__h2" style={{ marginTop: 0 }}>Заявка отправлена</h2>
+        <p className="creator-portal__muted">
+          Оператор CLICKI свяжется с тобой и выдаст логин и пароль для входа в кабинет.
+        </p>
+        <button type="button" className="btn btn--ghost btn--block" onClick={onToLogin}>
+          Перейти ко входу
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Onboarding({ authFetch, onDone }) {
   const [ans, setAns] = useState({});
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
   const submit = async () => {
     const correct = QUIZ.filter((q, i) => ans[i] === q.a).length;
     if (correct < 4) return setError(`Правильных ${correct} из ${QUIZ.length}. Нужно минимум 4 — перечитай и попробуй снова.`);
-    await fetch(`${API_BASE}/api/creator/${id}/onboarding`, { method: 'POST' });
-    onDone();
+    setBusy(true);
+    setError('');
+    try {
+      const res = await authFetch('/api/creator/onboarding', { method: 'POST' });
+      if (!res.ok) throw new Error('Не удалось сохранить — попробуйте ещё раз');
+      onDone();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
   };
   return (
     <Shell>
@@ -121,20 +251,30 @@ function Onboarding({ id, onDone }) {
           </div>
         ))}
         {error && <p className="creator-portal__err">{error}</p>}
-        <button className="btn btn--primary btn--block" onClick={submit}>Пройти тест</button>
+        <button className="btn btn--primary btn--block" onClick={submit} disabled={busy}>{busy ? 'Сохраняю…' : 'Пройти тест'}</button>
       </div>
     </Shell>
   );
 }
 
-function Dashboard({ id, data, reload, onLogout }) {
-  const { creator: c, wallet, briefs, submissions, level } = data;
-  const pct = Math.min(100, Math.round((wallet.balance / wallet.payout_threshold) * 100));
+function Dashboard({ data, authFetch, reload, onLogout }) {
+  const { creator: c, wallet, briefs, available = [], submissions, level } = data;
+  const take = async (briefId) => {
+    await authFetch('/api/creator/take', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ brief_id: briefId }),
+    });
+    reload();
+  };
+  const threshold = wallet.payout_threshold || 0;
+  const pct = threshold ? Math.min(100, Math.round((wallet.balance / threshold) * 100)) : 0;
+  const firstName = (c.name || '').split(' ')[0] || c.name;
   return (
     <Shell>
       <div className="creator-portal__top">
         <div>
-          <h1 className="creator-portal__title">Привет, {c.name.split(' ')[0]} {c.founding && <span className="pf-badge">Founding</span>}</h1>
+          <h1 className="creator-portal__title">Привет, {firstName} {c.founding && <span className="pf-badge">Founding</span>}</h1>
           <p className="creator-portal__muted">{level} · Стрик {c.streak}🔥 · XP {c.xp} · Trust {c.trust_score}</p>
         </div>
         <button className="btn btn--ghost btn--sm" onClick={onLogout}>Выйти</button>
@@ -146,7 +286,7 @@ function Dashboard({ id, data, reload, onLogout }) {
           <b>{Math.round(wallet.balance).toLocaleString('ru-RU')} ₸</b>
         </div>
         <div className="creator-portal__bar"><div style={{ width: `${pct}%` }} /></div>
-        <p className="creator-portal__muted">До выплаты {wallet.payout_threshold.toLocaleString('ru-RU')} ₸ осталось {Math.max(0, Math.round(wallet.payout_threshold - wallet.balance)).toLocaleString('ru-RU')} ₸</p>
+        <p className="creator-portal__muted">До выплаты {threshold.toLocaleString('ru-RU')} ₸ осталось {Math.max(0, Math.round(threshold - wallet.balance)).toLocaleString('ru-RU')} ₸</p>
       </div>
 
       <div className="creator-portal__card">
@@ -155,35 +295,46 @@ function Dashboard({ id, data, reload, onLogout }) {
         <input readOnly value={`${window.location.origin}/creator?ref=${c.id}`} onFocus={(e) => e.target.select()} />
       </div>
 
+      {available.length > 0 && (
+        <>
+          <h2 className="creator-portal__h2">Доступные заказы</h2>
+          {available.map((b) => (
+            <div key={b.id} className="creator-portal__card">
+              <div className="creator-portal__brief-head">
+                <b>{b.title}</b>
+                <span className="pf-badge">{b.platform}</span>
+              </div>
+              {b.key_message && <p className="creator-portal__muted">{b.key_message}</p>}
+              <button className="btn btn--primary btn--sm" onClick={() => take(b.id)}>Взять заказ</button>
+            </div>
+          ))}
+        </>
+      )}
+
       <h2 className="creator-portal__h2">Твои брифы</h2>
       {briefs.length ? (
-        briefs.map((b) => (
-          <div key={b.id} className="creator-portal__card">
-            <div className="creator-portal__brief-head"><b>{b.title}</b><span className="pf-badge">{b.platform}</span></div>
-            <p className="creator-portal__muted">{b.key_message}</p>
-            <ul className="creator-portal__req">
-              {b.req_hashtag && <li>Хэштег: {b.req_hashtag}</li>}
-              {b.req_mention && <li>Упоминание бренда в первые 3 сек</li>}
-              {b.req_cta_link && <li>CTA-ссылка: {b.req_cta_link}</li>}
-              <li>Хронометраж {b.duration_min}–{b.duration_max} сек</li>
-            </ul>
-          </div>
-        ))
+        briefs.map((b) => <BriefCard key={b.id} b={b} />)
       ) : (
-        <p className="creator-portal__muted">Брифов пока нет — оператор скоро назначит.</p>
+        <p className="creator-portal__muted">Брифов пока нет — возьми заказ выше или дождись назначения.</p>
       )}
 
       <h2 className="creator-portal__h2">Сдать видео</h2>
-      <SubmitForm id={id} briefs={briefs} reload={reload} />
+      <SubmitForm authFetch={authFetch} briefs={briefs} reload={reload} />
 
       <h2 className="creator-portal__h2">Мои видео</h2>
       {submissions.length ? (
-        <div className="creator-portal__card">
+        <div className="creator-portal__card creator-portal__subs">
           {submissions.map((s) => (
-            <div key={s.id} className="creator-portal__sub">
-              <a href={s.video_url} target="_blank" rel="noreferrer">{s.platform}</a>
-              <span className={`pf-status pf-status--${s.status}`}>{s.status}</span>
-              <span className="creator-portal__muted">{s.views.toLocaleString('ru-RU')} просм.</span>
+            <div key={s.id} className="creator-portal__sub-row">
+              <div className="creator-portal__sub">
+                <a href={s.video_url} target="_blank" rel="noreferrer">{s.brief_title || s.platform}</a>
+                <span className={`pf-status pf-status--${s.status}`}>{SUB_STATUS_RU[s.status] || s.status}</span>
+                <span className="creator-portal__muted">{(s.views || 0).toLocaleString('ru-RU')} просм.</span>
+                {s.ai_score != null && <span className="ai-score">AI {s.ai_score}/100</span>}
+              </div>
+              {s.status === 'rework' && s.ai_feedback && (
+                <p className="creator-portal__rework">↻ На доработку: {s.ai_feedback}</p>
+              )}
             </div>
           ))}
         </div>
@@ -194,6 +345,68 @@ function Dashboard({ id, data, reload, onLogout }) {
       <h2 className="creator-portal__h2">Лидерборд</h2>
       <Leaderboard meId={c.id} />
     </Shell>
+  );
+}
+
+const STYLE_LABELS = {
+  youth: 'Молодёжный',
+  premium: 'Премиальный',
+  corporate: 'Корпоративный',
+  entertainment: 'Развлекательный',
+};
+
+const SUB_STATUS_RU = {
+  ai_check: 'AI-проверка',
+  ai_passed: 'на проверке',
+  rework: 'на доработку',
+  sent_to_business: 'у бизнеса',
+  accepted: 'принято',
+  rejected: 'отклонено',
+  pending: 'ожидает',
+};
+
+function BriefCard({ b }) {
+  const [open, setOpen] = useState(false);
+  const spec = b.spec || {};
+  const rows = [];
+  if (b.goal) rows.push(['Цель', b.goal]);
+  if (b.audience) rows.push(['Аудитория', b.audience]);
+  if (spec.orientation) rows.push(['Ориентация', spec.orientation === 'horizontal' ? 'Горизонтальное' : 'Вертикальное']);
+  rows.push(['Хронометраж', `${b.duration_min}–${b.duration_max} сек`]);
+  if (spec.cta_required) rows.push(['CTA', 'Обязательно']);
+  if (spec.logo_first5) rows.push(['Логотип', 'В первые 5 секунд']);
+  if (spec.brand_spoken) rows.push(['Название бренда', 'Обязательно произнести']);
+  if (spec.product_in_frame) rows.push(['Продукт в кадре', 'Да']);
+  if (spec.style) rows.push(['Стиль', STYLE_LABELS[spec.style] || spec.style]);
+  else if (b.tone) rows.push(['Стиль / тон', b.tone]);
+  if (b.req_hashtag) rows.push(['Хэштег', b.req_hashtag]);
+  if (b.req_mention) rows.push(['Упоминание бренда', 'В первые 3 сек']);
+  if (b.req_cta_link) rows.push(['CTA-ссылка', b.req_cta_link]);
+  if (b.dos) rows.push(['Делать', b.dos]);
+  if (b.donts) rows.push(['Не делать', b.donts]);
+  if (b.refs) rows.push(['Референсы', b.refs]);
+
+  return (
+    <div className="creator-portal__card">
+      <div className="creator-portal__brief-head">
+        <b>{b.title}</b>
+        <span className="pf-badge">{b.platform}</span>
+      </div>
+      {b.key_message && <p className="creator-portal__muted">{b.key_message}</p>}
+      {open && (
+        <dl className="brief-detail">
+          {rows.map(([k, v]) => (
+            <div key={k} className="brief-detail__row">
+              <dt>{k}</dt>
+              <dd>{v}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      <button type="button" className="creator-portal__link" onClick={() => setOpen((o) => !o)}>
+        {open ? 'Свернуть ↑' : 'Читать весь бриф →'}
+      </button>
+    </div>
   );
 }
 
@@ -220,7 +433,7 @@ function Leaderboard({ meId }) {
   );
 }
 
-function SubmitForm({ id, briefs, reload }) {
+function SubmitForm({ authFetch, briefs, reload }) {
   const [f, setF] = useState({ brief_id: '', platform: 'TikTok', video_url: '', published_at: '', screenshot_url: '', rights_confirmed: false });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -230,16 +443,21 @@ function SubmitForm({ id, briefs, reload }) {
     setError('');
     if (!f.video_url || !f.rights_confirmed) return setError('Укажи ссылку на видео и подтверди права');
     setBusy(true);
-    const res = await fetch(`${API_BASE}/api/creator/${id}/submit`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...f, brief_id: f.brief_id || null }),
-    });
-    const d = await res.json();
-    setBusy(false);
-    if (!res.ok) return setError((d.errors && d.errors[0]) || 'Ошибка');
-    setF({ brief_id: '', platform: 'TikTok', video_url: '', published_at: '', screenshot_url: '', rights_confirmed: false });
-    reload();
+    try {
+      const res = await authFetch('/api/creator/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...f, brief_id: f.brief_id || null }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error((d.errors && d.errors[0]) || 'Ошибка');
+      setF({ brief_id: '', platform: 'TikTok', video_url: '', published_at: '', screenshot_url: '', rights_confirmed: false });
+      reload();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
   };
   return (
     <form className="creator-portal__card" onSubmit={submit}>

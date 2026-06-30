@@ -2,7 +2,7 @@ import Seo from '../components/Seo.jsx';
 import Header from '../components/Header.jsx';
 import Footer from '../components/Footer.jsx';
 import { useLang } from '../i18n.jsx';
-import { PHONE, PHONE_TEL, TELEGRAM, TELEGRAM_URL, EMAIL, EMAIL_URL } from '../lib/config.js';
+import { PHONE, PHONE_TEL, TELEGRAM, TELEGRAM_URL, EMAIL, EMAIL_URL, LINKEDIN_URL } from '../lib/config.js';
 
 const COPY = {
   ru: {
@@ -47,6 +47,10 @@ export default function Contacts() {
             <a className="contact-card" href={EMAIL_URL}>
               <span className="contact-card__label">{t.email}</span>
               <span className="contact-card__value">{EMAIL}</span>
+            </a>
+            <a className="contact-card" href={LINKEDIN_URL} target="_blank" rel="noreferrer">
+              <span className="contact-card__label">LinkedIn</span>
+              <span className="contact-card__value">Assanali Tursumbayev</span>
             </a>
           </div>
         </div>

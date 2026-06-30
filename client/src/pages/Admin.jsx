@@ -5,7 +5,7 @@ import { API_BASE } from '../lib/config.js';
 import { AiAnalysisView, BriefsView, ReviewView, CreatorsView, PayoutsView } from './AdminPlatform.jsx';
 
 const TOKEN_KEY = 'clicki_admin_token';
-const EMPTY = { showcase: [], devices: { iphone: { image: '' }, laptop: { image: '' } }, creatorVideo: '' };
+const EMPTY = { showcase: [], devices: { iphone: { image: '' }, laptop: { image: '' } }, creatorVideo: '', hubVideo: '' };
 
 export default function Admin() {
   const [token, setToken] = useState(() => sessionStorage.getItem(TOKEN_KEY) || '');
@@ -19,6 +19,7 @@ export default function Admin() {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(null); // null = idle, 0–100 = uploading
   const [view, setView] = useState('dashboard');
+  const [navOpen, setNavOpen] = useState(false); // mobile drawer
 
   const authFetch = useCallback(
     (url, opts = {}) => fetch(`${API_BASE}${url}`, { ...opts, headers: { ...(opts.headers || {}), Authorization: `Bearer ${token}` } }),
@@ -46,7 +47,7 @@ export default function Admin() {
     try {
       const res = await fetch(`${API_BASE}/api/content`);
       const data = await res.json();
-      setContent({ showcase: data.showcase || [], devices: { iphone: { image: data?.devices?.iphone?.image || '' }, laptop: { image: data?.devices?.laptop?.image || '' } }, creatorVideo: data?.creatorVideo || '' });
+      setContent({ showcase: data.showcase || [], devices: { iphone: { image: data?.devices?.iphone?.image || '' }, laptop: { image: data?.devices?.laptop?.image || '' } }, creatorVideo: data?.creatorVideo || '', hubVideo: data?.hubVideo || '' });
     } catch {
       /* keep empty */
     }
@@ -170,6 +171,20 @@ export default function Admin() {
     }
   }
 
+  async function setHubVideo(file) {
+    if (!file) return;
+    setBusy(true);
+    setError('');
+    try {
+      const url = await uploadFile(file);
+      setContent((c) => ({ ...c, hubVideo: url }));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function saveContent() {
     setBusy(true);
     setError('');
@@ -193,7 +208,7 @@ export default function Admin() {
 
   if (!token) {
     return (
-      <main className="admin">
+      <main className="admin page-light app-light">
         <Helmet>
           <title>CLICKI - админка</title>
           <meta name="robots" content="noindex, nofollow" />
@@ -229,25 +244,56 @@ export default function Admin() {
     { key: 'creators', label: 'Креаторы', icon: '👤' },
     { key: 'payouts', label: 'Выплаты', icon: '💸' },
     { key: 'videos', label: 'Загрузка видео', icon: '🎬' },
+    { key: 'hub-video', label: 'Видео на главной', icon: '🏠' },
     { key: 'creator-page', label: 'Видео креаторов', icon: '🎞' },
     { key: 'content', label: 'Контент сайта', icon: '🖼' },
   ];
 
   return (
-    <main className="admin">
+    <main className="admin page-light app-light">
       <Helmet>
         <title>CLICKI - админка</title>
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
+      <header className="admin-topbar">
+        <button
+          className="admin-topbar__burger"
+          onClick={() => setNavOpen(true)}
+          aria-label="Открыть меню"
+          aria-expanded={navOpen}
+        >
+          <span />
+          <span />
+          <span />
+        </button>
+        <span className="admin-topbar__title">{NAV.find((n) => n.key === view)?.label || 'CLICKI'}</span>
+        <button className="btn btn--ghost btn--sm" onClick={logout}>
+          Выйти
+        </button>
+      </header>
+
       <div className="admin-layout">
-        <aside className="admin-sidebar">
-          <div className="admin-sidebar__brand">CLICKI · админка</div>
+        {navOpen && <div className="admin-backdrop" onClick={() => setNavOpen(false)} />}
+        <aside className={`admin-sidebar ${navOpen ? 'is-open' : ''}`}>
+          <div className="admin-sidebar__head">
+            <div className="admin-sidebar__brand">CLICKI · админка</div>
+            <button
+              className="admin-sidebar__close"
+              onClick={() => setNavOpen(false)}
+              aria-label="Закрыть меню"
+            >
+              ✕
+            </button>
+          </div>
           <nav className="admin-nav">
             {NAV.map((n) => (
               <button
                 key={n.key}
                 className={`admin-nav__btn ${view === n.key ? 'is-active' : ''}`}
-                onClick={() => setView(n.key)}
+                onClick={() => {
+                  setView(n.key);
+                  setNavOpen(false);
+                }}
               >
                 <span className="admin-nav__icon" aria-hidden="true">{n.icon}</span>
                 {n.label}
@@ -287,6 +333,44 @@ export default function Admin() {
                 <Stat label="Заявки бизнеса" value={businessLeads.length} />
                 <Stat label="Заявки креаторов" value={creatorLeads.length} />
                 <Stat label="Видео в ленте" value={content.showcase.length} />
+              </div>
+
+              <h3 className="admin-block__title admin-subhead">Последние заявки</h3>
+              <div className="admin-table-wrap">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Воронка</th>
+                      <th>Данные</th>
+                      <th>Страница</th>
+                      <th>Время</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leads.slice(0, 6).map((l, i) => (
+                      <tr key={i}>
+                        <td data-label="Воронка">
+                          <span className={`lead-pill lead-pill--${l.funnel === 'client' ? 'biz' : 'creator'}`}>
+                            {l.funnel === 'client' ? 'Бизнес' : 'Креатор'}
+                          </span>
+                        </td>
+                        <td data-label="Данные">
+                          {Object.entries(l.fields || {})
+                            .slice(0, 2)
+                            .map(([k, v]) => `${v}`)
+                            .join(' · ') || '-'}
+                        </td>
+                        <td className="muted-cell" data-label="Страница">{l.page || '-'}</td>
+                        <td className="muted-cell" data-label="Время">{new Date(l.createdAt).toLocaleString('ru-RU')}</td>
+                      </tr>
+                    ))}
+                    {!leads.length && (
+                      <tr>
+                        <td colSpan={4} className="admin-table__empty">Заявок пока нет</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </section>
           )}
@@ -348,6 +432,41 @@ export default function Admin() {
           {view === 'review' && <ReviewView authFetch={authFetch} />}
           {view === 'creators' && <CreatorsView authFetch={authFetch} />}
           {view === 'payouts' && <PayoutsView authFetch={authFetch} />}
+
+          {view === 'hub-video' && (
+            <section className="admin-block">
+              <h2 className="admin-block__title">Видео на главной (вертикальное, 9:16)</h2>
+              <p className="muted-note" style={{ textAlign: 'left', marginTop: 0 }}>
+                Центральная видео-карточка на стартовом экране. Загрузи вертикальный ролик и нажми «Сохранить».
+              </p>
+              <div className="admin-device" style={{ marginTop: 8, maxWidth: 320 }}>
+                <div className="admin-device__preview" style={{ height: 'auto', aspectRatio: '9 / 16' }}>
+                  {content.hubVideo ? (
+                    <video src={content.hubVideo} muted loop playsInline controls style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <span className="admin-device__empty">не задано</span>
+                  )}
+                </div>
+                <div className="admin-device__actions">
+                  <label className="btn btn--ghost btn--sm">
+                    Загрузить видео
+                    <input type="file" accept="video/*" hidden onChange={(e) => setHubVideo(e.target.files?.[0])} />
+                  </label>
+                  {content.hubVideo && (
+                    <button className="btn btn--ghost btn--sm" onClick={() => setContent((c) => ({ ...c, hubVideo: '' }))}>
+                      Сбросить
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="admin-save">
+                <button className="btn btn--primary" onClick={saveContent} disabled={busy}>
+                  {busy ? 'Сохраняю…' : 'Сохранить'}
+                </button>
+                {msg && <span className="admin-save__msg">{msg}</span>}
+              </div>
+            </section>
+          )}
 
           {view === 'creator-page' && (
             <section className="admin-block">
@@ -463,15 +582,15 @@ function LeadsSection({ title, leads, loading, onReload }) {
           <tbody>
             {leads.map((lead, i) => (
               <tr key={i}>
-                <td>
+                <td data-label="Данные">
                   {Object.entries(lead.fields || {}).map(([k, v]) => (
                     <div key={k}>
                       <b>{k}:</b> {v}
                     </div>
                   ))}
                 </td>
-                <td>{lead.page || '-'}</td>
-                <td>{new Date(lead.createdAt).toLocaleString('ru-RU')}</td>
+                <td data-label="Страница">{lead.page || '-'}</td>
+                <td data-label="Время">{new Date(lead.createdAt).toLocaleString('ru-RU')}</td>
               </tr>
             ))}
             {!leads.length && !loading && (
@@ -508,8 +627,8 @@ function AnalyticsByPage({ leads }) {
         <tbody>
           {rows.map(([page, n]) => (
             <tr key={page}>
-              <td>{page}</td>
-              <td>{n}</td>
+              <td data-label="Страница">{page}</td>
+              <td data-label="Заявок">{n}</td>
             </tr>
           ))}
         </tbody>

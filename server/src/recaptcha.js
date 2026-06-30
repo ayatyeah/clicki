@@ -8,10 +8,12 @@ export async function verifyRecaptcha(token) {
   if (!token) return { ok: false, reason: 'missing-token' };
 
   const params = new URLSearchParams({ secret, response: token });
+  // Don't let a hung Google request tie up the lead-submit handler.
   const res = await fetch('https://www.google.com/recaptcha/api/siteverify', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: params,
+    signal: AbortSignal.timeout(5000),
   });
   const data = await res.json().catch(() => ({}));
   const min = Number(process.env.RECAPTCHA_MIN_SCORE) || 0.5;

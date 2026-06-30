@@ -183,9 +183,17 @@ export default function Aurora(props) {
       });
       renderer.render({ scene: mesh });
     };
-    animateId = requestAnimationFrame(update);
 
     resize();
+
+    // Respect reduced-motion: draw a single static frame instead of running a
+    // continuous GPU rAF loop (accessibility + battery).
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) {
+      renderer.render({ scene: mesh });
+    } else {
+      animateId = requestAnimationFrame(update);
+    }
 
     return () => {
       cancelAnimationFrame(animateId);

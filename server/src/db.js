@@ -71,6 +71,11 @@ export async function initDb() {
         status VARCHAR(30) DEFAULT 'active',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`);
+    // Credential login for the creator cabinet (added after initial release).
+    await client.query(`ALTER TABLE creators ADD COLUMN IF NOT EXISTS username VARCHAR(80)`);
+    await client.query(`ALTER TABLE creators ADD COLUMN IF NOT EXISTS password_hash TEXT`);
+    await client.query(`ALTER TABLE creators ADD COLUMN IF NOT EXISTS session_token TEXT`);
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS creators_username_key ON creators (lower(username))`);
     // Briefs as structured data (ТЗ §9.2, §9.3)
     await client.query(`
       CREATE TABLE IF NOT EXISTS briefs (
@@ -93,6 +98,25 @@ export async function initDb() {
         status VARCHAR(30) DEFAULT 'new',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`);
+    // Business (client/brand) self-service accounts + their briefs
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS business_accounts (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(160) NOT NULL,
+        email VARCHAR(200) NOT NULL,
+        company VARCHAR(200),
+        password_hash TEXT NOT NULL,
+        session_token TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS business_email_key ON business_accounts (lower(email))`);
+    // Briefs created from the business cabinet: link + detailed creative spec (JSON).
+    await client.query('ALTER TABLE briefs ADD COLUMN IF NOT EXISTS business_id INTEGER REFERENCES business_accounts(id) ON DELETE SET NULL');
+    await client.query(`ALTER TABLE briefs ADD COLUMN IF NOT EXISTS spec JSONB DEFAULT '{}'::jsonb`);
+    // AI auto-check result on submissions (pipeline step 7-9)
+    await client.query('ALTER TABLE submissions ADD COLUMN IF NOT EXISTS ai_score INTEGER');
+    await client.query('ALTER TABLE submissions ADD COLUMN IF NOT EXISTS ai_feedback TEXT');
+
     // Brief → creator assignment (ТЗ §3 step 3)
     await client.query(`
       CREATE TABLE IF NOT EXISTS assignments (
@@ -153,6 +177,8 @@ export async function initDb() {
       ['min_views_per_video', 2000],
       ['invoice_threshold', 50000],
       ['payout_threshold', 10000],
+      // Founding-creator cap. Configurable — set as high as desired (0 = unlimited).
+      ['founding_cap', 50],
     ];
     for (const [k, v] of seedSettings) {
       await client.query('INSERT INTO settings (key, value) VALUES ($1,$2) ON CONFLICT (key) DO NOTHING', [k, v]);
@@ -236,6 +262,14 @@ export async function getSettings() {
   const r = await pool.query('SELECT key, value::float FROM settings');
   return Object.fromEntries(r.rows.map((row) => [row.key, row.value]));
 }
+export async function setSetting(key, value) {
+  await pool.query(
+    `INSERT INTO settings (key, value) VALUES ($1, $2)
+     ON CONFLICT (key) DO UPDATE SET value = $2`,
+    [key, value]
+  );
+  return getSettings();
+}
 
 /* ---------------- Platform: creators (ТЗ §3, §4) ---------------- */
 export async function listCreators() {
@@ -246,14 +280,38 @@ export async function getCreator(id) {
   const r = await pool.query('SELECT * FROM creators WHERE id = $1', [id]);
   return r.rows[0] || null;
 }
-export async function createCreator({ name, contact, socials, city, referred_by }) {
-  // First 50 creators get permanent Founding Creator status (ТЗ §4.5)
-  const count = await pool.query('SELECT COUNT(*)::int AS n FROM creators');
-  const founding = count.rows[0].n < 50;
+export async function getCreatorByUsername(username) {
+  if (!username) return null;
+  const r = await pool.query('SELECT * FROM creators WHERE lower(username) = lower($1)', [username]);
+  return r.rows[0] || null;
+}
+export async function getCreatorByToken(token) {
+  if (!token) return null;
+  const r = await pool.query('SELECT * FROM creators WHERE session_token = $1', [token]);
+  return r.rows[0] || null;
+}
+export async function setCreatorToken(id, token) {
+  await pool.query('UPDATE creators SET session_token = $1 WHERE id = $2', [token, id]);
+}
+// Operator issues / resets a creator's login credentials from the admin panel.
+export async function setCreatorCredentials(id, username, password_hash) {
   const r = await pool.query(
-    `INSERT INTO creators (name, contact, socials, city, referred_by, founding)
-     VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-    [name, contact || null, socials || null, city || null, referred_by || null, founding]
+    `UPDATE creators SET username = $1, password_hash = $2, status = 'active' WHERE id = $3 RETURNING *`,
+    [username, password_hash, id]
+  );
+  return r.rows[0] || null;
+}
+export async function createCreator({ name, contact, socials, city, referred_by, username, password_hash, session_token, status }) {
+  // Early creators get permanent Founding Creator status (ТЗ §4.5). The cap is a
+  // configurable setting (default 50; 0 = unlimited) rather than a hard-coded limit.
+  const count = await pool.query('SELECT COUNT(*)::int AS n FROM creators');
+  const capRow = await pool.query(`SELECT value::int AS cap FROM settings WHERE key = 'founding_cap'`);
+  const cap = capRow.rows[0]?.cap ?? 50;
+  const founding = cap === 0 || count.rows[0].n < cap;
+  const r = await pool.query(
+    `INSERT INTO creators (name, contact, socials, city, referred_by, founding, username, password_hash, session_token, status)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,COALESCE($10,'active')) RETURNING *`,
+    [name, contact || null, socials || null, city || null, referred_by || null, founding, username || null, password_hash || null, session_token || null, status || null]
   );
   return r.rows[0];
 }
@@ -311,12 +369,55 @@ export async function assignBrief(briefId, creatorId) {
 export async function listAssignmentsForCreator(creatorId) {
   const r = await pool.query(
     `SELECT a.*, b.title, b.platform, b.req_hashtag, b.req_mention, b.req_cta_link,
-            b.goal, b.key_message, b.duration_min, b.duration_max, b.dos, b.donts, b.tone
+            b.goal, b.audience, b.key_message, b.duration_min, b.duration_max,
+            b.dos, b.donts, b.tone, b.refs, b.spec
        FROM assignments a JOIN briefs b ON b.id = a.brief_id
       WHERE a.creator_id = $1 ORDER BY a.id DESC`,
     [creatorId]
   );
   return r.rows;
+}
+
+/* ---------------- Platform: business accounts + their briefs ---------------- */
+export async function createBusiness({ name, email, company, password_hash }) {
+  const r = await pool.query(
+    `INSERT INTO business_accounts (name, email, company, password_hash)
+     VALUES ($1,$2,$3,$4) RETURNING *`,
+    [name, email, company || null, password_hash]
+  );
+  return r.rows[0];
+}
+export async function getBusinessByEmail(email) {
+  if (!email) return null;
+  const r = await pool.query('SELECT * FROM business_accounts WHERE lower(email) = lower($1)', [email]);
+  return r.rows[0] || null;
+}
+export async function getBusinessByToken(token) {
+  if (!token) return null;
+  const r = await pool.query('SELECT * FROM business_accounts WHERE session_token = $1', [token]);
+  return r.rows[0] || null;
+}
+export async function setBusinessToken(id, token) {
+  await pool.query('UPDATE business_accounts SET session_token = $1 WHERE id = $2', [token, id]);
+}
+export async function listBusinessBriefs(businessId) {
+  const r = await pool.query('SELECT * FROM briefs WHERE business_id = $1 ORDER BY id DESC', [businessId]);
+  return r.rows;
+}
+export async function createBusinessBrief(businessId, b) {
+  const r = await pool.query(
+    `INSERT INTO briefs
+      (title, goal, audience, key_message, platform, duration_min, duration_max,
+       req_hashtag, req_mention, req_cta_link, dos, donts, tone, refs, slots, status, business_id, spec)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'new',$16,$17) RETURNING *`,
+    [
+      b.title, b.goal || null, b.audience || null, b.key_message || null, b.platform || 'TikTok',
+      b.duration_min || 15, b.duration_max || 90, b.req_hashtag || null, !!b.req_mention,
+      b.req_cta_link || null, b.dos || null, b.donts || null, b.tone || null, b.refs || null,
+      b.slots || 0, businessId, JSON.stringify(b.spec || {}),
+    ]
+  );
+  return r.rows[0];
 }
 
 /* ---------------- Platform: submissions & review (ТЗ §3, §9) ---------------- */
@@ -347,8 +448,60 @@ export async function listSubmissions(status) {
   return r.rows;
 }
 export async function listCreatorSubmissions(creatorId) {
-  const r = await pool.query('SELECT * FROM submissions WHERE creator_id = $1 ORDER BY id DESC', [creatorId]);
+  const r = await pool.query(
+    `SELECT s.*, b.title AS brief_title FROM submissions s
+       LEFT JOIN briefs b ON b.id = s.brief_id
+      WHERE s.creator_id = $1 ORDER BY s.id DESC`,
+    [creatorId]
+  );
   return r.rows;
+}
+export async function getSubmission(id) {
+  const r = await pool.query('SELECT * FROM submissions WHERE id = $1', [id]);
+  return r.rows[0] || null;
+}
+/* Pipeline transitions (steps 7-12) */
+export async function setSubmissionAi(id, { ai_score, ai_feedback, status }) {
+  const r = await pool.query(
+    'UPDATE submissions SET ai_score = $1, ai_feedback = $2, status = $3 WHERE id = $4 RETURNING *',
+    [ai_score, ai_feedback || null, status, id]
+  );
+  return r.rows[0] || null;
+}
+export async function setSubmissionStatus(id, status) {
+  const r = await pool.query('UPDATE submissions SET status = $1 WHERE id = $2 RETURNING *', [status, id]);
+  return r.rows[0] || null;
+}
+/* Published orders a creator can still take (step 4) */
+export async function listOpenBriefsForCreator(creatorId) {
+  const r = await pool.query(
+    `SELECT b.* FROM briefs b
+      WHERE b.status = 'active'
+        AND NOT EXISTS (SELECT 1 FROM assignments a WHERE a.brief_id = b.id AND a.creator_id = $1)
+      ORDER BY b.id DESC`,
+    [creatorId]
+  );
+  return r.rows;
+}
+/* Submissions awaiting / done business acceptance (steps 11-12) */
+export async function listBusinessSubmissions(businessId) {
+  const r = await pool.query(
+    `SELECT s.*, c.name AS creator_name, b.title AS brief_title
+       FROM submissions s
+       JOIN briefs b ON b.id = s.brief_id
+       LEFT JOIN creators c ON c.id = s.creator_id
+      WHERE b.business_id = $1 AND s.status IN ('sent_to_business', 'accepted')
+      ORDER BY s.id DESC`,
+    [businessId]
+  );
+  return r.rows;
+}
+export async function getSubmissionBusiness(submissionId) {
+  const r = await pool.query(
+    `SELECT s.*, b.business_id FROM submissions s JOIN briefs b ON b.id = s.brief_id WHERE s.id = $1`,
+    [submissionId]
+  );
+  return r.rows[0] || null;
 }
 /* ---- Gamification accrual (ТЗ §4) ---- */
 // XP = function of accumulated accepted views (ТЗ §4.3)
