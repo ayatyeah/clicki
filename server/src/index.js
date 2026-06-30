@@ -44,6 +44,7 @@ import {
   getSubmission,
   setSubmissionAi,
   setSubmissionStatus,
+  listActiveBriefs,
   listOpenBriefsForCreator,
   listBusinessSubmissions,
   getSubmissionBusiness,
@@ -395,6 +396,7 @@ async function creatorPayload(c) {
     wallet: await getCreatorWallet(c.id),
     briefs: await listAssignmentsForCreator(c.id),
     available: await listOpenBriefsForCreator(c.id),
+    openBriefs: await listActiveBriefs(),
     submissions: await listCreatorSubmissions(c.id),
   };
 }

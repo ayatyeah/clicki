@@ -472,7 +472,12 @@ export async function setSubmissionStatus(id, status) {
   const r = await pool.query('UPDATE submissions SET status = $1 WHERE id = $2 RETURNING *', [status, id]);
   return r.rows[0] || null;
 }
-/* Published orders a creator can still take (step 4) */
+/* All published orders — a published brief is open to every creator (broadcast) */
+export async function listActiveBriefs() {
+  const r = await pool.query("SELECT * FROM briefs WHERE status = 'active' ORDER BY id DESC");
+  return r.rows;
+}
+/* Published orders a creator hasn't taken yet (optional bookmark) */
 export async function listOpenBriefsForCreator(creatorId) {
   const r = await pool.query(
     `SELECT b.* FROM briefs b

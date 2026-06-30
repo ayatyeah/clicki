@@ -258,15 +258,9 @@ function Onboarding({ authFetch, onDone }) {
 }
 
 function Dashboard({ data, authFetch, reload, onLogout }) {
-  const { creator: c, wallet, briefs, available = [], submissions, level } = data;
-  const take = async (briefId) => {
-    await authFetch('/api/creator/take', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ brief_id: briefId }),
-    });
-    reload();
-  };
+  const { creator: c, wallet, briefs, openBriefs = [], submissions, level } = data;
+  // A published brief is an open order for every creator; anyone can submit to it.
+  const submitBriefs = openBriefs.length ? openBriefs : briefs;
   const threshold = wallet.payout_threshold || 0;
   const pct = threshold ? Math.min(100, Math.round((wallet.balance / threshold) * 100)) : 0;
   const firstName = (c.name || '').split(' ')[0] || c.name;
@@ -295,31 +289,22 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
         <input readOnly value={`${window.location.origin}/creator?ref=${c.id}`} onFocus={(e) => e.target.select()} />
       </div>
 
-      {available.length > 0 && (
+      <h2 className="creator-portal__h2">Заказы <span className="creator-portal__chip">доступны всем</span></h2>
+      {openBriefs.length ? (
+        openBriefs.map((b) => <BriefCard key={b.id} b={b} />)
+      ) : (
+        <p className="creator-portal__muted">Открытых заказов пока нет — менеджер скоро опубликует.</p>
+      )}
+
+      {briefs.length > 0 && (
         <>
-          <h2 className="creator-portal__h2">Доступные заказы</h2>
-          {available.map((b) => (
-            <div key={b.id} className="creator-portal__card">
-              <div className="creator-portal__brief-head">
-                <b>{b.title}</b>
-                <span className="pf-badge">{b.platform}</span>
-              </div>
-              {b.key_message && <p className="creator-portal__muted">{b.key_message}</p>}
-              <button className="btn btn--primary btn--sm" onClick={() => take(b.id)}>Взять заказ</button>
-            </div>
-          ))}
+          <h2 className="creator-portal__h2">Назначенные тебе</h2>
+          {briefs.map((b) => <BriefCard key={b.id} b={b} />)}
         </>
       )}
 
-      <h2 className="creator-portal__h2">Твои брифы</h2>
-      {briefs.length ? (
-        briefs.map((b) => <BriefCard key={b.id} b={b} />)
-      ) : (
-        <p className="creator-portal__muted">Брифов пока нет — возьми заказ выше или дождись назначения.</p>
-      )}
-
       <h2 className="creator-portal__h2">Сдать видео</h2>
-      <SubmitForm authFetch={authFetch} briefs={briefs} reload={reload} />
+      <SubmitForm authFetch={authFetch} briefs={submitBriefs} reload={reload} />
 
       <h2 className="creator-portal__h2">Мои видео</h2>
       {submissions.length ? (

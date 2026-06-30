@@ -149,6 +149,17 @@
   font-size: 0.9rem;
 }
 .creator-portal__row-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.creator-portal__chip {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  vertical-align: middle;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(22, 163, 74, 0.14);
+  color: #15803d;
+}
 
 /* Expandable full-brief detail (creator cabinet) */
 .brief-detail {
