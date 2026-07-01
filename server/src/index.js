@@ -36,6 +36,9 @@ import {
   getBrief,
   createBrief,
   setBriefStatus,
+  setBriefAi,
+  setBriefRevision,
+  updateBusinessBrief,
   assignBrief,
   listAssignmentsForCreator,
   createSubmission,
@@ -58,6 +61,8 @@ import {
   levelFromXp,
   getAiCache,
   saveAiCache,
+  recordVisit,
+  getVisitAnalytics,
   createBusiness,
   getBusinessByEmail,
   getBusinessByToken,
@@ -165,6 +170,43 @@ function requireAdmin(req, res, next) {
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
+// Resolve a referral link (clicki-platform.com/<login>) to its owner. Public.
+app.get('/api/ref/:login', async (req, res) => {
+  try {
+    const c = await getCreatorByUsername(req.params.login);
+    if (!c) return res.status(404).json({ ok: false, errors: ['Не найдено'] });
+    res.json({ ok: true, id: c.id, name: c.name });
+  } catch (err) {
+    console.error('[ref]', err.message);
+    res.status(500).json({ ok: false, errors: ['Ошибка'] });
+  }
+});
+
+// First-party pageview beacon → visit log (powers the admin analytics page).
+const trackLimiter = rateLimit({ windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false });
+app.post('/api/track', trackLimiter, async (req, res) => {
+  try {
+    const { path: p, referrer, mobile, kind, label } = req.body || {};
+    const dayKey = new Date().toISOString().slice(0, 10);
+    const visitor = crypto
+      .createHash('sha256')
+      .update((req.ip || '') + (req.headers['user-agent'] || '') + dayKey)
+      .digest('hex')
+      .slice(0, 32);
+    await recordVisit({
+      path: String(p || '/'),
+      referrer: typeof referrer === 'string' ? referrer : null,
+      visitor,
+      is_mobile: !!mobile,
+      kind: kind === 'click' ? 'click' : 'page',
+      label: typeof label === 'string' ? label : null,
+    });
+  } catch (err) {
+    console.error('[track]', err.message);
+  }
+  res.json({ ok: true });
+});
+
 // Public site content (showcase feed + device screen images).
 app.get('/api/content', async (_req, res) => {
   res.json(await readContent());
@@ -221,6 +263,7 @@ async function handleLead(funnel, req, res) {
     funnel,
     fields,
     page: typeof req.body?.page === 'string' ? req.body.page.slice(0, 200) : undefined,
+    ref: req.body?.ref ? String(req.body.ref).slice(0, 40) : undefined,
     createdAt: new Date().toISOString(),
   };
 
@@ -430,11 +473,47 @@ async function aiCheckSubmission(sub, brief) {
     const out = await geminiGenerate(prompt, { maxTokens: 130, temperature: 0.3 });
     const m = out.match(/SCORE:\s*(\d{1,3})/i);
     const score = m ? Math.min(100, Math.max(0, parseInt(m[1], 10))) : 75;
-    const feedback = (out.match(/FEEDBACK:\s*([\s\S]*)/i)?.[1] || out).trim().slice(0, 500);
+    let feedback = (out.match(/FEEDBACK:\s*([\s\S]*)/i)?.[1] || out).replace(/SCORE:\s*\d+/i, '').trim();
+    feedback = (feedback || 'Замечаний нет.').slice(0, 500);
     return { score, feedback };
   } catch (err) {
     console.error('[ai-check]', err.message);
     return { score: 80, feedback: 'AI-проверка временно недоступна — передано менеджеру.' };
+  }
+}
+
+// AI moderation of a business brief: rates completeness/quality + gives notes so
+// the manager can decide to publish to creators or send it back for fixes.
+async function aiAnalyzeBrief(brief) {
+  if (!geminiEnabled) return { score: 75, feedback: 'AI недоступен — оцените бриф вручную.' };
+  const spec = brief.spec || {};
+  const desc = [
+    `Название: ${brief.title}`,
+    `Платформа: ${brief.platform}`,
+    brief.key_message ? `Ключевое сообщение: ${brief.key_message}` : '',
+    `Ориентация: ${spec.orientation === 'horizontal' ? 'горизонтальная' : 'вертикальная'}`,
+    `Макс. длительность: ${brief.duration_max} сек`,
+    spec.cta_required ? 'CTA обязателен' : '',
+    spec.logo_first5 ? 'Логотип в первые 5 сек' : '',
+    spec.brand_spoken ? 'Произнести бренд' : '',
+    spec.product_in_frame ? 'Продукт в кадре' : '',
+    spec.style ? `Стиль: ${spec.style}` : '',
+    brief.req_hashtag ? `Хэштег: ${brief.req_hashtag}` : '',
+  ].filter(Boolean).join('; ');
+  const prompt =
+    `Ты — редактор брифов платформы CLICKI (UGC-реклама). Оцени качество и полноту брифа для съёмки видео креатором ` +
+    `от 0 до 100 и дай 2-3 конкретных замечания: что улучшить или чего не хватает. Бриф: ${desc}. ` +
+    `Ответ строго двумя строками: SCORE: <число>\nFEEDBACK: <текст по-русски>`;
+  try {
+    const out = await geminiGenerate(prompt, { maxTokens: 170, temperature: 0.3 });
+    const m = out.match(/SCORE:\s*(\d{1,3})/i);
+    const score = m ? Math.min(100, Math.max(0, parseInt(m[1], 10))) : 70;
+    let feedback = (out.match(/FEEDBACK:\s*([\s\S]*)/i)?.[1] || out).replace(/SCORE:\s*\d+/i, '').trim();
+    feedback = (feedback || 'Бриф в целом заполнен, критичных замечаний нет.').slice(0, 600);
+    return { score, feedback };
+  } catch (err) {
+    console.error('[ai-brief]', err.message);
+    return { score: 70, feedback: 'AI временно недоступен — оцените вручную.' };
   }
 }
 
@@ -612,7 +691,22 @@ app.post(
   })
 );
 
+// Business edits its own brief (e.g. after it was returned for fixes) → back to moderation.
+app.post(
+  '/api/business/briefs/:id',
+  requireBusiness,
+  wrap(async (req, res) => {
+    const b = req.body || {};
+    if (!b.title || !String(b.title).trim()) return res.status(400).json({ ok: false, errors: ['Название обязательно'] });
+    const brief = await updateBusinessBrief(Number(req.params.id), req.business.id, b);
+    if (!brief) return res.status(404).json({ ok: false, errors: ['Бриф не найден или недоступен'] });
+    notifyOps(`✏️ Бизнес #${req.business.id} обновил бриф #${brief.id} — снова на модерации`);
+    ok(res, { brief });
+  })
+);
+
 // ---- Admin / operator CRM (ТЗ §13) ----
+app.get('/api/admin/analytics', requireAdmin, wrap(async (_req, res) => ok(res, { analytics: await getVisitAnalytics() })));
 app.get('/api/admin/rates', requireAdmin, wrap(async (_req, res) => ok(res, { rates: await getRates(), settings: await getSettings() })));
 // Update a numeric platform setting (e.g. founding_cap — set as high as desired).
 app.post('/api/admin/settings', requireAdmin, wrap(async (req, res) => {
@@ -659,6 +753,17 @@ app.post('/api/admin/creators/:id', requireAdmin, wrap(async (req, res) => ok(re
 app.get('/api/admin/briefs', requireAdmin, wrap(async (_req, res) => ok(res, { briefs: await listBriefs() })));
 app.post('/api/admin/briefs', requireAdmin, wrap(async (req, res) => ok(res, { brief: await createBrief(req.body || {}) })));
 app.post('/api/admin/briefs/:id/status', requireAdmin, wrap(async (req, res) => ok(res, { brief: await setBriefStatus(Number(req.params.id), req.body?.status) })));
+// AI quality check of a brief (moderation).
+app.post('/api/admin/briefs/:id/ai', requireAdmin, wrap(async (req, res) => {
+  const brief = await getBrief(Number(req.params.id));
+  if (!brief) return res.status(404).json({ ok: false, errors: ['Бриф не найден'] });
+  const { score, feedback } = await aiAnalyzeBrief(brief);
+  ok(res, { brief: await setBriefAi(brief.id, { ai_score: score, ai_feedback: feedback }) });
+}));
+// Send a brief back to the business for fixes.
+app.post('/api/admin/briefs/:id/revision', requireAdmin, wrap(async (req, res) =>
+  ok(res, { brief: await setBriefRevision(Number(req.params.id), String(req.body?.note || '').slice(0, 500)) })
+));
 app.post('/api/admin/briefs/:id/assign', requireAdmin, wrap(async (req, res) => ok(res, { assignment: await assignBrief(Number(req.params.id), Number(req.body?.creator_id)) })));
 
 app.get('/api/admin/submissions', requireAdmin, wrap(async (req, res) => ok(res, { submissions: await listSubmissions(req.query.status) })));

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import { API_BASE } from '../lib/config.js';
+import Icon from '../components/Icon.jsx';
 import { AiAnalysisView, BriefsView, ReviewView, CreatorsView, PayoutsView } from './AdminPlatform.jsx';
 
 const TOKEN_KEY = 'clicki_admin_token';
@@ -208,7 +209,7 @@ export default function Admin() {
 
   if (!token) {
     return (
-      <main className="admin page-light app-light">
+      <main className="admin page-light app-light ae-skip">
         <Helmet>
           <title>CLICKI - админка</title>
           <meta name="robots" content="noindex, nofollow" />
@@ -234,23 +235,23 @@ export default function Admin() {
   const businessLeads = leads.filter((l) => l.funnel === 'client');
   const creatorLeads = leads.filter((l) => l.funnel === 'creator');
   const NAV = [
-    { key: 'dashboard', label: 'Дашборд', icon: '▦' },
-    { key: 'ai', label: 'ИИ Аналитика', icon: '✦' },
-    { key: 'analytics', label: 'Аналитика', icon: '📈' },
-    { key: 'leads-business', label: 'Заявки Бизнеса', icon: '🟣' },
-    { key: 'leads-creators', label: 'Заявки Креаторов', icon: '🟢' },
-    { key: 'briefs', label: 'Брифы', icon: '📋' },
-    { key: 'review', label: 'Проверка видео', icon: '✅' },
-    { key: 'creators', label: 'Креаторы', icon: '👤' },
-    { key: 'payouts', label: 'Выплаты', icon: '💸' },
-    { key: 'videos', label: 'Загрузка видео', icon: '🎬' },
-    { key: 'hub-video', label: 'Видео на главной', icon: '🏠' },
-    { key: 'creator-page', label: 'Видео креаторов', icon: '🎞' },
-    { key: 'content', label: 'Контент сайта', icon: '🖼' },
+    { key: 'dashboard', label: 'Дашборд', icon: 'grid' },
+    { key: 'ai', label: 'ИИ Аналитика', icon: 'sparkle' },
+    { key: 'analytics', label: 'Аналитика', icon: 'chart' },
+    { key: 'leads-business', label: 'Заявки Бизнеса', icon: 'inbox' },
+    { key: 'leads-creators', label: 'Заявки Креаторов', icon: 'users' },
+    { key: 'briefs', label: 'Брифы', icon: 'briefs' },
+    { key: 'review', label: 'Проверка видео', icon: 'check' },
+    { key: 'creators', label: 'Креаторы', icon: 'user' },
+    { key: 'payouts', label: 'Выплаты', icon: 'wallet' },
+    { key: 'videos', label: 'Загрузка видео', icon: 'video' },
+    { key: 'hub-video', label: 'Видео на главной', icon: 'home' },
+    { key: 'creator-page', label: 'Видео креаторов', icon: 'film' },
+    { key: 'content', label: 'Контент сайта', icon: 'image' },
   ];
 
   return (
-    <main className="admin page-light app-light">
+    <main className="admin page-light app-light ae-skip">
       <Helmet>
         <title>CLICKI - админка</title>
         <meta name="robots" content="noindex, nofollow" />
@@ -295,7 +296,7 @@ export default function Admin() {
                   setNavOpen(false);
                 }}
               >
-                <span className="admin-nav__icon" aria-hidden="true">{n.icon}</span>
+                <span className="admin-nav__icon" aria-hidden="true"><Icon name={n.icon} /></span>
                 {n.label}
               </button>
             ))}
@@ -378,15 +379,7 @@ export default function Admin() {
           {view === 'ai' && <AiAnalysisView authFetch={authFetch} />}
 
           {view === 'analytics' && (
-            <section className="admin-block">
-              <h2 className="admin-block__title">Аналитика</h2>
-              <div className="admin-stats">
-                <Stat label="Всего заявок" value={leads.length} />
-                <Stat label="Бизнес" value={businessLeads.length} />
-                <Stat label="Креаторы" value={creatorLeads.length} />
-              </div>
-              <AnalyticsByPage leads={leads} />
-            </section>
+            <AnalyticsView authFetch={authFetch} leads={leads} businessLeads={businessLeads} creatorLeads={creatorLeads} />
           )}
 
           {view === 'leads-business' && (
@@ -634,6 +627,135 @@ function AnalyticsByPage({ leads }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+function AnalyticsView({ authFetch, leads, businessLeads, creatorLeads }) {
+  const [a, setA] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await (await authFetch('/api/admin/analytics')).json();
+      setA(r.analytics || null);
+    } finally {
+      setLoading(false);
+    }
+  }, [authFetch]);
+  useEffect(() => {
+    load();
+    const id = setInterval(load, 12000); // live: refresh every 12s
+    return () => clearInterval(id);
+  }, [load]);
+
+  const maxDay = a && a.byDay.length ? Math.max(1, ...a.byDay.map((d) => d.visits)) : 1;
+  const dev = a?.device || { mobile: 0, desktop: 0 };
+  const devTotal = (dev.mobile || 0) + (dev.desktop || 0);
+  const mobilePct = devTotal ? Math.round((dev.mobile / devTotal) * 100) : 0;
+
+  return (
+    <section className="admin-block">
+      <div className="admin-panel__head">
+        <h2 className="admin-block__title">Аналитика посещаемости <span className="an-live">● live</span></h2>
+        <button className="btn btn--ghost btn--sm" onClick={load} disabled={loading}>{loading ? 'Обновляю…' : 'Обновить'}</button>
+      </div>
+
+      {!a ? (
+        <p className="muted-note" style={{ textAlign: 'left' }}>Загрузка…</p>
+      ) : (
+        <>
+          <div className="admin-stats">
+            <Stat label="Всего визитов" value={a.totals.visits.toLocaleString('ru-RU')} />
+            <Stat label="Уникальных" value={a.totals.uniques.toLocaleString('ru-RU')} />
+            <Stat label="Сегодня" value={a.today.visits.toLocaleString('ru-RU')} />
+            <Stat label="Мобильных" value={`${mobilePct}%`} />
+          </div>
+
+          <h3 className="admin-block__title admin-subhead">Визиты за 14 дней</h3>
+          {a.byDay.length ? (
+            <div className="an-days">
+              {a.byDay.map((d) => (
+                <div key={d.day} className="an-day" title={`${d.day}: ${d.visits} визитов`}>
+                  <span className="an-day__bar" style={{ height: `${Math.round((d.visits / maxDay) * 100)}%` }} />
+                  <span className="an-day__label">{d.day.slice(5)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="muted-note" style={{ textAlign: 'left' }}>Данных пока нет — цифры появятся по мере посещений.</p>
+          )}
+
+          <div className="an-cols">
+            <div>
+              <h3 className="admin-block__title admin-subhead">Топ страниц</h3>
+              <div className="admin-table-wrap">
+                <table className="admin-table">
+                  <thead><tr><th>Страница</th><th>Визитов</th></tr></thead>
+                  <tbody>
+                    {a.byPage.map((p) => (
+                      <tr key={p.path}><td data-label="Страница">{p.path}</td><td className="muted-cell" data-label="Визитов">{p.visits}</td></tr>
+                    ))}
+                    {!a.byPage.length && <tr><td colSpan={2} className="admin-table__empty">—</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div>
+              <h3 className="admin-block__title admin-subhead">Источники трафика</h3>
+              <div className="admin-table-wrap">
+                <table className="admin-table">
+                  <thead><tr><th>Источник</th><th>Визитов</th></tr></thead>
+                  <tbody>
+                    {a.bySource.map((s) => (
+                      <tr key={s.source}><td data-label="Источник">{s.source}</td><td className="muted-cell" data-label="Визитов">{s.visits}</td></tr>
+                    ))}
+                    {!a.bySource.length && <tr><td colSpan={2} className="admin-table__empty">—</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <h3 className="admin-block__title admin-subhead">Устройства</h3>
+          <div className="bp-bars">
+            <div className="bp-bar">
+              <span className="bp-bar__label">Мобильные</span>
+              <span className="bp-bar__track"><span className="bp-bar__fill" style={{ width: `${mobilePct}%` }} /></span>
+              <span className="bp-bar__val">{dev.mobile}</span>
+            </div>
+            <div className="bp-bar">
+              <span className="bp-bar__label">Десктоп</span>
+              <span className="bp-bar__track"><span className="bp-bar__fill" style={{ width: `${100 - mobilePct}%` }} /></span>
+              <span className="bp-bar__val">{dev.desktop}</span>
+            </div>
+          </div>
+
+          <h3 className="admin-block__title admin-subhead">Куда нажимают (кнопки и переходы)</h3>
+          {a.topClicks && a.topClicks.length ? (
+            <div className="admin-table-wrap">
+              <table className="admin-table">
+                <thead><tr><th>Действие</th><th>Нажатий</th></tr></thead>
+                <tbody>
+                  {a.topClicks.map((c) => (
+                    <tr key={c.label}><td data-label="Действие">{c.label}</td><td className="muted-cell" data-label="Нажатий">{c.clicks}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="muted-note" style={{ textAlign: 'left' }}>Пока нет данных о нажатиях.</p>
+          )}
+        </>
+      )}
+
+      <h3 className="admin-block__title admin-subhead">Заявки</h3>
+      <div className="admin-stats">
+        <Stat label="Всего заявок" value={leads.length} />
+        <Stat label="Бизнес" value={businessLeads.length} />
+        <Stat label="Креаторы" value={creatorLeads.length} />
+      </div>
+      <AnalyticsByPage leads={leads} />
+    </section>
   );
 }
 

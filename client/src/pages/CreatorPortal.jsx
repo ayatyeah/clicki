@@ -70,7 +70,7 @@ export default function CreatorPortal() {
 
 function Shell({ children }) {
   return (
-    <main className="creator-portal page-light app-light">
+    <main className="creator-portal page-light app-light ae-skip">
       <Seo title="CLICKI — кабинет креатора" path="/creator" description="Личный кабинет креатора CLICKI: брифы, сдача видео, кошелёк и рейтинг." noindex />
       <div className="container creator-portal__inner">
         <div className="creator-portal__head">
@@ -269,7 +269,7 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
       <div className="creator-portal__top">
         <div>
           <h1 className="creator-portal__title">Привет, {firstName} {c.founding && <span className="pf-badge">Founding</span>}</h1>
-          <p className="creator-portal__muted">{level} · Стрик {c.streak}🔥 · XP {c.xp} · Trust {c.trust_score}</p>
+          <p className="creator-portal__muted">{level} · Стрик {c.streak} дн · XP {c.xp} · Trust {c.trust_score}</p>
         </div>
         <button className="btn btn--ghost btn--sm" onClick={onLogout}>Выйти</button>
       </div>
@@ -285,8 +285,16 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
 
       <div className="creator-portal__card">
         <div className="creator-portal__wallet-row"><span>Пригласи друга</span></div>
-        <p className="creator-portal__muted">Бонус +500 XP, когда у приглашённого засчитают первое видео.</p>
-        <input readOnly value={`${window.location.origin}/creator?ref=${c.id}`} onFocus={(e) => e.target.select()} />
+        <p className="creator-portal__muted">
+          {c.username
+            ? 'Твоя персональная ссылка. Бонус +500 XP, когда у приглашённого засчитают первое видео.'
+            : 'Ссылка появится, когда оператор выдаст тебе логин. Пока действует ссылка ниже.'}
+        </p>
+        <input
+          readOnly
+          value={c.username ? `${window.location.origin}/${c.username}` : `${window.location.origin}/creator?ref=${c.id}`}
+          onFocus={(e) => e.target.select()}
+        />
       </div>
 
       <h2 className="creator-portal__h2">Заказы <span className="creator-portal__chip">доступны всем</span></h2>
@@ -411,7 +419,7 @@ function Leaderboard({ meId }) {
           <span className="creator-portal__lb-rank">#{i + 1}</span>
           <b>{r.name}</b>
           <span className="pf-badge">{r.level}</span>
-          <span className="creator-portal__muted">{r.xp} XP · {r.streak}🔥</span>
+          <span className="creator-portal__muted">{r.xp} XP · стрик {r.streak}</span>
         </div>
       ))}
     </div>

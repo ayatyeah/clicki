@@ -27,7 +27,7 @@ const COPY = {
       flip: ['органика', 'просмотры', 'охваты', 'результат'],
       title: 'Платишь за',
       accent: 'результат',
-      tail: ', а не за надежду',
+      tail: ', а не за попытку',
       feats: ['Оплата за просмотры', 'Защита от накруток', 'Запуск за 48 часов'],
       lead: 'Первая платформа, где вы платите за живые просмотры, а не за обещания. Запуск за пару дней и никакого слитого бюджета.',
       cta: 'Получить консультацию',
@@ -44,7 +44,7 @@ const COPY = {
     },
     mission: {
       eyebrow: 'Наша миссия',
-      title: 'Мы превратили рекламу в предсказуемый канал органических просмотров.',
+      title: 'Бренд заказывает подтверждённые просмотры — авторы их доставляют.',
     },
     featureA: {
       title: 'Платим только за просмотры',
@@ -115,7 +115,7 @@ const COPY = {
       flip: ['organic', 'views', 'reach', 'results'],
       title: 'You pay for',
       accent: 'results',
-      tail: ', not for hope',
+      tail: ', not for the attempt',
       feats: ['Pay per view', 'Bot protection', 'Launch in 48 hours'],
       lead: 'The first platform where you pay for real views, not promises. Launch in days — no wasted budget.',
       cta: 'Get a consultation',
@@ -132,7 +132,7 @@ const COPY = {
     },
     mission: {
       eyebrow: 'Our mission',
-      title: 'We turned advertising into a predictable channel of organic views.',
+      title: 'Brands order confirmed views — creators deliver them.',
     },
     featureA: {
       title: 'Pay only per view',

@@ -68,7 +68,14 @@ export default function LeadForm({ funnel, fields, submitLabel, requireAdult = f
     }
 
     setStatus('sending');
-    const res = await submitLead(funnel, { ...values, consent, adult, website });
+    // Attach the stored referral (from a clicki-platform.com/<login> link) to creator leads.
+    let ref;
+    try {
+      ref = funnel === 'creator' ? localStorage.getItem('clicki_ref') || undefined : undefined;
+    } catch {
+      ref = undefined;
+    }
+    const res = await submitLead(funnel, { ...values, consent, adult, website, ref });
     if (res.ok) {
       trackLead(funnel); // client_lead / creator_lead conversion
       navigate(`/thanks/${funnel}`);

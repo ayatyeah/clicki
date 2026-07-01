@@ -97,10 +97,7 @@ export default function Hub() {
             </div>
             <div className="hub-nav__actions">
               <LangSwitch />
-              <Link className="hub-nav__login" to="/creator">
-                {t.login}
-              </Link>
-              <Link className="hub-nav__cta" to="/contacts">
+              <Link className="hub-nav__cta" to="/contacts" data-track="Хаб: Связаться (шапка)">
                 {t.contact}
               </Link>
             </div>
@@ -126,14 +123,16 @@ export default function Hub() {
               <p className="hub-hero__lead">{t.subtitle}</p>
 
               <div className="hub-hero__choices">
-                <Link to="/business" className="hub-choice hub-choice--business">
+                <Link to="/business" className="hub-choice hub-choice--business" data-track="Хаб: Я бизнес">
+
                   <span className="hub-choice__eyebrow">{t.bizEyebrow}</span>
                   <span className="hub-choice__title">{t.bizTitle}</span>
                   <span className="hub-choice__desc">{t.bizDesc}</span>
                   <span className="hub-choice__arrow" aria-hidden="true">→</span>
                 </Link>
 
-                <Link to="/creators" className="hub-choice hub-choice--creator">
+                <Link to="/creators" className="hub-choice hub-choice--creator" data-track="Хаб: Я креатор">
+
                   <span className="hub-choice__eyebrow">{t.crEyebrow}</span>
                   <span className="hub-choice__title">{t.crTitle}</span>
                   <span className="hub-choice__desc">{t.crDesc}</span>

@@ -55,13 +55,21 @@ function replaceInTextNode(node) {
 
 const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'TEXTAREA', 'CODE', 'PRE', 'IMG']);
 
+// True if the node sits anywhere inside an `.ae-skip` subtree (e.g. admin/cabinets).
+function inSkippedSubtree(el) {
+  for (let n = el; n && n !== document.body; n = n.parentElement) {
+    if (n.classList?.contains('ae-skip')) return true;
+  }
+  return false;
+}
+
 /** Walk a subtree and convert emoji in its text nodes. */
 export function parseAppleEmoji(root = document.body) {
   if (!root) return;
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode(node) {
       const p = node.parentNode;
-      if (!p || SKIP_TAGS.has(p.nodeName) || p.classList?.contains('ae-skip')) return NodeFilter.FILTER_REJECT;
+      if (!p || SKIP_TAGS.has(p.nodeName) || inSkippedSubtree(p)) return NodeFilter.FILTER_REJECT;
       EMOJI_RE.lastIndex = 0;
       return EMOJI_RE.test(node.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
     },

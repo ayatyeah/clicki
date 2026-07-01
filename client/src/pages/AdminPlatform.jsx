@@ -13,6 +13,25 @@ const REJECT_CODES = [
   { code: 'other', label: 'Другое' },
 ];
 
+const STAR_D = 'M12 2.6l2.85 5.77 6.37.93-4.61 4.49 1.09 6.35L12 17.77l-5.7 3l1.09-6.35-4.61-4.49 6.37-.93z';
+/** 5-star rating with fractional fill (0–5). */
+function Stars({ value = 0 }) {
+  return (
+    <span className="stars" title={`${Number(value).toFixed(1)} из 5`}>
+      {[0, 1, 2, 3, 4].map((i) => {
+        const f = Math.max(0, Math.min(1, value - i));
+        return (
+          <span key={i} className="star">
+            <svg className="star__bg" viewBox="0 0 24 24" aria-hidden="true"><path d={STAR_D} /></svg>
+            <svg className="star__fg" viewBox="0 0 24 24" aria-hidden="true" style={{ clipPath: `inset(0 ${100 - f * 100}% 0 0)` }}><path d={STAR_D} /></svg>
+          </span>
+        );
+      })}
+      <span className="stars__num">{Number(value).toFixed(1)}</span>
+    </span>
+  );
+}
+
 /* Minimal markdown render for Gemini output (bold + bullets). */
 function AiMd({ text }) {
   return (
@@ -71,7 +90,7 @@ export function AiAnalysisView({ authFetch }) {
             <AiMd text={data.analysis} />
           </div>
           <p className="muted-note">
-            {data.cached ? '⚡ из кэша (экономия запросов)' : '🆕 свежий анализ'}
+            {data.cached ? 'из кэша (экономия запросов)' : 'свежий анализ'}
             {data.at ? ` · ${new Date(data.at).toLocaleString('ru-RU')}` : ''}
           </p>
         </>
@@ -154,54 +173,80 @@ export function BriefsView({ authFetch }) {
         </button>
       </div>
 
-      <div className="admin-table-wrap" style={{ marginTop: 16 }}>
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Бриф</th>
-              <th>Платформа</th>
-              <th>Требования</th>
-              <th>Статус</th>
-              <th>Назначить креатору</th>
-            </tr>
-          </thead>
-          <tbody>
-            {briefs.map((b) => (
-              <tr key={b.id}>
-                <td data-label="Бриф"><b>{b.title}</b></td>
-                <td data-label="Платформа">{b.platform}</td>
-                <td data-label="Требования" style={{ fontSize: '0.85rem' }}>
-                  {b.req_hashtag ? `${b.req_hashtag} ` : ''}
-                  {b.req_mention ? '· упоминание ' : ''}
-                  {b.duration_min}-{b.duration_max}с
-                </td>
-                <td data-label="Статус">
-                  <span className={`pf-status pf-status--${b.status === 'active' ? 'accepted' : 'pending'}`}>
-                    {b.status === 'active' ? 'опубликован' : b.status === 'new' ? 'на модерации' : b.status}
-                  </span>
-                  {b.status !== 'active' && (
-                    <button className="btn btn--ghost btn--sm" style={{ marginTop: 6 }} onClick={() => publish(b.id)}>
-                      Опубликовать
-                    </button>
-                  )}
-                </td>
-                <td data-label="Назначить">
-                  <select defaultValue="" onChange={(e) => assign(b.id, e.target.value)}>
-                    <option value="">— назначить вручную —</option>
-                    {creators.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                </td>
-              </tr>
-            ))}
-            {!briefs.length && (
-              <tr><td colSpan={5} className="admin-table__empty">Брифов пока нет</td></tr>
-            )}
-          </tbody>
-        </table>
+      <p className="muted-note" style={{ textAlign: 'left', marginTop: 16 }}>
+        Бриф приходит от бизнеса «на модерацию». Прогони ИИ-анализ, затем опубликуй креаторам или верни бизнесу на доработку.
+      </p>
+      <div className="bp-cards" style={{ marginTop: 12 }}>
+        {briefs.map((b) => (
+          <BriefModCard key={b.id} b={b} authFetch={authFetch} creators={creators} onChange={load} />
+        ))}
+        {!briefs.length && <p className="muted-note" style={{ textAlign: 'left' }}>Брифов пока нет</p>}
       </div>
     </section>
+  );
+}
+
+function BriefModCard({ b, authFetch, creators, onChange }) {
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState('');
+  const [showNote, setShowNote] = useState(false);
+  const call = async (url, body) => {
+    setBusy(true);
+    try {
+      await authFetch(url, { method: 'POST', headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+      onChange();
+    } finally {
+      setBusy(false);
+    }
+  };
+  const statusLabel =
+    b.status === 'active' ? 'опубликован креаторам'
+      : b.status === 'revision' ? 'у бизнеса на доработке'
+      : b.status === 'new' ? 'на модерации'
+      : b.status;
+  const statusCls = b.status === 'active' ? 'accepted' : b.status === 'revision' ? 'rework' : 'pending';
+
+  return (
+    <div className="bp-card">
+      <div className="bp-card__head">
+        <b>{b.title}</b>
+        <span className={`pf-status pf-status--${statusCls}`}>{statusLabel}</span>
+      </div>
+      <p className="creator-portal__muted" style={{ margin: 0 }}>
+        {b.platform} · до {b.duration_max}с
+        {b.req_hashtag ? ` · ${b.req_hashtag}` : ''}
+        {b.spec?.style ? ` · ${b.spec.style}` : ''}
+      </p>
+      <div className="mod-panel">
+        {b.ai_score != null && (
+          <div className="mod-ai"><span className="mod-ai__score">ИИ: {b.ai_score}/100.</span> {b.ai_feedback}</div>
+        )}
+        {b.revision_note && <div className="mod-note">Возвращён бизнесу: {b.revision_note}</div>}
+        <div className="mod-actions">
+          <button className="btn btn--ghost btn--sm" disabled={busy} onClick={() => call(`/api/admin/briefs/${b.id}/ai`)}>ИИ-анализ</button>
+          {b.status !== 'active' && (
+            <button className="btn btn--primary btn--sm" disabled={busy} onClick={() => call(`/api/admin/briefs/${b.id}/status`, { status: 'active' })}>
+              Опубликовать креаторам
+            </button>
+          )}
+          <button className="btn btn--ghost btn--sm" disabled={busy} onClick={() => setShowNote((s) => !s)}>Вернуть бизнесу</button>
+          <select defaultValue="" onChange={(e) => { if (e.target.value) { call(`/api/admin/briefs/${b.id}/assign`, { creator_id: Number(e.target.value) }); e.target.value = ''; } }}>
+            <option value="">— назначить вручную —</option>
+            {creators.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+        {showNote && (
+          <div className="mod-actions">
+            <input placeholder="Что исправить бизнесу" value={note} onChange={(e) => setNote(e.target.value)} style={{ flex: 1, minWidth: 200 }} />
+            <button className="btn btn--primary btn--sm" disabled={busy || !note.trim()} onClick={() => { call(`/api/admin/briefs/${b.id}/revision`, { note }); setShowNote(false); setNote(''); }}>
+              Отправить на доработку
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -428,6 +473,7 @@ export function CreatorsView({ authFetch }) {
           <thead>
             <tr>
               <th>Креатор</th>
+              <th>Рейтинг</th>
               <th>Контакт</th>
               <th>Доступ (логин)</th>
               <th>XP / Trust / Стрик</th>
@@ -441,11 +487,12 @@ export function CreatorsView({ authFetch }) {
                   <b>{c.name}</b> {c.founding && <span className="pf-badge">Founding</span>}
                   <div style={{ fontSize: '0.8rem', color: 'var(--fog)' }}>{c.socials || ''}</div>
                 </td>
+                <td data-label="Рейтинг"><Stars value={c.rating || 0} /></td>
                 <td data-label="Контакт">{c.contact}</td>
                 <td data-label="Доступ">
                   <Credentials creator={c} authFetch={authFetch} onSaved={load} />
                 </td>
-                <td data-label="XP / Trust / Стрик">{c.xp} / {c.trust_score} / {c.streak}🔥</td>
+                <td data-label="XP / Trust / Стрик">{c.xp} / {c.trust_score} / {c.streak}</td>
                 <td data-label="Статус">
                   <select value={c.status} onChange={(e) => toggle(c.id, 'status', e.target.value)}>
                     <option value="pending">pending</option>
@@ -456,7 +503,7 @@ export function CreatorsView({ authFetch }) {
                 </td>
               </tr>
             ))}
-            {!creators.length && <tr><td colSpan={5} className="admin-table__empty">Креаторов пока нет</td></tr>}
+            {!creators.length && <tr><td colSpan={6} className="admin-table__empty">Креаторов пока нет</td></tr>}
           </tbody>
         </table>
       </div>
@@ -491,7 +538,7 @@ function Credentials({ creator, authFetch, onSaved }) {
     return (
       <div className="pf-actions">
         {creator.username ? (
-          <span style={{ fontSize: '0.85rem' }}>🔑 {creator.username}</span>
+          <span style={{ fontSize: '0.85rem' }}>{creator.username}</span>
         ) : (
           <span style={{ fontSize: '0.82rem', color: 'var(--fog)' }}>нет доступа</span>
         )}

@@ -60,9 +60,9 @@ export function FunnelHero({ accent = 'violet', flipWords, title, accentWord, ta
           <p className="fx-hero__lead">{lead}</p>
           <div className="fx-hero__actions">
             {ctaTo.startsWith('#') ? (
-              <a href={ctaTo} className="btn btn--primary btn--lg">{cta}</a>
+              <a href={ctaTo} className="btn btn--primary btn--lg" data-track={`Воронка ${accent}: ${cta}`}>{cta}</a>
             ) : (
-              <Link to={ctaTo} className="btn btn--primary btn--lg">{cta}</Link>
+              <Link to={ctaTo} className="btn btn--primary btn--lg" data-track={`Воронка ${accent}: ${cta}`}>{cta}</Link>
             )}
             {call && (
               <a href={`tel:${call.replace(/[^+\d]/g, '')}`} className="fx-hero__call">

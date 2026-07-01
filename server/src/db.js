@@ -34,6 +34,19 @@ export async function initDb() {
     await client.query(`INSERT INTO site_content (id, data) VALUES (1, '{}'::jsonb) ON CONFLICT (id) DO NOTHING`);
     // AI analysis cache (economical Gemini usage)
     await client.query(`CREATE TABLE IF NOT EXISTS ai_cache (id INT PRIMARY KEY DEFAULT 1, input_hash TEXT, result TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+    // Lightweight first-party visit log (powers the admin analytics page)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS visits (
+        id BIGSERIAL PRIMARY KEY,
+        path VARCHAR(300),
+        referrer VARCHAR(200),
+        visitor VARCHAR(64),
+        is_mobile BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+    await client.query(`CREATE INDEX IF NOT EXISTS visits_created_at_idx ON visits (created_at)`);
+    await client.query("ALTER TABLE visits ADD COLUMN IF NOT EXISTS kind VARCHAR(12) DEFAULT 'page'");
+    await client.query('ALTER TABLE visits ADD COLUMN IF NOT EXISTS label VARCHAR(160)');
 
     // ---- Platform (ТЗ) ----
     // Rates per platform — single source of truth (ТЗ §2)
@@ -116,6 +129,10 @@ export async function initDb() {
     // AI auto-check result on submissions (pipeline step 7-9)
     await client.query('ALTER TABLE submissions ADD COLUMN IF NOT EXISTS ai_score INTEGER');
     await client.query('ALTER TABLE submissions ADD COLUMN IF NOT EXISTS ai_feedback TEXT');
+    // Brief moderation: AI quality check + revision note (business → us → creators/back)
+    await client.query('ALTER TABLE briefs ADD COLUMN IF NOT EXISTS ai_score INTEGER');
+    await client.query('ALTER TABLE briefs ADD COLUMN IF NOT EXISTS ai_feedback TEXT');
+    await client.query('ALTER TABLE briefs ADD COLUMN IF NOT EXISTS revision_note TEXT');
 
     // Brief → creator assignment (ТЗ §3 step 3)
     await client.query(`
@@ -240,6 +257,44 @@ export async function saveSiteContent(data) {
   );
 }
 
+/* ---------------- Visit analytics (first-party) ---------------- */
+export async function recordVisit({ path, referrer, visitor, is_mobile, kind, label }) {
+  await pool.query(
+    'INSERT INTO visits (path, referrer, visitor, is_mobile, kind, label) VALUES ($1,$2,$3,$4,$5,$6)',
+    [
+      (path || '/').slice(0, 300),
+      referrer ? referrer.slice(0, 200) : null,
+      visitor || null,
+      !!is_mobile,
+      kind === 'click' ? 'click' : 'page',
+      label ? String(label).slice(0, 160) : null,
+    ]
+  );
+}
+export async function getVisitAnalytics() {
+  const rows = (text) => pool.query(text).then((r) => r.rows);
+  const PAGE = "(kind='page' OR kind IS NULL)";
+  const [totals] = await rows(`SELECT COUNT(*)::int AS visits, COUNT(DISTINCT visitor)::int AS uniques FROM visits WHERE ${PAGE}`);
+  const [today] = await rows(
+    `SELECT COUNT(*)::int AS visits, COUNT(DISTINCT visitor)::int AS uniques FROM visits WHERE ${PAGE} AND created_at::date = CURRENT_DATE`
+  );
+  const byDay = await rows(
+    "SELECT to_char(created_at::date,'YYYY-MM-DD') AS day, COUNT(*)::int AS visits, COUNT(DISTINCT visitor)::int AS uniques " +
+      `FROM visits WHERE ${PAGE} AND created_at >= CURRENT_DATE - INTERVAL '13 days' GROUP BY created_at::date ORDER BY created_at::date`
+  );
+  const byPage = await rows(`SELECT path, COUNT(*)::int AS visits FROM visits WHERE ${PAGE} GROUP BY path ORDER BY visits DESC LIMIT 12`);
+  const bySource = await rows(
+    `SELECT COALESCE(NULLIF(referrer,''),'прямой переход') AS source, COUNT(*)::int AS visits FROM visits WHERE ${PAGE} GROUP BY 1 ORDER BY visits DESC LIMIT 12`
+  );
+  const [device] = await rows(
+    `SELECT COUNT(*) FILTER (WHERE is_mobile)::int AS mobile, COUNT(*) FILTER (WHERE NOT is_mobile)::int AS desktop FROM visits WHERE ${PAGE}`
+  );
+  const topClicks = await rows(
+    "SELECT label, COUNT(*)::int AS clicks FROM visits WHERE kind='click' AND label IS NOT NULL GROUP BY label ORDER BY clicks DESC LIMIT 12"
+  );
+  return { totals, today, byDay, byPage, bySource, device, topClicks };
+}
+
 /* ---------------- AI analysis cache ---------------- */
 export async function getAiCache() {
   const r = await pool.query('SELECT input_hash, result, created_at FROM ai_cache WHERE id=1');
@@ -272,9 +327,41 @@ export async function setSetting(key, value) {
 }
 
 /* ---------------- Platform: creators (ТЗ §3, §4) ---------------- */
+/** Blend trust, acceptance ratio and AI quality into a 1–5 star rating. */
+export function creatorRating(c) {
+  const trust = Math.max(0, Math.min(100, c.trust_score ?? 100)) / 100;
+  const done = (c.accepted || 0) + (c.rejected || 0);
+  const accRatio = done ? c.accepted / done : null;
+  const ai = c.avg_ai ? Math.max(0, Math.min(100, c.avg_ai)) / 100 : null;
+  let score;
+  if (accRatio == null && ai == null) {
+    score = 3 + (trust - 0.5) * 2; // no track record yet → anchor on trust
+  } else {
+    const parts = [[trust, 0.4]];
+    if (accRatio != null) parts.push([accRatio, 0.35]);
+    if (ai != null) parts.push([ai, 0.25]);
+    const wsum = parts.reduce((a, [, w]) => a + w, 0);
+    const val = parts.reduce((a, [v, w]) => a + v * w, 0) / wsum;
+    score = 1 + val * 4;
+  }
+  return Math.round(Math.max(1, Math.min(5, score)) * 2) / 2;
+}
 export async function listCreators() {
-  const r = await pool.query('SELECT * FROM creators ORDER BY id DESC');
-  return r.rows;
+  const r = await pool.query(`
+    SELECT c.*,
+      COALESCE(s.accepted,0)::int AS accepted,
+      COALESCE(s.rejected,0)::int AS rejected,
+      COALESCE(s.avg_ai,0)::float AS avg_ai
+    FROM creators c
+    LEFT JOIN (
+      SELECT creator_id,
+        COUNT(*) FILTER (WHERE status='accepted') AS accepted,
+        COUNT(*) FILTER (WHERE status='rejected') AS rejected,
+        AVG(ai_score) FILTER (WHERE ai_score IS NOT NULL) AS avg_ai
+      FROM submissions GROUP BY creator_id
+    ) s ON s.creator_id = c.id
+    ORDER BY c.id DESC`);
+  return r.rows.map((row) => ({ ...row, rating: creatorRating(row) }));
 }
 export async function getCreator(id) {
   const r = await pool.query('SELECT * FROM creators WHERE id = $1', [id]);
@@ -356,6 +443,31 @@ export async function createBrief(b) {
 }
 export async function setBriefStatus(id, status) {
   const r = await pool.query('UPDATE briefs SET status = $1 WHERE id = $2 RETURNING *', [status, id]);
+  return r.rows[0] || null;
+}
+export async function setBriefAi(id, { ai_score, ai_feedback }) {
+  const r = await pool.query('UPDATE briefs SET ai_score = $1, ai_feedback = $2 WHERE id = $3 RETURNING *', [ai_score, ai_feedback || null, id]);
+  return r.rows[0] || null;
+}
+/** Return a brief to the business for fixes (moderation step). */
+export async function setBriefRevision(id, note) {
+  const r = await pool.query(
+    "UPDATE briefs SET status = 'revision', revision_note = $1 WHERE id = $2 RETURNING *",
+    [note || null, id]
+  );
+  return r.rows[0] || null;
+}
+/** Business edits its own brief and resubmits → back to moderation ('new'). */
+export async function updateBusinessBrief(id, businessId, b) {
+  const r = await pool.query(
+    `UPDATE briefs SET title=$1, platform=$2, key_message=$3, req_hashtag=$4,
+        duration_max=$5, tone=$6, spec=$7, status='new', revision_note=NULL, ai_score=NULL, ai_feedback=NULL
+      WHERE id=$8 AND business_id=$9 AND status IN ('new','revision') RETURNING *`,
+    [
+      b.title, b.platform || 'TikTok', b.key_message || null, b.req_hashtag || null,
+      b.duration_max || 90, b.tone || null, JSON.stringify(b.spec || {}), id, businessId,
+    ]
+  );
   return r.rows[0] || null;
 }
 export async function assignBrief(briefId, creatorId) {

@@ -72,6 +72,43 @@ export function trackPageview(path) {
   if (YM_ID && window.ym) window.ym(YM_ID, 'hit', path);
 }
 
+/** First-party visit beacon → our own /api/track (feeds the admin analytics page).
+ *  Skips internal/admin routes so the numbers reflect real site visitors. */
+export function trackVisit(path) {
+  if (typeof window === 'undefined') return;
+  if (/^\/(admin|business-cabinet|creator)(\/|$)/.test(path)) return;
+  try {
+    let referrer = '';
+    if (document.referrer) {
+      const h = new URL(document.referrer).host;
+      if (h && h !== location.host) referrer = h;
+    }
+    const body = JSON.stringify({
+      path,
+      referrer,
+      mobile: /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent),
+    });
+    const url = (import.meta.env.VITE_API_BASE || '') + '/api/track';
+    if (navigator.sendBeacon) navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
+    else fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true });
+  } catch {
+    /* analytics must never break the app */
+  }
+}
+
+/** First-party click event → /api/track (feeds "куда нажимают" in the admin). */
+export function trackEvent(label) {
+  if (typeof window === 'undefined' || !label) return;
+  try {
+    const body = JSON.stringify({ path: location.pathname, kind: 'click', label: String(label).slice(0, 120) });
+    const url = (import.meta.env.VITE_API_BASE || '') + '/api/track';
+    if (navigator.sendBeacon) navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
+    else fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true });
+  } catch {
+    /* never break the app */
+  }
+}
+
 /** Fire the funnel-specific lead conversion event. */
 export function trackLead(funnel) {
   if (typeof window === 'undefined') return;
