@@ -27,6 +27,7 @@ import {
   listCreators,
   getCreator,
   getCreatorByUsername,
+  getCreatorPublicPage,
   getCreatorByToken,
   setCreatorToken,
   setCreatorCredentials,
@@ -63,6 +64,8 @@ import {
   saveAiCache,
   recordVisit,
   getVisitAnalytics,
+  recordReferralLead,
+  getReferralLeadStats,
   createBusiness,
   getBusinessByEmail,
   getBusinessByToken,
@@ -170,7 +173,7 @@ function requireAdmin(req, res, next) {
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
-// Resolve a referral link (clicki-platform.com/<login>) to its owner. Public.
+// Resolve an "invite a friend" link (clicki-platform.com/friend/<login>) to its owner. Public.
 app.get('/api/ref/:login', async (req, res) => {
   try {
     const c = await getCreatorByUsername(req.params.login);
@@ -178,6 +181,19 @@ app.get('/api/ref/:login', async (req, res) => {
     res.json({ ok: true, id: c.id, name: c.name });
   } catch (err) {
     console.error('[ref]', err.message);
+    res.status(500).json({ ok: false, errors: ['Ошибка'] });
+  }
+});
+
+// Public "link in bio" mini-page (clicki-platform.com/<login>): name, socials,
+// and the brand CTA links from briefs the creator has completed. Public.
+app.get('/api/creator-page/:login', async (req, res) => {
+  try {
+    const page = await getCreatorPublicPage(req.params.login);
+    if (!page) return res.status(404).json({ ok: false, errors: ['Не найдено'] });
+    res.json({ ok: true, ...page });
+  } catch (err) {
+    console.error('[creator-page]', err.message);
     res.status(500).json({ ok: false, errors: ['Ошибка'] });
   }
 });
@@ -276,6 +292,15 @@ async function handleLead(funnel, req, res) {
 
   // Notifications are best-effort: don't block the success response on them.
   dispatchLead(lead).catch((err) => console.error('[notify] dispatch failed:', err));
+
+  // Business lead arrived through a creator's public referral link (bio/profile) →
+  // credit that creator with the referral-lead XP bonus. Best-effort, non-blocking.
+  if (funnel === 'client' && lead.ref) {
+    const creatorId = Number.parseInt(lead.ref, 10);
+    if (Number.isInteger(creatorId)) {
+      recordReferralLead(creatorId, funnel).catch((err) => console.error('[referral] failed to record lead:', err));
+    }
+  }
 
   return res.json({ ok: true });
 }
@@ -707,6 +732,8 @@ app.post(
 
 // ---- Admin / operator CRM (ТЗ §13) ----
 app.get('/api/admin/analytics', requireAdmin, wrap(async (_req, res) => ok(res, { analytics: await getVisitAnalytics() })));
+// Leads brought in via a creator's public referral link (bio/profile), per creator.
+app.get('/api/admin/referrals', requireAdmin, wrap(async (_req, res) => ok(res, { referrals: await getReferralLeadStats() })));
 app.get('/api/admin/rates', requireAdmin, wrap(async (_req, res) => ok(res, { rates: await getRates(), settings: await getSettings() })));
 // Update a numeric platform setting (e.g. founding_cap — set as high as desired).
 app.post('/api/admin/settings', requireAdmin, wrap(async (req, res) => {

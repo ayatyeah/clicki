@@ -238,6 +238,7 @@ export default function Admin() {
     { key: 'dashboard', label: 'Дашборд', icon: 'grid' },
     { key: 'ai', label: 'ИИ Аналитика', icon: 'sparkle' },
     { key: 'analytics', label: 'Аналитика', icon: 'chart' },
+    { key: 'referrals', label: 'Рефералы', icon: 'link' },
     { key: 'leads-business', label: 'Заявки Бизнеса', icon: 'inbox' },
     { key: 'leads-creators', label: 'Заявки Креаторов', icon: 'users' },
     { key: 'briefs', label: 'Брифы', icon: 'briefs' },
@@ -329,11 +330,11 @@ export default function Admin() {
                   {loading ? 'Обновляю…' : 'Обновить'}
                 </button>
               </div>
-              <div className="admin-stats">
-                <Stat label="Всего заявок" value={leads.length} />
-                <Stat label="Заявки бизнеса" value={businessLeads.length} />
-                <Stat label="Заявки креаторов" value={creatorLeads.length} />
-                <Stat label="Видео в ленте" value={content.showcase.length} />
+              <div className="kpi-grid">
+                <Kpi tone="rose" icon="inbox" value={leads.length} label="Всего заявок" />
+                <Kpi tone="violet" icon="user" value={businessLeads.length} label="Заявки бизнеса" />
+                <Kpi tone="green" icon="users" value={creatorLeads.length} label="Заявки креаторов" />
+                <Kpi tone="amber" icon="video" value={content.showcase.length} label="Видео в ленте" />
               </div>
 
               <h3 className="admin-block__title admin-subhead">Последние заявки</h3>
@@ -381,6 +382,8 @@ export default function Admin() {
           {view === 'analytics' && (
             <AnalyticsView authFetch={authFetch} leads={leads} businessLeads={businessLeads} creatorLeads={creatorLeads} />
           )}
+
+          {view === 'referrals' && <ReferralsView authFetch={authFetch} />}
 
           {view === 'leads-business' && (
             <LeadsSection title="Заявки Бизнеса" leads={businessLeads} loading={loading} onReload={loadLeads} />
@@ -548,6 +551,17 @@ function Stat({ label, value }) {
     <div className="admin-stat">
       <div className="admin-stat__value">{value}</div>
       <div className="admin-stat__label">{label}</div>
+    </div>
+  );
+}
+
+function Kpi({ tone = 'violet', icon, value, label, hint }) {
+  return (
+    <div className={`kpi kpi--${tone}`}>
+      <span className="kpi__icon"><Icon name={icon} /></span>
+      <div className="kpi__value">{value}</div>
+      <div className="kpi__label">{label}</div>
+      {hint && <div className="kpi__hint">{hint}</div>}
     </div>
   );
 }
@@ -755,6 +769,74 @@ function AnalyticsView({ authFetch, leads, businessLeads, creatorLeads }) {
         <Stat label="Креаторы" value={creatorLeads.length} />
       </div>
       <AnalyticsByPage leads={leads} />
+    </section>
+  );
+}
+
+function ReferralsView({ authFetch }) {
+  const [r, setR] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await (await authFetch('/api/admin/referrals')).json();
+      setR(res.referrals || null);
+    } finally {
+      setLoading(false);
+    }
+  }, [authFetch]);
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  return (
+    <section className="admin-block">
+      <div className="admin-panel__head">
+        <h2 className="admin-block__title">Рефералы</h2>
+        <button className="btn btn--ghost btn--sm" onClick={load} disabled={loading}>
+          {loading ? 'Обновляю…' : 'Обновить'}
+        </button>
+      </div>
+      <p className="muted-note" style={{ textAlign: 'left', marginTop: 0 }}>
+        Заявки бизнеса, пришедшие по персональной ссылке креатора (та, что он размещает у себя в шапке профиля). За каждую такую заявку креатор получает {r?.xpPerLead ?? 30} XP.
+      </p>
+      {!r ? (
+        <p className="muted-note" style={{ textAlign: 'left' }}>Загрузка…</p>
+      ) : (
+        <>
+          <div className="kpi-grid">
+            <Kpi tone="violet" icon="link" value={r.total} label="Заявок по рефералам" />
+            <Kpi tone="green" icon="users" value={r.byCreator.length} label="Креаторов привели заявки" />
+          </div>
+          <div className="admin-table-wrap" style={{ marginTop: 16 }}>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Креатор</th>
+                  <th>Логин</th>
+                  <th>Заявок</th>
+                  <th>XP от рефералов</th>
+                </tr>
+              </thead>
+              <tbody>
+                {r.byCreator.map((c) => (
+                  <tr key={c.id}>
+                    <td data-label="Креатор">{c.name}</td>
+                    <td className="muted-cell" data-label="Логин">{c.username || '-'}</td>
+                    <td data-label="Заявок">{c.leads}</td>
+                    <td className="muted-cell" data-label="XP от рефералов">{c.leads * r.xpPerLead}</td>
+                  </tr>
+                ))}
+                {!r.byCreator.length && (
+                  <tr>
+                    <td colSpan={4} className="admin-table__empty">Пока нет заявок по рефералам</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </section>
   );
 }

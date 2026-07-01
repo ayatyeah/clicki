@@ -20,6 +20,7 @@ const PATHS = {
   bell: <><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6" /><path d="M10 20a2 2 0 0 0 4 0" /></>,
   flame: <><path d="M12 3s5 4 5 9a5 5 0 0 1-10 0c0-1.6.7-2.8 1.5-3.7C9 10 9.5 11 10 11c0-2 1-4 2-8z" /></>,
   help: <><circle cx="12" cy="12" r="9" /><path d="M9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.8.4-1.4 1-1.4 1.9v.3" /><circle cx="12" cy="17" r="0.6" fill="currentColor" stroke="none" /></>,
+  link: <><path d="M9 15l6-6" /><path d="M10.5 6.5l1-1a3.5 3.5 0 0 1 5 5l-1 1" /><path d="M13.5 17.5l-1 1a3.5 3.5 0 0 1-5-5l1-1" /></>,
 };
 
 export default function Icon({ name, size = 20, className = '' }) {

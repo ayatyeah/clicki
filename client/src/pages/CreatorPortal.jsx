@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Seo from '../components/Seo.jsx';
-import { API_BASE } from '../lib/config.js';
+import { API_BASE, SITE_URL } from '../lib/config.js';
 
 const KEY = 'clicki_creator_token';
 const PLATFORMS = ['TikTok', 'Instagram Reels', 'YouTube Shorts', 'Threads', 'X (Twitter)'];
@@ -287,14 +287,32 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
         <div className="creator-portal__wallet-row"><span>Пригласи друга</span></div>
         <p className="creator-portal__muted">
           {c.username
-            ? 'Твоя персональная ссылка. Бонус +500 XP, когда у приглашённого засчитают первое видео.'
-            : 'Ссылка появится, когда оператор выдаст тебе логин. Пока действует ссылка ниже.'}
+            ? 'Отправь эту ссылку другу. +500 XP, когда у него засчитают первое видео.'
+            : 'Ссылка появится, когда оператор выдаст тебе логин.'}
         </p>
-        <input
-          readOnly
-          value={c.username ? `${window.location.origin}/${c.username}` : `${window.location.origin}/creator?ref=${c.id}`}
-          onFocus={(e) => e.target.select()}
-        />
+        {c.username && (
+          <input
+            readOnly
+            value={`${SITE_URL}/friend/${c.username}`}
+            onFocus={(e) => e.target.select()}
+          />
+        )}
+      </div>
+
+      <div className="creator-portal__card">
+        <div className="creator-portal__wallet-row"><span>Ссылка в шапку профиля</span></div>
+        <p className="creator-portal__muted">
+          {c.username
+            ? 'Помести её в шапку своего профиля в соцсетях — по ней открывается твоя мини-страница на CLICKI с брендами, с которыми ты работал, и твоими соцсетями. +30 XP за каждую заявку от бизнеса, пришедшего по этой ссылке.'
+            : 'Ссылка появится, когда оператор выдаст тебе логин.'}
+        </p>
+        {c.username && (
+          <input
+            readOnly
+            value={`${SITE_URL}/${c.username}`}
+            onFocus={(e) => e.target.select()}
+          />
+        )}
       </div>
 
       <h2 className="creator-portal__h2">Заказы <span className="creator-portal__chip">доступны всем</span></h2>

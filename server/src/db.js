@@ -202,6 +202,20 @@ export async function initDb() {
     }
     // Migrations for already-created tables
     await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS referral_qualified BOOLEAN DEFAULT FALSE');
+    // Bonus XP earned outside the views formula (referral bonuses etc.) — kept
+    // separate so recomputeXp() can fold it back in instead of overwriting it.
+    await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS bonus_xp INTEGER DEFAULT 0');
+    // Business leads that arrived through a creator's public referral link
+    // (put in their profile/bio) — separate from the creator-invites-creator
+    // flow above, powers admin analytics + a small XP bonus per lead.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS referral_leads (
+        id SERIAL PRIMARY KEY,
+        creator_id INTEGER REFERENCES creators(id) ON DELETE SET NULL,
+        funnel VARCHAR(20) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+    await client.query('CREATE INDEX IF NOT EXISTS referral_leads_creator_idx ON referral_leads (creator_id)');
   } finally {
     client.release();
   }
@@ -371,6 +385,31 @@ export async function getCreatorByUsername(username) {
   if (!username) return null;
   const r = await pool.query('SELECT * FROM creators WHERE lower(username) = lower($1)', [username]);
   return r.rows[0] || null;
+}
+/**
+ * Public "link in bio" mini-page for a creator (clicki-platform.com/<username>):
+ * their name/socials + the brand CTA links from briefs they've completed, most
+ * recent first. Grows automatically as the creator accepts more briefs.
+ */
+export async function getCreatorPublicPage(username) {
+  const creator = await getCreatorByUsername(username);
+  if (!creator) return null;
+  const r = await pool.query(
+    `SELECT b.id, b.title, b.req_cta_link, ba.company, ba.name AS business_name, MAX(s.reviewed_at) AS last_accepted
+       FROM submissions s
+       JOIN briefs b ON b.id = s.brief_id
+       LEFT JOIN business_accounts ba ON ba.id = b.business_id
+      WHERE s.creator_id = $1 AND s.status = 'accepted' AND b.req_cta_link IS NOT NULL AND b.req_cta_link <> ''
+      GROUP BY b.id, b.title, b.req_cta_link, ba.company, ba.name
+      ORDER BY last_accepted DESC NULLS LAST`,
+    [creator.id]
+  );
+  return {
+    id: creator.id,
+    name: creator.name,
+    socials: creator.socials || '',
+    brandLinks: r.rows.map((row) => ({ title: row.title, url: row.req_cta_link, brand: row.company || row.business_name || null })),
+  };
 }
 export async function getCreatorByToken(token) {
   if (!token) return null;
@@ -621,11 +660,13 @@ export async function getSubmissionBusiness(submissionId) {
   return r.rows[0] || null;
 }
 /* ---- Gamification accrual (ТЗ §4) ---- */
-// XP = function of accumulated accepted views (ТЗ §4.3)
+// XP = function of accumulated accepted views, plus any bonus XP earned outside
+// that formula (referrals etc.) so bonuses aren't wiped out on the next accept (ТЗ §4.3)
 async function recomputeXp(creatorId) {
   await pool.query(
     `UPDATE creators SET xp =
        (SELECT FLOOR(COALESCE(SUM(views),0)/100) FROM submissions WHERE creator_id=$1 AND status='accepted')
+       + bonus_xp
      WHERE id=$1`,
     [creatorId]
   );
@@ -660,8 +701,33 @@ async function handleReferralFirstAccept(creatorId) {
   const n = (await pool.query(`SELECT COUNT(*)::int AS n FROM submissions WHERE creator_id=$1 AND status='accepted'`, [creatorId])).rows[0].n;
   if (n === 1) {
     await pool.query('UPDATE creators SET referral_qualified=TRUE WHERE id=$1', [creatorId]);
-    await pool.query('UPDATE creators SET xp = xp + 500 WHERE id=$1', [c.referred_by]);
+    await pool.query('UPDATE creators SET xp = xp + 500, bonus_xp = bonus_xp + 500 WHERE id=$1', [c.referred_by]);
   }
+}
+
+// XP awarded per business lead that arrives through a creator's public referral
+// link (distinct from the creator-invites-creator bonus above).
+const REFERRAL_LEAD_XP = 30;
+/** Record a lead attributed to a creator's referral link and grant the XP bonus. */
+export async function recordReferralLead(creatorId, funnel) {
+  const creator = await getCreator(creatorId);
+  if (!creator) return null;
+  await pool.query('INSERT INTO referral_leads (creator_id, funnel) VALUES ($1,$2)', [creatorId, funnel]);
+  await pool.query(
+    'UPDATE creators SET xp = xp + $1, bonus_xp = bonus_xp + $1 WHERE id = $2',
+    [REFERRAL_LEAD_XP, creatorId]
+  );
+  return { creatorId, xpAwarded: REFERRAL_LEAD_XP };
+}
+/** Per-creator + total counts of leads brought in via referral links (admin analytics). */
+export async function getReferralLeadStats() {
+  const totalQ = await pool.query('SELECT COUNT(*)::int AS n FROM referral_leads');
+  const byCreator = await pool.query(
+    `SELECT c.id, c.name, c.username, COUNT(rl.id)::int AS leads
+       FROM referral_leads rl JOIN creators c ON c.id = rl.creator_id
+      GROUP BY c.id ORDER BY leads DESC`
+  );
+  return { total: totalQ.rows[0].n, xpPerLead: REFERRAL_LEAD_XP, byCreator: byCreator.rows };
 }
 
 export function levelFromXp(xp) {

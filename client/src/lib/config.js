@@ -1,5 +1,8 @@
 // Centralised access to public env-driven config.
 export const API_BASE = import.meta.env.VITE_API_BASE || '';
+// Public site origin used for shareable links (e.g. a creator's referral link) —
+// always the production domain, even when the app itself runs on localhost.
+export const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://clicki-platform.com';
 export const PHONE = import.meta.env.VITE_PHONE || '+7 775 305 63 26';
 export const TELEGRAM = import.meta.env.VITE_TELEGRAM || 'CLICKI_App';
 export const EMAIL = import.meta.env.VITE_EMAIL || 'info@clicki-platform.com';

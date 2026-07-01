@@ -2716,6 +2716,83 @@ img.ae {
   margin-top: 22px;
 }
 
+/* ---------- Creator mini-page (link in bio) ---------- */
+.creator-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 20px;
+}
+.creator-page__inner {
+  max-width: 460px;
+  width: 100%;
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 6px;
+}
+.creator-page__name {
+  font-size: clamp(1.8rem, 6vw, 2.6rem);
+  letter-spacing: -0.03em;
+  margin-top: 18px;
+}
+.creator-page__tag {
+  color: var(--stone);
+  margin-bottom: 18px;
+}
+.creator-page__brands {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  margin-bottom: 18px;
+}
+.creator-page__brand {
+  display: grid;
+  gap: 2px;
+  padding: 14px 18px;
+  border-radius: var(--r-card);
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  text-decoration: none;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.creator-page__brand:hover {
+  border-color: rgba(168, 139, 250, 0.4);
+  transform: translateY(-1px);
+}
+.creator-page__brand-name {
+  font-weight: 600;
+}
+.creator-page__brand-sub {
+  color: var(--stone);
+  font-size: 0.88rem;
+}
+.creator-page__cta {
+  margin: 6px 0 18px;
+}
+.creator-page__socials {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+.creator-page__social {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 0.92rem;
+}
+.creator-page__social:hover {
+  border-color: rgba(168, 139, 250, 0.4);
+}
+.creator-page__social--plain {
+  color: var(--stone);
+}
+
 /* ---------- Footer ---------- */
 .site-footer {
   color: var(--stone);

@@ -68,10 +68,11 @@ export default function LeadForm({ funnel, fields, submitLabel, requireAdult = f
     }
 
     setStatus('sending');
-    // Attach the stored referral (from a clicki-platform.com/<login> link) to creator leads.
+    // Attach the stored referral (from a clicki-platform.com/<login> link) to any lead —
+    // creator signups (recruit bonus) and business briefs (referral-lead bonus) alike.
     let ref;
     try {
-      ref = funnel === 'creator' ? localStorage.getItem('clicki_ref') || undefined : undefined;
+      ref = localStorage.getItem('clicki_ref') || undefined;
     } catch {
       ref = undefined;
     }
