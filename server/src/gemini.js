@@ -26,6 +26,9 @@ export async function geminiGenerate(prompt, { maxTokens = 700, temperature = 0.
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: { temperature, maxOutputTokens: maxTokens },
           }),
+          // Don't let a slow/hung Gemini response hang the request that called this
+          // (e.g. the public /api/assistant endpoint) — every caller here has a fallback.
+          signal: AbortSignal.timeout(15000),
         }
       );
       if (res.status === 429 || res.status === 403) {

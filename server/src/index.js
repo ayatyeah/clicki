@@ -17,6 +17,15 @@ import { dispatchLead, notifyOps } from './notify.js';
 import { saveLead, readLeads } from './store.js';
 import { readContent, writeContent } from './content.js';
 import {
+  tiktokEnabled,
+  tiktokAuthorizeUrl,
+  exchangeTikTokCode,
+  refreshTikTokToken,
+  fetchTikTokUserInfo,
+  fetchTikTokVideoViews,
+  parseTikTokVideoId,
+} from './tiktok.js';
+import {
   initDb,
   saveMedia,
   getMedia,
@@ -54,6 +63,13 @@ import {
   getSubmissionBusiness,
   reviewSubmission,
   recordViews,
+  listDecisionJournal,
+  getBusinessGrowth,
+  saveOAuthState,
+  consumeOAuthState,
+  saveTikTokTokens,
+  clearTikTokConnection,
+  listCreatorsWithTikTok,
   getCreatorWallet,
   listPayouts,
   createPayout,
@@ -440,8 +456,8 @@ const newToken = () => crypto.randomBytes(24).toString('hex');
 // Strip secrets before sending a creator object to the client.
 function publicCreator(c) {
   if (!c) return c;
-  const { password_hash, session_token, ...safe } = c;
-  return safe;
+  const { password_hash, session_token, tiktok_access_token, tiktok_refresh_token, tiktok_token_expires_at, tiktok_refresh_expires_at, ...safe } = c;
+  return { ...safe, tiktok_connected: !!tiktok_access_token };
 }
 // Bearer-token middleware — authorizes the caller as a specific creator (no IDOR).
 async function requireCreator(req, res, next) {
@@ -578,6 +594,42 @@ app.get(
   wrap(async (req, res) => ok(res, await creatorPayload(req.creator)))
 );
 
+// Start the TikTok connect flow (Login Kit): returns the authorize URL to redirect the browser to.
+app.post(
+  '/api/creator/tiktok/connect',
+  requireCreator,
+  wrap(async (req, res) => {
+    if (!tiktokEnabled) return res.status(400).json({ ok: false, errors: ['Подключение TikTok пока не настроено'] });
+    const state = crypto.randomBytes(24).toString('hex');
+    await saveOAuthState(state, req.creator.id, 'tiktok');
+    ok(res, { url: tiktokAuthorizeUrl(state) });
+  })
+);
+app.post(
+  '/api/creator/tiktok/disconnect',
+  requireCreator,
+  wrap(async (req, res) => {
+    await clearTikTokConnection(req.creator.id);
+    ok(res, { creator: publicCreator(await getCreator(req.creator.id)) });
+  })
+);
+// TikTok redirects the browser back here after the creator authorizes (or declines). Public.
+app.get('/api/auth/tiktok/callback', async (req, res) => {
+  const { code, state, error } = req.query || {};
+  try {
+    if (error || !code || !state) return res.redirect('/creator?tiktok=error');
+    const creatorId = await consumeOAuthState(String(state), 'tiktok');
+    if (!creatorId) return res.redirect('/creator?tiktok=error');
+    const tokens = await exchangeTikTokCode(String(code));
+    const userInfo = await fetchTikTokUserInfo(tokens.access_token).catch(() => null);
+    await saveTikTokTokens(creatorId, { ...tokens, username: userInfo?.display_name });
+    res.redirect('/creator?tiktok=connected');
+  } catch (err) {
+    console.error('[tiktok-callback]', err.message);
+    res.redirect('/creator?tiktok=error');
+  }
+});
+
 // Onboarding test passed → unlock briefs (ТЗ §3 step 2)
 app.post(
   '/api/creator/onboarding',
@@ -680,6 +732,9 @@ app.post(
 
 app.get('/api/business/me', requireBusiness, wrap(async (req, res) => ok(res, await businessPayload(req.business))));
 
+// Live growth dashboard: cumulative views across the business's whole campaign, by day.
+app.get('/api/business/growth', requireBusiness, wrap(async (req, res) => ok(res, { growth: await getBusinessGrowth(req.business.id) })));
+
 // Pipeline step 12-13: business accepts the work → final accept + create payout.
 app.post(
   '/api/business/submissions/:id/accept',
@@ -730,15 +785,58 @@ app.post(
   })
 );
 
+// ---- TikTok auto-sync: pulls real view_count for a creator's videos instead of
+// an operator typing it in. Reuses recordViews() so history/XP/anti-fraud all
+// still flow through the exact same path as a manual entry would.
+async function syncCreatorTikTokViews(creator) {
+  let accessToken = creator.tiktok_access_token;
+  if (!creator.tiktok_token_expires_at || new Date(creator.tiktok_token_expires_at) <= new Date()) {
+    const refreshed = await refreshTikTokToken(creator.tiktok_refresh_token);
+    await saveTikTokTokens(creator.id, { ...refreshed, username: creator.tiktok_username });
+    accessToken = refreshed.access_token;
+  }
+  const videos = await fetchTikTokVideoViews(accessToken);
+  const viewsById = new Map(videos.map((v) => [String(v.id), v.view_count]));
+  const subs = await listCreatorSubmissions(creator.id);
+  let updated = 0;
+  for (const s of subs) {
+    if (s.platform !== 'TikTok' || !['accepted', 'sent_to_business'].includes(s.status)) continue;
+    const vid = parseTikTokVideoId(s.video_url);
+    if (!vid || !viewsById.has(vid)) continue;
+    const views = viewsById.get(vid);
+    if (views === s.views) continue; // unchanged — skip the write
+    await recordViews(s.id, views, s.views_final);
+    updated += 1;
+  }
+  return updated;
+}
+async function syncAllTikTokViews() {
+  if (!tiktokEnabled) return { synced: 0, creators: 0 };
+  const creators = await listCreatorsWithTikTok();
+  let synced = 0;
+  for (const c of creators) {
+    try {
+      synced += await syncCreatorTikTokViews(c);
+    } catch (err) {
+      console.error(`[tiktok-sync] creator #${c.id} failed:`, err.message);
+    }
+  }
+  return { synced, creators: creators.length };
+}
+
 // ---- Admin / operator CRM (ТЗ §13) ----
 app.get('/api/admin/analytics', requireAdmin, wrap(async (_req, res) => ok(res, { analytics: await getVisitAnalytics() })));
 // Leads brought in via a creator's public referral link (bio/profile), per creator.
 app.get('/api/admin/referrals', requireAdmin, wrap(async (_req, res) => ok(res, { referrals: await getReferralLeadStats() })));
+// Decision journal: raw accept/reject/rework log — the foundation for future AI, not AI itself.
+app.get('/api/admin/decisions', requireAdmin, wrap(async (_req, res) => ok(res, { decisions: await listDecisionJournal() })));
+// Manually trigger a TikTok view-count sync across all connected creators.
+app.post('/api/admin/tiktok/sync', requireAdmin, wrap(async (_req, res) => ok(res, await syncAllTikTokViews())));
 app.get('/api/admin/rates', requireAdmin, wrap(async (_req, res) => ok(res, { rates: await getRates(), settings: await getSettings() })));
 // Update a numeric platform setting (e.g. founding_cap — set as high as desired).
 app.post('/api/admin/settings', requireAdmin, wrap(async (req, res) => {
   const { key, value } = req.body || {};
-  const ALLOWED = ['founding_cap', 'min_views_per_video', 'invoice_threshold', 'payout_threshold'];
+  const ALLOWED = ['founding_cap', 'min_views_per_video', 'invoice_threshold', 'payout_threshold', 'fraud_max_views_per_hour', 'fraud_min_smoothness_cv'];
   if (!ALLOWED.includes(key)) return res.status(400).json({ ok: false, errors: ['Недопустимая настройка'] });
   const v = Number(value);
   if (!Number.isFinite(v) || v < 0) return res.status(400).json({ ok: false, errors: ['Некорректное значение'] });
@@ -881,13 +979,32 @@ if (existsSync(CLIENT_DIST)) {
   console.log('client/dist not found — running API only (dev mode uses Vite separately)');
 }
 
-app.listen(PORT, async () => {
-  try {
-    await initDb();
-    console.log('Database initialized');
-  } catch (err) {
-    console.error('Failed to initialize database', err);
-  }
+// Log (don't silently crash on) anything that slips past the per-request try/catch
+// and wrap() helpers — a bare unhandled rejection would otherwise kill the process.
+process.on('unhandledRejection', (err) => {
+  console.error('[unhandled rejection]', err);
+});
+
+// Wait for the DB schema before accepting any traffic — otherwise requests can
+// race initDb() on a fresh deploy/restart and fail against missing tables.
+try {
+  await initDb();
+  console.log('Database initialized');
+} catch (err) {
+  console.error('Failed to initialize database', err);
+}
+
+// Auto-sync TikTok view counts every 3h for every connected creator — the
+// automatic version of the operator's manual view entry. No-op if TikTok isn't
+// configured (tiktokEnabled is false), and errors per-creator are isolated so
+// one broken connection can't block the rest.
+if (tiktokEnabled) {
+  setInterval(() => {
+    syncAllTikTokViews().catch((err) => console.error('[tiktok-sync]', err));
+  }, 3 * 60 * 60 * 1000);
+}
+
+app.listen(PORT, () => {
   console.log(`CLICKI listening on http://localhost:${PORT}`);
   console.log(`Allowed origins: ${origins.join(', ')}`);
 });

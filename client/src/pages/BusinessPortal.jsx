@@ -208,7 +208,7 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
           )}
           {view === 'briefs' && <BriefsView briefs={briefs} authFetch={authFetch} reload={reload} />}
           {view === 'review' && <ReviewView incoming={incoming} accepted={accepted} authFetch={authFetch} reload={reload} />}
-          {view === 'analytics' && <Analytics accepted={accepted} />}
+          {view === 'analytics' && <Analytics accepted={accepted} authFetch={authFetch} />}
           {view === 'profile' && <Profile b={b} onLogout={onLogout} />}
         </div>
       </div>
@@ -405,7 +405,7 @@ function ReviewView({ incoming, accepted, authFetch, reload }) {
 }
 
 /* ---------------- Analytics ---------------- */
-function Analytics({ accepted }) {
+function Analytics({ accepted, authFetch }) {
   const total = sumViews(accepted);
   const byPlatform = {};
   for (const s of accepted) byPlatform[s.platform] = (byPlatform[s.platform] || 0) + (s.views || 0);
@@ -414,7 +414,12 @@ function Analytics({ accepted }) {
 
   return (
     <section className="admin-block">
-      <h2 className="admin-block__title">Аналитика</h2>
+      <div className="admin-panel__head">
+        <h2 className="admin-block__title">Аналитика <span className="an-live">● live</span></h2>
+      </div>
+      <GrowthChart authFetch={authFetch} />
+
+      <h3 className="admin-block__title admin-subhead">Сводка</h3>
       <div className="admin-stats">
         <Stat label="Принято работ" value={accepted.length} />
         <Stat label="Суммарный охват" value={total.toLocaleString('ru-RU')} hint="просмотров" />
@@ -459,6 +464,126 @@ function Analytics({ accepted }) {
   );
 }
 
+/* ---------------- Live growth chart ---------------- */
+const fmtN = (n) => Math.round(n).toLocaleString('ru-RU');
+const fmtDay = (d) => `${d.slice(8, 10)}.${d.slice(5, 7)}`;
+
+/** Cumulative campaign views over time — real, not self-reported: it's built
+ * from the same view-count entries the operator records for payouts. */
+function GrowthChart({ authFetch }) {
+  const [series, setSeries] = useState(null);
+  const [hover, setHover] = useState(null); // index into series, or null
+  const [showTable, setShowTable] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const r = await (await authFetch('/api/business/growth')).json();
+      setSeries(r.growth || []);
+    } catch {
+      /* keep previous render on a failed poll */
+    }
+  }, [authFetch]);
+
+  useEffect(() => {
+    load();
+    const id = setInterval(load, 15000); // live: refresh without a page reload
+    return () => clearInterval(id);
+  }, [load]);
+
+  if (series === null) return <p className="muted-note" style={{ textAlign: 'left' }}>Загрузка…</p>;
+  if (series.length < 2) {
+    return (
+      <div className="growth-chart">
+        <p className="muted-note" style={{ textAlign: 'left' }}>
+          Пока недостаточно данных для графика роста — он появится, как только по вашим работам зафиксируют просмотры хотя бы дважды.
+        </p>
+      </div>
+    );
+  }
+
+  const W = 640, H = 200, PAD_L = 44, PAD_B = 22, PAD_T = 12, PAD_R = 12;
+  const innerW = W - PAD_L - PAD_R;
+  const innerH = H - PAD_T - PAD_B;
+  const maxV = Math.max(...series.map((p) => p.views), 1) * 1.1;
+  const x = (i) => PAD_L + (innerW * i) / (series.length - 1);
+  const y = (v) => PAD_T + innerH - (innerH * v) / maxV;
+
+  const linePath = series.map((p, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(p.views).toFixed(1)}`).join(' ');
+  const areaPath = `${linePath} L ${x(series.length - 1).toFixed(1)} ${PAD_T + innerH} L ${x(0).toFixed(1)} ${PAD_T + innerH} Z`;
+  const gridSteps = 4;
+  const active = hover != null ? series[hover] : series[series.length - 1];
+  const last = series[series.length - 1];
+
+  return (
+    <div className="growth-chart">
+      <div className="growth-chart__hero">
+        <div className="growth-chart__hero-value">{fmtN(last.views)}</div>
+        <div className="growth-chart__hero-label">просмотров всего · по данным на {fmtDay(last.day)}</div>
+      </div>
+
+      <svg
+        className="growth-chart__svg"
+        viewBox={`0 0 ${W} ${H}`}
+        onMouseLeave={() => setHover(null)}
+        onMouseMove={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          const px = ((e.clientX - rect.left) / rect.width) * W;
+          let nearest = 0, best = Infinity;
+          series.forEach((_, i) => {
+            const d = Math.abs(x(i) - px);
+            if (d < best) { best = d; nearest = i; }
+          });
+          setHover(nearest);
+        }}
+      >
+        {Array.from({ length: gridSteps + 1 }, (_, i) => {
+          const v = (maxV * i) / gridSteps;
+          const gy = y(v);
+          return (
+            <g key={i}>
+              <line x1={PAD_L} y1={gy} x2={W - PAD_R} y2={gy} className="growth-chart__grid" />
+              <text x={PAD_L - 8} y={gy + 3} className="growth-chart__axis" textAnchor="end">{fmtN(v)}</text>
+            </g>
+          );
+        })}
+
+        <path d={areaPath} className="growth-chart__area" />
+        <path d={linePath} className="growth-chart__line" />
+
+        {hover != null && <line x1={x(hover)} y1={PAD_T} x2={x(hover)} y2={PAD_T + innerH} className="growth-chart__crosshair" />}
+
+        {[0, series.length - 1].map((i) => (
+          <circle key={i} cx={x(i)} cy={y(series[i].views)} r="4" className="growth-chart__dot" />
+        ))}
+        {hover != null && <circle cx={x(hover)} cy={y(series[hover].views)} r="5" className="growth-chart__dot growth-chart__dot--hover" />}
+
+        <text x={x(0)} y={H - 4} className="growth-chart__axis" textAnchor="start">{fmtDay(series[0].day)}</text>
+        <text x={x(series.length - 1)} y={H - 4} className="growth-chart__axis" textAnchor="end">{fmtDay(series[series.length - 1].day)}</text>
+      </svg>
+
+      <div className="growth-chart__tooltip">
+        <b>{fmtN(active.views)}</b> просмотров на {fmtDay(active.day)}
+      </div>
+
+      <button className="creator-portal__link" onClick={() => setShowTable((s) => !s)} style={{ fontSize: '0.85rem' }}>
+        {showTable ? 'Скрыть таблицу' : 'Показать таблицей'}
+      </button>
+      {showTable && (
+        <div className="admin-table-wrap" style={{ marginTop: 8 }}>
+          <table className="admin-table">
+            <thead><tr><th>Дата</th><th>Просмотров всего</th></tr></thead>
+            <tbody>
+              {series.map((p) => (
+                <tr key={p.day}><td data-label="Дата">{p.day}</td><td className="muted-cell" data-label="Просмотров всего">{fmtN(p.views)}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ---------------- Profile ---------------- */
 function Profile({ b, onLogout }) {
   return (
@@ -480,6 +605,7 @@ const EMPTY_BRIEF = {
   platform: 'TikTok',
   key_message: '',
   req_hashtag: '',
+  req_cta_link: '',
   orientation: 'vertical',
   max_duration: 25,
   cta_required: true,
@@ -496,6 +622,7 @@ function BriefForm({ authFetch, reload, brief = null, onDone }) {
         platform: brief.platform || 'TikTok',
         key_message: brief.key_message || '',
         req_hashtag: brief.req_hashtag || '',
+        req_cta_link: brief.req_cta_link || '',
         orientation: brief.spec?.orientation || 'vertical',
         max_duration: brief.spec?.max_duration || brief.duration_max || 25,
         cta_required: brief.spec?.cta_required ?? true,
@@ -523,6 +650,7 @@ function BriefForm({ authFetch, reload, brief = null, onDone }) {
         platform: f.platform,
         key_message: f.key_message,
         req_hashtag: f.req_hashtag,
+        req_cta_link: f.req_cta_link,
         duration_max: Number(f.max_duration) || 25,
         tone: STYLES.find((s) => s[0] === f.style)?.[1] || f.style,
         spec: {
@@ -582,6 +710,10 @@ function BriefForm({ authFetch, reload, brief = null, onDone }) {
         <div className="creator-portal__q">
           <div className="creator-portal__q-title">CTA</div>
           <label className="pf-check"><input type="checkbox" checked={f.cta_required} onChange={(e) => set('cta_required', e.target.checked)} /> Обязательно</label>
+        </div>
+        <div className="creator-portal__q">
+          <div className="creator-portal__q-title">Ссылка для CTA (по желанию)</div>
+          <input placeholder="https://ваш-сайт.kz/акция" value={f.req_cta_link} onChange={(e) => set('req_cta_link', e.target.value)} />
         </div>
         <div className="creator-portal__q">
           <div className="creator-portal__q-title">Логотип</div>

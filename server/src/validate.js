@@ -25,9 +25,6 @@ const CLIENT_FIELDS = {
 const CREATOR_FIELDS = {
   name: { label: 'Имя', required: true },
   contact: { label: 'Телефон/Telegram', required: true },
-  socials: { label: 'Соцсети', required: true },
-  city: { label: 'Город', required: false },
-  examples: { label: 'Примеры контента', required: false },
 };
 
 const SCHEMAS = { client: CLIENT_FIELDS, creator: CREATOR_FIELDS };
@@ -55,11 +52,6 @@ export function validateLead(funnel, body) {
   // Consent checkbox must be explicitly accepted.
   if (body?.consent !== true && body?.consent !== 'true') {
     errors.push('Необходимо согласие на обработку персональных данных');
-  }
-
-  // Creators must confirm 18+.
-  if (funnel === 'creator' && body?.adult !== true && body?.adult !== 'true') {
-    errors.push('Необходимо подтверждение 18+');
   }
 
   // Phone sanity check (client funnel).

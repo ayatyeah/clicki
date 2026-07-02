@@ -8,6 +8,16 @@ const pool = new Pool({
   port: process.env.DB_PORT,
   database: process.env.DB_DATABASE,
   ssl: { rejectUnauthorized: false },
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+});
+// A managed Postgres backend can drop an idle connection at any time (network
+// blip, provider-side recycling). Without this listener, pg.Pool emits an
+// unhandled 'error' event that crashes the whole Node process — the real
+// cause behind the site randomly going down and DO's edge showing a 404.
+pool.on('error', (err) => {
+  console.error('[db] idle client error (ignored, pool recovers):', err.message);
 });
 
 export async function initDb() {
@@ -216,6 +226,61 @@ export async function initDb() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`);
     await client.query('CREATE INDEX IF NOT EXISTS referral_leads_creator_idx ON referral_leads (creator_id)');
+    // Decision journal — append-only log of every accept/reject/rework call an
+    // operator makes on a submission: what happened, why, how many views it had,
+    // how long the decision took. Not AI itself — the training data future AI
+    // will need. Survives independently of whatever happens to the submission next.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS submission_decisions (
+        id SERIAL PRIMARY KEY,
+        submission_id INTEGER REFERENCES submissions(id) ON DELETE CASCADE,
+        creator_id INTEGER REFERENCES creators(id) ON DELETE SET NULL,
+        brief_id INTEGER REFERENCES briefs(id) ON DELETE SET NULL,
+        status VARCHAR(30) NOT NULL,
+        reject_code VARCHAR(60),
+        views_at_decision INTEGER DEFAULT 0,
+        seconds_to_decision INTEGER,
+        decided_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+    await client.query('CREATE INDEX IF NOT EXISTS submission_decisions_submission_idx ON submission_decisions (submission_id)');
+    // View-count history behind the single submissions.views column — each
+    // manual view-count entry (ТЗ §9) is appended here instead of only overwriting
+    // the latest value. Powers the anti-fraud growth-shape signal and the
+    // business live growth dashboard.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS view_snapshots (
+        id SERIAL PRIMARY KEY,
+        submission_id INTEGER REFERENCES submissions(id) ON DELETE CASCADE,
+        views INTEGER NOT NULL,
+        recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+    await client.query('CREATE INDEX IF NOT EXISTS view_snapshots_submission_idx ON view_snapshots (submission_id)');
+    // Anti-fraud thresholds — tunable via /api/admin/settings like the other
+    // numeric knobs, so the heuristic can be adjusted as real data comes in.
+    const seedFraudSettings = [
+      ['fraud_max_views_per_hour', 5000],
+      ['fraud_min_smoothness_cv', 0.15],
+    ];
+    for (const [k, v] of seedFraudSettings) {
+      await client.query('INSERT INTO settings (key, value) VALUES ($1,$2) ON CONFLICT (key) DO NOTHING', [k, v]);
+    }
+    // TikTok account connection (Login Kit + Display API) — lets us auto-fetch
+    // view_count for a creator's videos instead of an operator typing it in.
+    await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS tiktok_open_id TEXT');
+    await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS tiktok_username VARCHAR(120)');
+    await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS tiktok_access_token TEXT');
+    await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS tiktok_refresh_token TEXT');
+    await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS tiktok_token_expires_at TIMESTAMP');
+    await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS tiktok_refresh_expires_at TIMESTAMP');
+    // Short-lived CSRF state ↔ creator mapping for the OAuth redirect round-trip
+    // (TikTok's redirect_uri must be static, so we can't carry the creator id in it).
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS oauth_states (
+        state VARCHAR(80) PRIMARY KEY,
+        creator_id INTEGER REFERENCES creators(id) ON DELETE CASCADE,
+        provider VARCHAR(20) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
   } finally {
     client.release();
   }
@@ -457,6 +522,51 @@ export async function updateCreator(id, fields) {
   return r.rows[0] || null;
 }
 
+/* ---------------- OAuth state (CSRF ↔ creator, short-lived) ---------------- */
+export async function saveOAuthState(state, creatorId, provider) {
+  await pool.query('INSERT INTO oauth_states (state, creator_id, provider) VALUES ($1,$2,$3)', [state, creatorId, provider]);
+}
+/** One-time use: returns the creator id for a state and deletes it. Null if unknown/expired (>10 min). */
+export async function consumeOAuthState(state, provider) {
+  const r = await pool.query(
+    `DELETE FROM oauth_states WHERE state=$1 AND provider=$2 AND created_at > NOW() - INTERVAL '10 minutes' RETURNING creator_id`,
+    [state, provider]
+  );
+  // Opportunistic cleanup of anything left stale (abandoned flows).
+  await pool.query("DELETE FROM oauth_states WHERE created_at <= NOW() - INTERVAL '10 minutes'");
+  return r.rows[0]?.creator_id ?? null;
+}
+
+/* ---------------- TikTok account connection (Login Kit + Display API) ---------------- */
+export async function saveTikTokTokens(creatorId, { open_id, username, access_token, refresh_token, expires_in, refresh_expires_in }) {
+  const r = await pool.query(
+    `UPDATE creators SET
+       tiktok_open_id=$1, tiktok_username=$2, tiktok_access_token=$3, tiktok_refresh_token=$4,
+       tiktok_token_expires_at = NOW() + ($5 || ' seconds')::interval,
+       tiktok_refresh_expires_at = NOW() + ($6 || ' seconds')::interval
+     WHERE id=$7 RETURNING *`,
+    [open_id || null, username || null, access_token, refresh_token, expires_in || 0, refresh_expires_in || 0, creatorId]
+  );
+  return r.rows[0] || null;
+}
+export async function clearTikTokConnection(creatorId) {
+  await pool.query(
+    `UPDATE creators SET tiktok_open_id=NULL, tiktok_username=NULL, tiktok_access_token=NULL,
+       tiktok_refresh_token=NULL, tiktok_token_expires_at=NULL, tiktok_refresh_expires_at=NULL WHERE id=$1`,
+    [creatorId]
+  );
+}
+/** Creators with a live TikTok connection (refresh token not expired) — sync targets. */
+export async function listCreatorsWithTikTok() {
+  const r = await pool.query(
+    `SELECT id, tiktok_open_id, tiktok_username, tiktok_access_token, tiktok_refresh_token,
+            tiktok_token_expires_at, tiktok_refresh_expires_at
+       FROM creators
+      WHERE tiktok_access_token IS NOT NULL AND tiktok_refresh_expires_at > NOW()`
+  );
+  return r.rows;
+}
+
 /* ---------------- Platform: briefs (ТЗ §9) ---------------- */
 export async function listBriefs() {
   const r = await pool.query('SELECT * FROM briefs ORDER BY id DESC');
@@ -500,11 +610,11 @@ export async function setBriefRevision(id, note) {
 export async function updateBusinessBrief(id, businessId, b) {
   const r = await pool.query(
     `UPDATE briefs SET title=$1, platform=$2, key_message=$3, req_hashtag=$4,
-        duration_max=$5, tone=$6, spec=$7, status='new', revision_note=NULL, ai_score=NULL, ai_feedback=NULL
-      WHERE id=$8 AND business_id=$9 AND status IN ('new','revision') RETURNING *`,
+        duration_max=$5, tone=$6, spec=$7, req_cta_link=$8, status='new', revision_note=NULL, ai_score=NULL, ai_feedback=NULL
+      WHERE id=$9 AND business_id=$10 AND status IN ('new','revision') RETURNING *`,
     [
       b.title, b.platform || 'TikTok', b.key_message || null, b.req_hashtag || null,
-      b.duration_max || 90, b.tone || null, JSON.stringify(b.spec || {}), id, businessId,
+      b.duration_max || 90, b.tone || null, JSON.stringify(b.spec || {}), b.req_cta_link || null, id, businessId,
     ]
   );
   return r.rows[0] || null;
@@ -596,7 +706,8 @@ export async function listSubmissions(status) {
        ${where} ORDER BY s.id DESC`,
     params
   );
-  return r.rows;
+  const fraud = await getFraudSignals();
+  return r.rows.map((row) => ({ ...row, fraud: fraud[row.id] || null }));
 }
 export async function listCreatorSubmissions(creatorId) {
   const r = await pool.query(
@@ -745,6 +856,31 @@ export async function getLeaderboard() {
   return r.rows.map((row) => ({ ...row, level: levelFromXp(row.xp) }));
 }
 
+// Decision journal (foundation for future AI, not AI itself): one row per
+// accept/reject/rework call, independent of what happens to the submission next.
+async function logSubmissionDecision(sub, status, reject_code) {
+  const secondsToDecision = sub.created_at
+    ? Math.max(0, Math.round((Date.now() - new Date(sub.created_at).getTime()) / 1000))
+    : null;
+  await pool.query(
+    `INSERT INTO submission_decisions (submission_id, creator_id, brief_id, status, reject_code, views_at_decision, seconds_to_decision)
+     VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+    [sub.id, sub.creator_id, sub.brief_id, status, reject_code || null, sub.views || 0, secondsToDecision]
+  );
+}
+/** Recent decisions for admin review — the raw journal, most recent first. */
+export async function listDecisionJournal(limit = 100) {
+  const r = await pool.query(
+    `SELECT d.*, c.name AS creator_name, b.title AS brief_title
+       FROM submission_decisions d
+       LEFT JOIN creators c ON c.id = d.creator_id
+       LEFT JOIN briefs b ON b.id = d.brief_id
+      ORDER BY d.id DESC LIMIT $1`,
+    [limit]
+  );
+  return r.rows;
+}
+
 /** Operator review (ТЗ §3.5, §9.2). Acceptance drives streak/XP + referral. */
 export async function reviewSubmission(id, { status, reject_code, checklist }) {
   const r = await pool.query(
@@ -754,19 +890,117 @@ export async function reviewSubmission(id, { status, reject_code, checklist }) {
     [status, reject_code || null, checklist ? JSON.stringify(checklist) : null, id]
   );
   const sub = r.rows[0] || null;
-  if (sub && status === 'accepted') {
-    await applyStreak(sub.creator_id);
-    await recomputeXp(sub.creator_id);
-    await handleReferralFirstAccept(sub.creator_id);
+  if (sub) {
+    await logSubmissionDecision(sub, status, reject_code);
+    if (status === 'accepted') {
+      await applyStreak(sub.creator_id);
+      await recomputeXp(sub.creator_id);
+      await handleReferralFirstAccept(sub.creator_id);
+    }
   }
   return sub;
 }
-/** Manual view entry (ТЗ §9). final = 30-day window check done. Recomputes XP. */
+/** Manual view entry (ТЗ §9). final = 30-day window check done. Recomputes XP.
+ *  Also appends a snapshot — the single `views` column only ever holds the
+ *  latest reading, this is the history behind it (anti-fraud + growth chart). */
 export async function recordViews(id, views, final) {
   const r = await pool.query('UPDATE submissions SET views=$1, views_final=$2 WHERE id=$3 RETURNING *', [views, !!final, id]);
   const sub = r.rows[0] || null;
-  if (sub) await recomputeXp(sub.creator_id);
+  if (sub) {
+    await pool.query('INSERT INTO view_snapshots (submission_id, views) VALUES ($1,$2)', [id, views]);
+    await recomputeXp(sub.creator_id);
+  }
   return sub;
+}
+
+/**
+ * AI anti-fraud signal: not "catching the fraudster" — flagging a strange
+ * pattern in the numbers for a human to look at. From consecutive view
+ * snapshots, computes the hourly growth rate between each pair; flags a
+ * submission if that rate is either implausibly fast (a spike) or implausibly
+ * smooth (near-constant rate, which organic reach rarely produces).
+ * Thresholds live in `settings` so they can be tuned as real data comes in.
+ */
+export async function getFraudSignals() {
+  const r = await pool.query(`
+    WITH ordered AS (
+      SELECT submission_id, views, recorded_at,
+             LAG(views) OVER (PARTITION BY submission_id ORDER BY recorded_at) AS prev_views,
+             LAG(recorded_at) OVER (PARTITION BY submission_id ORDER BY recorded_at) AS prev_at
+      FROM view_snapshots
+    ),
+    rates AS (
+      SELECT submission_id,
+             (views - prev_views)::float AS dv,
+             EXTRACT(EPOCH FROM (recorded_at - prev_at)) / 3600.0 AS dh
+      FROM ordered WHERE prev_views IS NOT NULL
+    ),
+    valid_rates AS (
+      SELECT submission_id, dv / NULLIF(dh, 0) AS rate FROM rates WHERE dh > 0
+    )
+    SELECT submission_id, COUNT(*)::int AS n,
+           AVG(rate)::float AS avg_rate,
+           COALESCE(STDDEV_POP(rate), 0)::float AS sd_rate,
+           MAX(rate)::float AS max_rate
+    FROM valid_rates GROUP BY submission_id
+  `);
+  const settings = await getSettings();
+  const maxRateThreshold = settings.fraud_max_views_per_hour || 5000;
+  const minCv = settings.fraud_min_smoothness_cv ?? 0.15;
+  const map = {};
+  for (const row of r.rows) {
+    const reasons = [];
+    const cv = row.n >= 2 && row.avg_rate > 0 ? row.sd_rate / row.avg_rate : null;
+    if (cv !== null && cv < minCv) reasons.push('Рост слишком ровный для органики');
+    if (row.max_rate > maxRateThreshold) {
+      reasons.push(`Скачок просмотров: ~${Math.round(row.max_rate).toLocaleString('ru-RU')}/час`);
+    }
+    if (reasons.length) map[row.submission_id] = { suspicious: true, reasons };
+  }
+  return map;
+}
+/** View-count history for one submission (drill-down / debugging the signal above). */
+export async function getSubmissionViewHistory(id) {
+  const r = await pool.query(
+    `SELECT views, to_char(recorded_at,'YYYY-MM-DD HH24:MI') AS at FROM view_snapshots WHERE submission_id=$1 ORDER BY recorded_at`,
+    [id]
+  );
+  return r.rows;
+}
+/**
+ * Business live growth dashboard: cumulative views across the business's whole
+ * campaign, by day. Views are entered manually and sparsely (not continuous),
+ * so each submission's views are forward-filled to its latest known reading
+ * before being summed — this is a real cumulative total, not a same-day sum.
+ */
+export async function getBusinessGrowth(businessId) {
+  const r = await pool.query(
+    `SELECT vs.submission_id, vs.views, to_char(vs.recorded_at::date,'YYYY-MM-DD') AS day
+       FROM view_snapshots vs
+       JOIN submissions s ON s.id = vs.submission_id
+       JOIN briefs b ON b.id = s.brief_id
+      WHERE b.business_id = $1 AND s.status IN ('sent_to_business','accepted')
+      ORDER BY vs.submission_id, vs.recorded_at`,
+    [businessId]
+  );
+  const bySub = new Map();
+  for (const row of r.rows) {
+    if (!bySub.has(row.submission_id)) bySub.set(row.submission_id, []);
+    bySub.get(row.submission_id).push({ day: row.day, views: row.views });
+  }
+  const allDays = [...new Set(r.rows.map((row) => row.day))].sort();
+  const latestBySub = new Map(); // submission_id -> latest known views as we sweep days forward
+  const series = [];
+  for (const day of allDays) {
+    for (const [subId, points] of bySub.entries()) {
+      for (const p of points) {
+        if (p.day === day) latestBySub.set(subId, p.views);
+      }
+    }
+    const total = [...latestBySub.values()].reduce((a, v) => a + v, 0);
+    series.push({ day, views: total });
+  }
+  return series;
 }
 
 /* ---------------- Platform: wallet & payouts (ТЗ §8) ---------------- */

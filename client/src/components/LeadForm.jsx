@@ -8,23 +8,19 @@ const L = {
   ru: {
     fill: (label) => `Заполните поле «${label}»`,
     consentErr: 'Подтвердите согласие на обработку персональных данных',
-    adultErr: 'Подтвердите, что вам есть 18 лет',
     failed: 'Не удалось отправить заявку.',
     sending: 'Отправляем…',
     consent1: 'Я согласен на обработку персональных данных в соответствии с ',
     consentLink: 'политикой конфиденциальности',
-    adult: 'Мне есть 18 лет.',
     note: 'Нажимая кнопку, вы соглашаетесь с обработкой персональных данных.',
   },
   en: {
     fill: (label) => `Please fill in “${label}”`,
     consentErr: 'Please accept the personal data processing consent',
-    adultErr: 'Please confirm you are 18 or older',
     failed: 'Could not send the request.',
     sending: 'Sending…',
     consent1: 'I agree to the processing of my personal data per the ',
     consentLink: 'privacy policy',
-    adult: 'I am 18 or older.',
     note: 'By submitting, you agree to the processing of your personal data.',
   },
 };
@@ -35,15 +31,13 @@ const L = {
  * @param {'client'|'creator'} funnel
  * @param {Array<{name,label,type?,required?,placeholder?,autoComplete?}>} fields
  * @param {string} submitLabel
- * @param {boolean} requireAdult - show + require the 18+ checkbox (creators)
  */
-export default function LeadForm({ funnel, fields, submitLabel, requireAdult = false }) {
+export default function LeadForm({ funnel, fields, submitLabel }) {
   const navigate = useNavigate();
   const { lang } = useLang();
   const t = L[lang] || L.ru;
   const [values, setValues] = useState({});
   const [consent, setConsent] = useState(false);
-  const [adult, setAdult] = useState(false);
   const [website, setWebsite] = useState(''); // honeypot
   const [status, setStatus] = useState('idle'); // idle | sending | error
   const [errors, setErrors] = useState([]);
@@ -61,7 +55,6 @@ export default function LeadForm({ funnel, fields, submitLabel, requireAdult = f
       }
     }
     if (!consent) localErrors.push(t.consentErr);
-    if (requireAdult && !adult) localErrors.push(t.adultErr);
     if (localErrors.length) {
       setErrors(localErrors);
       return;
@@ -76,7 +69,7 @@ export default function LeadForm({ funnel, fields, submitLabel, requireAdult = f
     } catch {
       ref = undefined;
     }
-    const res = await submitLead(funnel, { ...values, consent, adult, website, ref });
+    const res = await submitLead(funnel, { ...values, consent, website, ref });
     if (res.ok) {
       trackLead(funnel); // client_lead / creator_lead conversion
       navigate(`/thanks/${funnel}`);
@@ -136,13 +129,6 @@ export default function LeadForm({ funnel, fields, submitLabel, requireAdult = f
           .
         </span>
       </label>
-
-      {requireAdult && (
-        <label className="lead-form__check">
-          <input type="checkbox" checked={adult} onChange={(e) => setAdult(e.target.checked)} />
-          <span>{t.adult}</span>
-        </label>
-      )}
 
       {errors.length > 0 && (
         <ul className="lead-form__errors" role="alert">

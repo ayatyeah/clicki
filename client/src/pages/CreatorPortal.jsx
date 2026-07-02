@@ -158,7 +158,7 @@ function LoginForm({ onAuthed, toApply }) {
 }
 
 function ApplyForm({ refId, onDone }) {
-  const [f, setF] = useState({ name: '', contact: '', socials: '', city: '' });
+  const [f, setF] = useState({ name: '', contact: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
@@ -187,8 +187,6 @@ function ApplyForm({ refId, onDone }) {
     <form className="creator-portal__card" onSubmit={submit}>
       <input placeholder="Имя" autoComplete="name" value={f.name} onChange={(e) => set('name', e.target.value)} required />
       <input placeholder="Телефон / Telegram" value={f.contact} onChange={(e) => set('contact', e.target.value)} required />
-      <input placeholder="Ссылки на соцсети (TikTok, Instagram…)" value={f.socials} onChange={(e) => set('socials', e.target.value)} />
-      <input placeholder="Город" value={f.city} onChange={(e) => set('city', e.target.value)} />
       {error && <p className="creator-portal__err">{error}</p>}
       <button className="btn btn--primary btn--block" disabled={busy}>{busy ? 'Отправляю…' : 'Отправить заявку'}</button>
       <p className="creator-portal__muted creator-portal__switch">
@@ -315,6 +313,8 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
         )}
       </div>
 
+      <TikTokCard c={c} authFetch={authFetch} reload={reload} />
+
       <h2 className="creator-portal__h2">Заказы <span className="creator-portal__chip">доступны всем</span></h2>
       {openBriefs.length ? (
         openBriefs.map((b) => <BriefCard key={b.id} b={b} />)
@@ -375,6 +375,58 @@ const SUB_STATUS_RU = {
   rejected: 'отклонено',
   pending: 'ожидает',
 };
+
+/** Connect TikTok (Login Kit) so view counts sync automatically instead of an operator typing them in. */
+function TikTokCard({ c, authFetch, reload }) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    const status = new URLSearchParams(window.location.search).get('tiktok');
+    if (!status) return;
+    setMsg(status === 'connected' ? 'TikTok подключён ✓' : 'Не удалось подключить TikTok — попробуй ещё раз.');
+    window.history.replaceState(null, '', window.location.pathname);
+    reload();
+  }, []); // eslint-disable-line
+
+  const connect = async () => {
+    setBusy(true);
+    try {
+      const r = await (await authFetch('/api/creator/tiktok/connect', { method: 'POST' })).json();
+      if (r.ok && r.url) window.location.href = r.url;
+      else setMsg((r.errors && r.errors[0]) || 'Не удалось начать подключение');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const disconnect = async () => {
+    setBusy(true);
+    try {
+      await authFetch('/api/creator/tiktok/disconnect', { method: 'POST' });
+      reload();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="creator-portal__card">
+      <div className="creator-portal__wallet-row"><span>TikTok</span></div>
+      {c.tiktok_connected ? (
+        <>
+          <p className="creator-portal__muted">Подключён{c.tiktok_username ? `: @${c.tiktok_username}` : ''}. Просмотры твоих видео обновляются сами.</p>
+          <button className="btn btn--ghost btn--sm" onClick={disconnect} disabled={busy}>Отключить</button>
+        </>
+      ) : (
+        <>
+          <p className="creator-portal__muted">Подключи аккаунт — просмотры видео будут подтягиваться сами, без ручного ввода.</p>
+          <button className="btn btn--primary btn--sm" onClick={connect} disabled={busy}>{busy ? '…' : 'Подключить TikTok'}</button>
+        </>
+      )}
+      {msg && <p className="creator-portal__muted">{msg}</p>}
+    </div>
+  );
+}
 
 function BriefCard({ b }) {
   const [open, setOpen] = useState(false);

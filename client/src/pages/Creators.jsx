@@ -83,7 +83,7 @@ const COPY = {
         { title: 'Открытый аккаунт', text: 'Публичный профиль в соцсетях.' },
         { title: 'Оригинальный контент', text: 'Снимаешь сам по брифу.' },
         { title: 'Телефон с камерой', text: 'Нормальное качество съёмки.' },
-        { title: 'Желание расти', text: 'Драйв двигаться вперёд. 18+.' },
+        { title: 'Желание расти', text: 'Драйв двигаться вперёд.' },
       ],
     },
     contact: {
@@ -94,7 +94,7 @@ const COPY = {
     },
     qa: [
       { q: 'Как начать снимать с вами?', a: 'Заполни короткую анкету и пройди проверку. После этого начнёшь получать брифы под разные бренды.' },
-      { q: 'Что нужно, чтобы стать креатором?', a: 'Открытый аккаунт, телефон с нормальной камерой, желание снимать оригинальный контент по брифу. Возраст 18+.' },
+      { q: 'Что нужно, чтобы стать креатором?', a: 'Открытый аккаунт, телефон с нормальной камерой, желание снимать оригинальный контент по брифу.' },
       { q: 'Сколько времени это занимает?', a: 'Всё удалённо и в удобное время — снимаешь короткие вертикальные видео со своего телефона, без графика и начальника.' },
       { q: 'Как формируется доход?', a: 'Чем больше живых органических просмотров набирают твои ролики, тем выше доход. Твой рост — твой доход.' },
       { q: 'Зачем мне портфолио?', a: 'Каждое задание прокачивает твою папку кейсов и репутацию, с которой можно расти дальше и брать больше брендов.' },
@@ -102,9 +102,6 @@ const COPY = {
     fields: [
       { name: 'name', label: 'Имя', required: true, autoComplete: 'name', placeholder: 'Как тебя зовут' },
       { name: 'contact', label: 'Телефон / Telegram', required: true, placeholder: '+7 ___ или @username' },
-      { name: 'socials', label: 'Ссылки на соцсети', required: true, placeholder: 'TikTok, Instagram и др.' },
-      { name: 'city', label: 'Город', placeholder: 'Откуда ты' },
-      { name: 'examples', label: 'Примеры контента', type: 'textarea', placeholder: 'Ссылки на твои ролики (по желанию)' },
     ],
   },
   en: {
@@ -171,7 +168,7 @@ const COPY = {
         { title: 'Public account', text: 'A public profile on social media.' },
         { title: 'Original content', text: 'You film it yourself per the brief.' },
         { title: 'Phone with a camera', text: 'Decent shooting quality.' },
-        { title: 'Ready to grow', text: 'The drive to move forward. 18+.' },
+        { title: 'Ready to grow', text: 'The drive to move forward.' },
       ],
     },
     contact: {
@@ -182,7 +179,7 @@ const COPY = {
     },
     qa: [
       { q: 'How do I start filming with you?', a: 'Fill in a short form and pass the check. After that you’ll start receiving briefs for different brands.' },
-      { q: 'What do I need to become a creator?', a: 'A public account, a phone with a decent camera and the drive to film original content per the brief. Age 18+.' },
+      { q: 'What do I need to become a creator?', a: 'A public account, a phone with a decent camera and the drive to film original content per the brief.' },
       { q: 'How much time does it take?', a: 'Fully remote and whenever it suits you — you film short vertical videos from your phone, no schedule, no boss.' },
       { q: 'How is income formed?', a: 'The more real organic views your clips get, the higher your income. Your growth — your income.' },
       { q: 'Why do I need a portfolio?', a: 'Every task grows your case folder and reputation, so you can go further and take on more brands.' },
@@ -190,9 +187,6 @@ const COPY = {
     fields: [
       { name: 'name', label: 'Name', required: true, autoComplete: 'name', placeholder: 'What’s your name' },
       { name: 'contact', label: 'Phone / Telegram', required: true, placeholder: '+7 ___ or @username' },
-      { name: 'socials', label: 'Social links', required: true, placeholder: 'TikTok, Instagram, etc.' },
-      { name: 'city', label: 'City', placeholder: 'Where you’re from' },
-      { name: 'examples', label: 'Content samples', type: 'textarea', placeholder: 'Links to your clips (optional)' },
     ],
   },
 };

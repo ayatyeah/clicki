@@ -2160,6 +2160,88 @@ img.ae {
   background: rgba(124, 58, 237, 0.18);
   color: #c4b5fd;
 }
+.fraud-flag {
+  margin-top: 6px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.16);
+  color: #f59e0b;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: help;
+}
+.fraud-flag__reasons {
+  margin-top: 2px;
+  color: var(--fog);
+  font-weight: 400;
+  font-size: 0.74rem;
+}
+
+/* ---------- Business live growth chart ---------- */
+.growth-chart {
+  margin-bottom: 24px;
+}
+.growth-chart__hero {
+  margin-bottom: 10px;
+}
+.growth-chart__hero-value {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2rem, 5vw, 2.8rem);
+  line-height: 1;
+  color: var(--ink);
+}
+.growth-chart__hero-label {
+  margin-top: 6px;
+  color: var(--stone);
+  font-size: 0.9rem;
+}
+.growth-chart__svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  cursor: crosshair;
+}
+.growth-chart__grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.growth-chart__axis {
+  fill: var(--fog);
+  font-size: 9px;
+}
+.growth-chart__area {
+  fill: rgba(124, 58, 237, 0.1);
+  stroke: none;
+}
+.growth-chart__line {
+  fill: none;
+  stroke: #7c3aed;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.growth-chart__crosshair {
+  stroke: var(--fog);
+  stroke-width: 1;
+}
+.growth-chart__dot {
+  fill: #7c3aed;
+  stroke: var(--paper);
+  stroke-width: 2;
+}
+.growth-chart__dot--hover {
+  fill: #6d28d9;
+}
+.growth-chart__tooltip {
+  margin-top: 8px;
+  color: var(--stone);
+  font-size: 0.9rem;
+}
+.growth-chart__tooltip b {
+  color: var(--ink);
+  font-family: var(--font-display);
+}
 
 /* ---------- Creator portal ---------- */
 .creator-portal {

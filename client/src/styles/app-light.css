@@ -250,6 +250,10 @@
 .an-day__label { font-size: 0.64rem; color: var(--fog); white-space: nowrap; }
 .an-cols { display: grid; grid-template-columns: 1fr; gap: 16px; }
 @media (min-width: 820px) { .an-cols { grid-template-columns: 1fr 1fr; } }
+/* Grid items don't shrink below their content's intrinsic width by default —
+   without this the table's min-width (720px) pushes the whole page wider
+   than the viewport instead of scrolling inside .admin-table-wrap. */
+.an-cols > div { min-width: 0; }
 .an-live {
   font-size: 0.7rem;
   font-weight: 500;

@@ -39,10 +39,22 @@ services:
         scope: BUILD_TIME
         value: ""
       # ---- Backend (runtime) ----
+      # ADMIN_USER/PASS/TOKEN: without these set, the server falls back to
+      # admin/admin/change-me-please (see server/src/index.js). Set real
+      # values in the DigitalOcean dashboard (App > Settings > Environment
+      # Variables) — do NOT commit real secrets into this file.
+      - key: ADMIN_USER
+        scope: RUN_TIME
+        type: SECRET
+        value: REPLACE_ME_IN_DO_DASHBOARD
+      - key: ADMIN_PASS
+        scope: RUN_TIME
+        type: SECRET
+        value: REPLACE_ME_IN_DO_DASHBOARD
       - key: ADMIN_TOKEN
         scope: RUN_TIME
         type: SECRET
-        value: change-me-please
+        value: REPLACE_ME_IN_DO_DASHBOARD
       - key: TELEGRAM_BOT_TOKEN
         scope: RUN_TIME
         type: SECRET
@@ -71,3 +83,19 @@ services:
         scope: RUN_TIME
         type: SECRET
         value: ""
+      # TikTok Login Kit + Display API — auto-syncs view counts instead of an
+      # operator typing them in. Leave all three empty/placeholder to keep the
+      # feature disabled (server checks all three are set before enabling it).
+      - key: TIKTOK_CLIENT_KEY
+        scope: RUN_TIME
+        type: SECRET
+        value: REPLACE_ME_IN_DO_DASHBOARD
+      - key: TIKTOK_CLIENT_SECRET
+        scope: RUN_TIME
+        type: SECRET
+        value: REPLACE_ME_IN_DO_DASHBOARD
+      # Must exactly match a redirect URI registered for the app on
+      # developers.tiktok.com (static, https, no query string).
+      - key: TIKTOK_REDIRECT_URI
+        scope: RUN_TIME
+        value: https://clicki-platform.com/api/auth/tiktok/callback
