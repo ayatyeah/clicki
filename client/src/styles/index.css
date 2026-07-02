@@ -2176,6 +2176,27 @@ img.ae {
   font-weight: 400;
   font-size: 0.74rem;
 }
+.view-spark {
+  display: block;
+  width: 110px;
+  height: 28px;
+  margin-top: 6px;
+}
+.view-spark__line {
+  fill: none;
+  stroke: #7c3aed;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.view-spark__dot {
+  fill: #7c3aed;
+}
+.view-spark--empty {
+  margin-top: 6px;
+  color: var(--fog);
+  font-size: 0.74rem;
+}
 
 /* ---------- Business live growth chart ---------- */
 .growth-chart {

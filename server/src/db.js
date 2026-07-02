@@ -707,7 +707,22 @@ export async function listSubmissions(status) {
     params
   );
   const fraud = await getFraudSignals();
-  return r.rows.map((row) => ({ ...row, fraud: fraud[row.id] || null }));
+  // Batched (not per-row) view-history fetch — powers the live sparkline in the
+  // admin review queue so an operator can see each video's growth at a glance.
+  const ids = r.rows.map((row) => row.id);
+  const historyRows = ids.length
+    ? await pool.query(
+        `SELECT submission_id, views, to_char(recorded_at,'YYYY-MM-DD HH24:MI') AS at
+           FROM view_snapshots WHERE submission_id = ANY($1::int[]) ORDER BY submission_id, recorded_at`,
+        [ids]
+      )
+    : { rows: [] };
+  const historyBySub = new Map();
+  for (const row of historyRows.rows) {
+    if (!historyBySub.has(row.submission_id)) historyBySub.set(row.submission_id, []);
+    historyBySub.get(row.submission_id).push({ views: row.views, at: row.at });
+  }
+  return r.rows.map((row) => ({ ...row, fraud: fraud[row.id] || null, views_history: historyBySub.get(row.id) || [] }));
 }
 export async function listCreatorSubmissions(creatorId) {
   const r = await pool.query(

@@ -261,6 +261,8 @@ export function ReviewView({ authFetch }) {
   };
   useEffect(() => {
     load();
+    const id = setInterval(load, 20000); // live: picks up TikTok auto-sync without a manual refresh
+    return () => clearInterval(id);
   }, []); // eslint-disable-line
 
   const syncTikTok = async () => {
@@ -309,7 +311,7 @@ export function ReviewView({ authFetch }) {
   return (
     <section className="admin-block">
       <div className="admin-panel__head">
-        <h2 className="admin-block__title">Видео на проверке</h2>
+        <h2 className="admin-block__title">Видео на проверке <span className="an-live">● live</span></h2>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn--ghost btn--sm" onClick={syncTikTok} disabled={syncing}>{syncing ? 'Синхронизирую…' : 'Синхронизировать TikTok'}</button>
           <button className="btn btn--ghost btn--sm" onClick={exportCsv}>Экспорт CSV</button>
@@ -349,6 +351,7 @@ export function ReviewView({ authFetch }) {
                 </td>
                 <td data-label="Просмотры">
                   <ViewsCell submission={s} onSave={setViews} />
+                  <ViewSparkline history={s.views_history} />
                 </td>
                 <td data-label="Решение">
                   <span className={`pf-status pf-status--${s.status}`}>{STATUS_RU[s.status] || s.status}</span>
@@ -429,6 +432,26 @@ function ViewsCell({ submission, onSave }) {
       </label>
       <button className="btn btn--ghost btn--sm" onClick={() => onSave(submission.id, views, final)}>Сохранить</button>
     </div>
+  );
+}
+
+/** Compact live trend of a single video's view-count history (from view_snapshots). */
+function ViewSparkline({ history }) {
+  if (!history || history.length < 2) {
+    return <div className="view-spark view-spark--empty">пока нет истории</div>;
+  }
+  const W = 110, H = 28, PAD = 4;
+  const maxV = Math.max(...history.map((p) => p.views), 1);
+  const x = (i) => PAD + ((W - PAD * 2) * i) / (history.length - 1);
+  const y = (v) => PAD + (H - PAD * 2) - ((H - PAD * 2) * v) / maxV;
+  const path = history.map((p, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(p.views).toFixed(1)}`).join(' ');
+  const last = history[history.length - 1];
+  return (
+    <svg className="view-spark" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Динамика просмотров, сейчас ${last.views.toLocaleString('ru-RU')}`}>
+      <title>{history.map((p) => `${p.at}: ${p.views.toLocaleString('ru-RU')}`).join('\n')}</title>
+      <path d={path} className="view-spark__line" />
+      <circle cx={x(history.length - 1)} cy={y(last.views)} r="2.5" className="view-spark__dot" />
+    </svg>
   );
 }
 
