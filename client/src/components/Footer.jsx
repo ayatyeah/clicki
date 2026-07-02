@@ -7,6 +7,7 @@ const L = {
     tagline: 'Performance-платформа органических просмотров. Астана, Казахстан.',
     contacts: 'Контакты',
     privacy: 'Политика конфиденциальности',
+    terms: 'Условия использования',
     rights: 'Все права защищены.',
     portal: 'Кабинет креатора',
   },
@@ -14,6 +15,7 @@ const L = {
     tagline: 'Performance platform for organic views. Astana, Kazakhstan.',
     contacts: 'Contacts',
     privacy: 'Privacy policy',
+    terms: 'Terms of Service',
     rights: 'All rights reserved.',
     portal: 'Creator portal',
   },
@@ -41,6 +43,7 @@ export default function Footer() {
           <Link to="/creator">{t.portal}</Link>
           <Link to="/contacts">{t.contacts}</Link>
           <Link to="/privacy">{t.privacy}</Link>
+          <Link to="/terms">{t.terms}</Link>
         </nav>
       </div>
       <div className="container site-footer__legal">© {year} CLICKI. {t.rights}</div>
