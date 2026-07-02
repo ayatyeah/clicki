@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /* Operator CRM views (ТЗ §13): briefs, video review, creators, payouts.
    Each view manages its own data via the passed authFetch. */
@@ -424,9 +424,24 @@ function ReviewActions({ submission, onSend, onRework, onReject }) {
 function ViewsCell({ submission, onSave }) {
   const [views, setViews] = useState(submission.views || 0);
   const [final, setFinal] = useState(!!submission.views_final);
+  const focused = useRef(false);
+  // Pick up server-side changes (manual save, TikTok auto-sync, live poll) — but
+  // never clobber a value the operator is actively typing.
+  useEffect(() => {
+    if (focused.current) return;
+    setViews(submission.views || 0);
+    setFinal(!!submission.views_final);
+  }, [submission.views, submission.views_final]);
   return (
     <div className="pf-actions">
-      <input type="number" value={views} onChange={(e) => setViews(e.target.value)} style={{ width: 90 }} />
+      <input
+        type="number"
+        value={views}
+        onFocus={() => { focused.current = true; }}
+        onBlur={() => { focused.current = false; }}
+        onChange={(e) => setViews(e.target.value)}
+        style={{ width: 90 }}
+      />
       <label className="pf-check" style={{ fontSize: '0.78rem' }}>
         <input type="checkbox" checked={final} onChange={(e) => setFinal(e.target.checked)} /> 30-дн финал
       </label>
