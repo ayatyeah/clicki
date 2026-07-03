@@ -2226,6 +2226,7 @@ img.ae {
 .growth-chart__grid {
   stroke: var(--line);
   stroke-width: 1;
+  stroke-dasharray: 3 6;
 }
 .growth-chart__axis {
   fill: var(--fog);

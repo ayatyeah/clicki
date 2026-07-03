@@ -3,12 +3,18 @@
    Use together with .page-light (which flips the theme tokens).
    ============================================================ */
 .app-light {
-  --r-card: 18px;
-  --shadow-card: rgba(99, 70, 168, 0.1) 0px 10px 26px -18px;
-  --shadow-soft: rgba(99, 70, 168, 0.05) 0px 6px 16px -14px;
+  /* Dashboard-style card language: tighter radius, flatter/shorter shadow
+     than the marketing site's puffy 28px/soft-glow look — closer to a
+     typical admin-panel card, while keeping the violet brand tint. */
+  --r-card: 12px;
+  --r-icon: 10px;
+  --shadow-card: rgba(99, 70, 168, 0.08) 0px 4px 14px -8px;
+  --shadow-soft: rgba(99, 70, 168, 0.05) 0px 2px 8px -4px;
   /* Grown-up, thin & elegant type for back-office surfaces only:
      drop the playful display face, lighten the body weight, tighten tracking. */
   --font-display: var(--font);
+  --font: 'Poppins', 'Geist', 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font);
   background: linear-gradient(180deg, #fbfaff 0%, #f4f1fb 100%);
   font-weight: 300;
   letter-spacing: -0.006em;
@@ -132,7 +138,7 @@
 /* Business cabinet — grouped brief-form blocks */
 .bp-block {
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--r-card);
   padding: 16px;
   display: grid;
   gap: 16px;
@@ -157,7 +163,7 @@
   gap: 14px;
   text-align: left;
   padding: 16px 18px;
-  border-radius: 16px;
+  border-radius: var(--r-card);
   border: 1px solid var(--line);
   background: #fff;
   cursor: pointer;
@@ -170,7 +176,7 @@
 .bp-quick__icon {
   width: 42px; height: 42px; flex: 0 0 auto;
   display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 12px; background: rgba(124, 58, 237, 0.1); font-size: 1.1rem;
+  border-radius: var(--r-icon); background: rgba(124, 58, 237, 0.1); font-size: 1.1rem;
 }
 .bp-quick__sub { font-size: 0.84rem; color: var(--fog); }
 @media (min-width: 720px) { .bp-quick { grid-template-columns: repeat(3, 1fr); } }
@@ -180,7 +186,7 @@
 .bp-card {
   background: #fff;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--r-card);
   padding: 18px 20px;
   box-shadow: var(--shadow-soft);
 }
@@ -202,7 +208,7 @@
 .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 8px; }
 @media (min-width: 980px) { .kpi-grid { grid-template-columns: repeat(4, 1fr); } }
 .kpi {
-  border-radius: 20px;
+  border-radius: var(--r-card);
   padding: 20px;
   border: 1px solid var(--line);
   background: #fff;
@@ -211,7 +217,7 @@
 .kpi__icon {
   width: 44px;
   height: 44px;
-  border-radius: 14px;
+  border-radius: var(--r-icon);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -220,7 +226,16 @@
 }
 .kpi__value { font-family: var(--font-display); font-weight: 800; font-size: 2rem; line-height: 1; letter-spacing: -0.02em; color: var(--ink); }
 .kpi__label { color: var(--stone); margin-top: 6px; font-size: 0.92rem; }
-.kpi__hint { color: #16a34a; font-size: 0.8rem; margin-top: 6px; }
+.kpi__hint {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(22, 163, 74, 0.12);
+  color: #15803d;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
 .kpi--rose { background: linear-gradient(180deg, #ffffff, #fff5f5); }
 .kpi--rose .kpi__icon { background: #f43f5e; }
 .kpi--violet { background: linear-gradient(180deg, #ffffff, #f6f2ff); }
@@ -238,6 +253,14 @@
   height: 170px;
   padding: 8px 0 0;
   margin-bottom: 8px;
+  /* Dashed horizontal gridlines behind the bars, dashboard-style. */
+  background-image:
+    linear-gradient(to right, var(--line) 50%, transparent 0%),
+    linear-gradient(to right, var(--line) 50%, transparent 0%),
+    linear-gradient(to right, var(--line) 50%, transparent 0%);
+  background-size: 8px 1px, 8px 1px, 8px 1px;
+  background-repeat: repeat-x, repeat-x, repeat-x;
+  background-position: 0 25%, 0 50%, 0 75%;
 }
 .an-day { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end; }
 .an-day__bar {
