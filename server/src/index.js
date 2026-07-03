@@ -44,6 +44,8 @@ import {
   updateCreator,
   listBriefs,
   getBrief,
+  creatorCanSubmitToBrief,
+  pingDb,
   createBrief,
   setBriefStatus,
   setBriefAi,
@@ -56,11 +58,11 @@ import {
   listCreatorSubmissions,
   getSubmission,
   setSubmissionAi,
-  setSubmissionStatus,
+  sendSubmissionToBusiness,
   listActiveBriefs,
   listOpenBriefsForCreator,
   listBusinessSubmissions,
-  getSubmissionBusiness,
+  acceptSubmissionByBusiness,
   reviewSubmission,
   recordViews,
   listDecisionJournal,
@@ -187,7 +189,15 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-app.get('/api/health', (_req, res) => res.json({ ok: true }));
+app.get('/api/health', async (_req, res) => {
+  try {
+    await pingDb();
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[health] db unreachable:', err.message);
+    res.status(503).json({ ok: false, errors: ['db unavailable'] });
+  }
+});
 
 // Resolve an "invite a friend" link (clicki-platform.com/friend/<login>) to its owner. Public.
 app.get('/api/ref/:login', async (req, res) => {
@@ -241,7 +251,12 @@ app.post('/api/track', trackLimiter, async (req, res) => {
 
 // Public site content (showcase feed + device screen images).
 app.get('/api/content', async (_req, res) => {
-  res.json(await readContent());
+  try {
+    res.json(await readContent());
+  } catch (err) {
+    console.error('[content]', err.message);
+    res.status(500).json({ ok: false, errors: ['Внутренняя ошибка'] });
+  }
 });
 
 // On-page assistant: short, cheap AI answer for free-typed questions.
@@ -276,49 +291,56 @@ app.post('/api/assistant', assistantLimiter, async (req, res) => {
 
 /** Shared handler for both funnels. */
 async function handleLead(funnel, req, res) {
-  // Honeypot: bots fill hidden fields; humans never see them.
-  if (req.body?.website) {
-    return res.status(200).json({ ok: true }); // silently accept + drop
-  }
-
-  const { ok, errors, fields } = validateLead(funnel, req.body);
-  if (!ok) return res.status(400).json({ ok: false, errors });
-
-  // Fail-open in dev (no captcha configured locally) but fail-closed in prod so a
-  // verification outage can't be used to bypass the spam check.
-  const captcha = await verifyRecaptcha(req.body?.recaptchaToken).catch(() => ({ ok: !IS_PROD }));
-  if (!captcha.ok) {
-    return res.status(400).json({ ok: false, errors: ['Не удалось пройти проверку на спам'] });
-  }
-
-  const lead = {
-    funnel,
-    fields,
-    page: typeof req.body?.page === 'string' ? req.body.page.slice(0, 200) : undefined,
-    ref: req.body?.ref ? String(req.body.ref).slice(0, 40) : undefined,
-    createdAt: new Date().toISOString(),
-  };
-
   try {
-    await saveLead(lead);
-  } catch (err) {
-    console.error('[store] failed to save lead:', err);
-    return res.status(500).json({ ok: false, errors: ['Внутренняя ошибка, попробуйте позже'] });
-  }
-
-  // Notifications are best-effort: don't block the success response on them.
-  dispatchLead(lead).catch((err) => console.error('[notify] dispatch failed:', err));
-
-  // Business lead arrived through a creator's public referral link (bio/profile) →
-  // credit that creator with the referral-lead XP bonus. Best-effort, non-blocking.
-  if (funnel === 'client' && lead.ref) {
-    const creatorId = Number.parseInt(lead.ref, 10);
-    if (Number.isInteger(creatorId)) {
-      recordReferralLead(creatorId, funnel).catch((err) => console.error('[referral] failed to record lead:', err));
+    // Honeypot: bots fill hidden fields; humans never see them.
+    if (req.body?.website) {
+      return res.status(200).json({ ok: true }); // silently accept + drop
     }
-  }
 
-  return res.json({ ok: true });
+    const { ok, errors, fields } = validateLead(funnel, req.body);
+    if (!ok) return res.status(400).json({ ok: false, errors });
+
+    // Fail-open in dev (no captcha configured locally) but fail-closed in prod so a
+    // verification outage can't be used to bypass the spam check.
+    const captcha = await verifyRecaptcha(req.body?.recaptchaToken).catch(() => ({ ok: !IS_PROD }));
+    if (!captcha.ok) {
+      return res.status(400).json({ ok: false, errors: ['Не удалось пройти проверку на спам'] });
+    }
+
+    const lead = {
+      funnel,
+      fields,
+      page: typeof req.body?.page === 'string' ? req.body.page.slice(0, 200) : undefined,
+      ref: req.body?.ref ? String(req.body.ref).slice(0, 40) : undefined,
+      createdAt: new Date().toISOString(),
+    };
+
+    try {
+      await saveLead(lead);
+    } catch (err) {
+      console.error('[store] failed to save lead:', err);
+      return res.status(500).json({ ok: false, errors: ['Внутренняя ошибка, попробуйте позже'] });
+    }
+
+    // Notifications are best-effort: don't block the success response on them.
+    dispatchLead(lead).catch((err) => console.error('[notify] dispatch failed:', err));
+
+    // Business lead arrived through a creator's public referral link (bio/profile) →
+    // credit that creator with the referral-lead XP bonus. Best-effort, non-blocking.
+    if (funnel === 'client' && lead.ref) {
+      const creatorId = Number.parseInt(lead.ref, 10);
+      if (Number.isInteger(creatorId)) {
+        recordReferralLead(creatorId, funnel).catch((err) => console.error('[referral] failed to record lead:', err));
+      }
+    }
+
+    return res.json({ ok: true });
+  } catch (err) {
+    // Catches anything unexpected above (e.g. a throw from validateLead) so the
+    // request always gets a response instead of hanging forever unanswered.
+    console.error('[lead]', err);
+    return res.status(500).json({ ok: false, errors: ['Внутренняя ошибка'] });
+  }
 }
 
 app.post('/api/lead/client', leadLimiter, (req, res) => handleLead('client', req, res));
@@ -335,8 +357,13 @@ app.post('/api/admin/login', loginLimiter, (req, res) => {
 
 // Minimal admin endpoint to review collected leads (Bearer token).
 app.get('/api/admin/leads', requireAdmin, async (_req, res) => {
-  const leads = await readLeads();
-  res.json({ ok: true, count: leads.length, leads });
+  try {
+    const leads = await readLeads();
+    res.json({ ok: true, count: leads.length, leads });
+  } catch (err) {
+    console.error('[leads]', err.message);
+    res.status(500).json({ ok: false, errors: ['Внутренняя ошибка'] });
+  }
 });
 
 // Upload a media file (image/video) → Spaces if configured (keeps big video out
@@ -415,8 +442,13 @@ app.get('/api/media/:id', async (req, res) => {
 
 // Save site content (showcase feed + device screen images).
 app.post('/api/admin/content', requireAdmin, async (req, res) => {
-  const saved = await writeContent(req.body || {});
-  res.json({ ok: true, content: saved });
+  try {
+    const saved = await writeContent(req.body || {});
+    res.json({ ok: true, content: saved });
+  } catch (err) {
+    console.error('[content]', err.message);
+    res.status(500).json({ ok: false, errors: ['Внутренняя ошибка'] });
+  }
 });
 
 /* =========================================================================
@@ -662,6 +694,9 @@ app.post(
     if (!b.platform || !b.video_url || !b.rights_confirmed) {
       return res.status(400).json({ ok: false, errors: ['Укажите видео, платформу и подтвердите права'] });
     }
+    if (b.brief_id && !(await creatorCanSubmitToBrief(req.creator.id, b.brief_id))) {
+      return res.status(400).json({ ok: false, errors: ['Этот бриф вам недоступен'] });
+    }
     const submission = await createSubmission({ ...b, creator_id: req.creator.id });
     const brief = b.brief_id ? await getBrief(b.brief_id) : null;
     const { score, feedback } = await aiCheckSubmission(submission, brief);
@@ -740,16 +775,21 @@ app.post(
   '/api/business/submissions/:id/accept',
   requireBusiness,
   wrap(async (req, res) => {
-    const sub = await getSubmissionBusiness(Number(req.params.id));
-    if (!sub || sub.business_id !== req.business.id) return res.status(404).json({ ok: false, errors: ['Не найдено'] });
-    if (sub.status !== 'sent_to_business') return res.status(400).json({ ok: false, errors: ['Работа не на приёмке'] });
-    await reviewSubmission(sub.id, { status: 'accepted' });
+    // Atomic, conditional transition — a double-click or a re-sent submission
+    // can only win this once; a second concurrent/later call gets null back
+    // instead of silently creating a second payout for the same video.
+    const sub = await acceptSubmissionByBusiness(Number(req.params.id), req.business.id);
+    if (!sub) return res.status(400).json({ ok: false, errors: ['Работа не найдена или уже обработана'] });
     // Auto-create a pending payout (manager finalizes it in the payouts view).
+    // Respects the same min-views threshold the wallet balance is computed
+    // from, so a below-threshold submission can't create a payout the wallet
+    // calculation never counted (which would push balance negative).
     try {
-      const rates = await getRates();
+      const [rates, settings] = await Promise.all([getRates(), getSettings()]);
+      const minViews = settings.min_views_per_video || 2000;
       const rate = rates.find((r) => r.platform === sub.platform)?.creator_rate || 0;
-      const amount = Math.round((sub.views || 0) * rate);
-      if (amount > 0) await createPayout(sub.creator_id, amount);
+      const amount = (sub.views || 0) >= minViews ? Math.round((sub.views || 0) * rate) : 0;
+      if (amount > 0) await createPayout(sub.creator_id, amount, sub.id);
     } catch (err) {
       console.error('[payout]', err.message);
     }
@@ -791,7 +831,16 @@ app.post(
 async function syncCreatorTikTokViews(creator) {
   let accessToken = creator.tiktok_access_token;
   if (!creator.tiktok_token_expires_at || new Date(creator.tiktok_token_expires_at) <= new Date()) {
-    const refreshed = await refreshTikTokToken(creator.tiktok_refresh_token);
+    let refreshed;
+    try {
+      refreshed = await refreshTikTokToken(creator.tiktok_refresh_token);
+    } catch (err) {
+      // Refresh token revoked/expired — this would otherwise retry forever
+      // every 3h with no visible signal. Disconnect so the creator's
+      // dashboard shows "not connected" and prompts them to reconnect.
+      await clearTikTokConnection(creator.id);
+      throw new Error(`TikTok reconnect needed for creator #${creator.id}: ${err.message}`);
+    }
     await saveTikTokTokens(creator.id, { ...refreshed, username: creator.tiktok_username });
     accessToken = refreshed.access_token;
   }
@@ -899,7 +948,14 @@ app.get(
   wrap(async (_req, res) => {
     const subs = await listSubmissions();
     const head = ['id', 'creator', 'brief', 'platform', 'video_url', 'published_at', 'status', 'reject_code', 'views', 'rights'];
-    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    // Neutralize CSV/formula injection: creator_name and other fields can
+    // originate from unauthenticated public form input (/api/creator/apply),
+    // and a leading =/+/-/@ is interpreted as a formula by Excel/Sheets on open.
+    const esc = (v) => {
+      let s = String(v ?? '');
+      if (/^[=+\-@]/.test(s)) s = `'${s}`;
+      return `"${s.replace(/"/g, '""')}"`;
+    };
     const rows = subs.map((s) =>
       [s.id, s.creator_name, s.brief_title, s.platform, s.video_url, s.published_at, s.status, s.reject_code, s.views, s.rights_confirmed]
         .map(esc)
@@ -912,11 +968,30 @@ app.get(
 );
 app.post('/api/admin/submissions/:id/review', requireAdmin, wrap(async (req, res) => ok(res, { submission: await reviewSubmission(Number(req.params.id), req.body || {}) })));
 // Pipeline step 10-11: manager approves an AI-passed video and forwards it to the business.
-app.post('/api/admin/submissions/:id/send-to-business', requireAdmin, wrap(async (req, res) => ok(res, { submission: await setSubmissionStatus(Number(req.params.id), 'sent_to_business') })));
+// Guarded (sendSubmissionToBusiness) so an already-accepted/rejected submission can't be re-queued.
+app.post('/api/admin/submissions/:id/send-to-business', requireAdmin, wrap(async (req, res) => {
+  const submission = await sendSubmissionToBusiness(Number(req.params.id));
+  if (!submission) return res.status(400).json({ ok: false, errors: ['Видео уже принято или отклонено'] });
+  ok(res, { submission });
+}));
 app.post('/api/admin/submissions/:id/views', requireAdmin, wrap(async (req, res) => ok(res, { submission: await recordViews(Number(req.params.id), Number(req.body?.views) || 0, !!req.body?.final) })));
 
 app.get('/api/admin/payouts', requireAdmin, wrap(async (_req, res) => ok(res, { payouts: await listPayouts() })));
-app.post('/api/admin/payouts', requireAdmin, wrap(async (req, res) => ok(res, { payout: await createPayout(Number(req.body?.creator_id), Number(req.body?.amount)) })));
+// Manual payout: guarded against the creator's actual unpaid wallet balance —
+// unlike the auto-created payout on business accept, nothing here otherwise
+// ties the amount to real earned views, so a typo could overpay a creator.
+app.post('/api/admin/payouts', requireAdmin, wrap(async (req, res) => {
+  const creatorId = Number(req.body?.creator_id);
+  const amount = Number(req.body?.amount);
+  if (!creatorId || !Number.isFinite(amount) || amount <= 0) {
+    return res.status(400).json({ ok: false, errors: ['Укажите креатора и сумму больше нуля'] });
+  }
+  const wallet = await getCreatorWallet(creatorId);
+  if (amount > wallet.balance) {
+    return res.status(400).json({ ok: false, errors: [`Сумма превышает баланс креатора (доступно ${Math.round(wallet.balance).toLocaleString('ru-RU')} ₸)`] });
+  }
+  ok(res, { payout: await createPayout(creatorId, amount) });
+}));
 app.post('/api/admin/payouts/:id/paid', requireAdmin, wrap(async (req, res) => ok(res, { payout: await markPayoutPaid(Number(req.params.id)) })));
 
 // AI analysis (Gemini) — cached in DB so we call the API only when data changed

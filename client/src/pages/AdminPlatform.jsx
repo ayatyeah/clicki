@@ -105,6 +105,7 @@ export function BriefsView({ authFetch }) {
   const [creators, setCreators] = useState([]);
   const [form, setForm] = useState({ title: '', platform: 'TikTok', duration_min: 15, duration_max: 90, slots: 5 });
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
   const load = async () => {
     const b = await (await authFetch('/api/admin/briefs')).json();
@@ -116,40 +117,52 @@ export function BriefsView({ authFetch }) {
     load();
   }, []); // eslint-disable-line
 
+  const check = async (res) => {
+    if (res.ok) return true;
+    const data = await res.json().catch(() => ({}));
+    setError((data.errors && data.errors[0]) || 'Не удалось выполнить действие');
+    return false;
+  };
+
   const create = async () => {
     if (!form.title) return;
     setBusy(true);
-    await authFetch('/api/admin/briefs', {
+    setError('');
+    const res = await authFetch('/api/admin/briefs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(form),
     });
-    setForm({ title: '', platform: 'TikTok', duration_min: 15, duration_max: 90, slots: 5 });
     setBusy(false);
+    if (!(await check(res))) return;
+    setForm({ title: '', platform: 'TikTok', duration_min: 15, duration_max: 90, slots: 5 });
     load();
   };
   const assign = async (briefId, creatorId) => {
     if (!creatorId) return;
-    await authFetch(`/api/admin/briefs/${briefId}/assign`, {
+    setError('');
+    const res = await authFetch(`/api/admin/briefs/${briefId}/assign`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ creator_id: Number(creatorId) }),
     });
-    load();
+    if (await check(res)) load();
   };
   const publish = async (briefId) => {
-    await authFetch(`/api/admin/briefs/${briefId}/status`, {
+    setError('');
+    const res = await authFetch(`/api/admin/briefs/${briefId}/status`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: 'active' }),
     });
-    load();
+    if (await check(res)) load();
   };
   const setF = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   return (
     <section className="admin-block">
       <h2 className="admin-block__title">Брифы</h2>
+      {error && <p className="creator-portal__err">{error}</p>}
       <div className="pf-form">
         <input placeholder="Название брифа" value={form.title} onChange={(e) => setF('title', e.target.value)} />
         <select value={form.platform} onChange={(e) => setF('platform', e.target.value)}>
@@ -255,6 +268,7 @@ export function ReviewView({ authFetch }) {
   const [subs, setSubs] = useState([]);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
+  const [error, setError] = useState('');
   const load = async () => {
     const r = await (await authFetch('/api/admin/submissions')).json();
     setSubs(r.submissions || []);
@@ -277,17 +291,27 @@ export function ReviewView({ authFetch }) {
     }
   };
 
-  const review = async (id, status, reject_code, checklist) => {
-    await authFetch(`/api/admin/submissions/${id}/review`, {
+  // Every mutation below shares this: check res.ok, surface the server's
+  // error message instead of silently reloading as if nothing went wrong.
+  const post = async (url, body) => {
+    setError('');
+    const res = await authFetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, reject_code, checklist }),
+      ...(body ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}),
     });
-    load();
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) {
+      setError((data.errors && data.errors[0]) || 'Не удалось выполнить действие');
+      return false;
+    }
+    return true;
+  };
+
+  const review = async (id, status, reject_code, checklist) => {
+    if (await post(`/api/admin/submissions/${id}/review`, { status, reject_code, checklist })) load();
   };
   const sendToBusiness = async (id) => {
-    await authFetch(`/api/admin/submissions/${id}/send-to-business`, { method: 'POST' });
-    load();
+    if (await post(`/api/admin/submissions/${id}/send-to-business`)) load();
   };
   const exportCsv = async () => {
     const res = await authFetch('/api/admin/submissions/export');
@@ -300,12 +324,7 @@ export function ReviewView({ authFetch }) {
     URL.revokeObjectURL(url);
   };
   const setViews = async (id, views, final) => {
-    await authFetch(`/api/admin/submissions/${id}/views`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ views: Number(views) || 0, final }),
-    });
-    load();
+    if (await post(`/api/admin/submissions/${id}/views`, { views: Number(views) || 0, final })) load();
   };
 
   return (
@@ -317,6 +336,7 @@ export function ReviewView({ authFetch }) {
           <button className="btn btn--ghost btn--sm" onClick={exportCsv}>Экспорт CSV</button>
         </div>
       </div>
+      {error && <p className="lead-form__errors" role="alert">{error}</p>}
       {syncMsg && <p className="muted-note" style={{ textAlign: 'left' }}>{syncMsg}</p>}
       <div className="admin-table-wrap">
         <table className="admin-table">
@@ -397,6 +417,13 @@ function ReviewActions({ submission, onSend, onRework, onReject }) {
   const [checks, setChecks] = useState({});
   const [code, setCode] = useState('no_hashtag');
   const toggle = (k) => setChecks((c) => ({ ...c, [k]: !c[k] }));
+
+  // Once a video is accepted or rejected, the server rejects further
+  // transitions anyway (send-to-business is guarded) — hide the actions here
+  // too so an operator can't even try to re-queue an already-paid submission.
+  if (submission.status === 'accepted' || submission.status === 'rejected') {
+    return <p className="muted-note" style={{ margin: 0, textAlign: 'left' }}>Решение принято, действия недоступны.</p>;
+  }
 
   return (
     <div className="pf-actions">
@@ -565,11 +592,17 @@ export function CreatorsView({ authFetch }) {
   };
 
   const toggle = async (id, field, value) => {
-    await authFetch(`/api/admin/creators/${id}`, {
+    setError('');
+    const res = await authFetch(`/api/admin/creators/${id}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ [field]: value }),
     });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError((data.errors && data.errors[0]) || 'Не удалось изменить статус');
+      return;
+    }
     load();
   };
 
@@ -691,6 +724,7 @@ export function PayoutsView({ authFetch }) {
   const [payouts, setPayouts] = useState([]);
   const [creators, setCreators] = useState([]);
   const [form, setForm] = useState({ creator_id: '', amount: '' });
+  const [error, setError] = useState('');
   const load = async () => {
     const p = await (await authFetch('/api/admin/payouts')).json();
     setPayouts(p.payouts || []);
@@ -703,22 +737,36 @@ export function PayoutsView({ authFetch }) {
 
   const create = async () => {
     if (!form.creator_id || !form.amount) return;
-    await authFetch('/api/admin/payouts', {
+    setError('');
+    const res = await authFetch('/api/admin/payouts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ creator_id: Number(form.creator_id), amount: Number(form.amount) }),
     });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) {
+      setError((data.errors && data.errors[0]) || 'Не удалось создать выплату');
+      return;
+    }
     setForm({ creator_id: '', amount: '' });
     load();
   };
   const markPaid = async (id) => {
-    await authFetch(`/api/admin/payouts/${id}/paid`, { method: 'POST' });
+    if (!window.confirm('Отметить выплату оплаченной? Это необратимо.')) return;
+    setError('');
+    const res = await authFetch(`/api/admin/payouts/${id}/paid`, { method: 'POST' });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError((data.errors && data.errors[0]) || 'Не удалось отметить оплату');
+      return;
+    }
     load();
   };
 
   return (
     <section className="admin-block">
       <h2 className="admin-block__title">Выплаты (Kaspi, вручную)</h2>
+      {error && <p className="creator-portal__err">{error}</p>}
       <div className="pf-form pf-form--row">
         <select value={form.creator_id} onChange={(e) => setForm((f) => ({ ...f, creator_id: e.target.value }))}>
           <option value="">— креатор —</option>

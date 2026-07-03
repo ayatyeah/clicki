@@ -39,6 +39,28 @@ services:
         scope: BUILD_TIME
         value: ""
       # ---- Backend (runtime) ----
+      # Database (PostgreSQL) — REQUIRED. Already set for real in the DO
+      # dashboard for this app; listed here only so a from-scratch redeploy
+      # doesn't silently forget these five vars exist. Do NOT let a spec
+      # re-apply overwrite the real values with these placeholders.
+      - key: DB_USER
+        scope: RUN_TIME
+        type: SECRET
+        value: REPLACE_ME_IN_DO_DASHBOARD
+      - key: DB_PASSWORD
+        scope: RUN_TIME
+        type: SECRET
+        value: REPLACE_ME_IN_DO_DASHBOARD
+      - key: DB_HOST
+        scope: RUN_TIME
+        type: SECRET
+        value: REPLACE_ME_IN_DO_DASHBOARD
+      - key: DB_PORT
+        scope: RUN_TIME
+        value: "25060"
+      - key: DB_DATABASE
+        scope: RUN_TIME
+        value: "defaultdb"
       # ADMIN_USER/PASS/TOKEN: without these set, the server falls back to
       # admin/admin/change-me-please (see server/src/index.js). Set real
       # values in the DigitalOcean dashboard (App > Settings > Environment

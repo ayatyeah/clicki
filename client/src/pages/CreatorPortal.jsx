@@ -16,7 +16,7 @@ const QUIZ = [
 ];
 
 export default function CreatorPortal() {
-  const [token, setToken] = useState(() => localStorage.getItem(KEY) || '');
+  const [token, setToken] = useState(() => sessionStorage.getItem(KEY) || '');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -33,7 +33,7 @@ export default function CreatorPortal() {
       if (!res.ok) throw new Error('unauth');
       setData(await res.json());
     } catch {
-      localStorage.removeItem(KEY);
+      sessionStorage.removeItem(KEY);
       setToken('');
       setData(null);
     } finally {
@@ -46,12 +46,12 @@ export default function CreatorPortal() {
   }, [token, data, loadMe]);
 
   const onAuthed = (tok, payload) => {
-    localStorage.setItem(KEY, tok);
+    sessionStorage.setItem(KEY, tok);
     setToken(tok);
     setData(payload);
   };
   const logout = () => {
-    localStorage.removeItem(KEY);
+    sessionStorage.removeItem(KEY);
     setToken('');
     setData(null);
   };

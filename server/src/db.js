@@ -281,9 +281,22 @@ export async function initDb() {
         provider VARCHAR(20) NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`);
+    // Ties an auto-created payout back to the submission that earned it — lets
+    // us reason about (and audit) exactly which video a payout came from.
+    await client.query('ALTER TABLE payouts ADD COLUMN IF NOT EXISTS submission_id INTEGER REFERENCES submissions(id) ON DELETE SET NULL');
+    // Session tokens (creator + business) now expire — previously valid forever,
+    // meaning a leaked token was permanent, unrevocable account access.
+    await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS session_expires_at TIMESTAMP');
+    await client.query('ALTER TABLE business_accounts ADD COLUMN IF NOT EXISTS session_expires_at TIMESTAMP');
   } finally {
     client.release();
   }
+}
+
+/** Cheap connectivity check for /api/health — a real DB round-trip, not just
+ * "the process is up" (that alone would report healthy through an outage). */
+export async function pingDb() {
+  await pool.query('SELECT 1');
 }
 
 /* ---------------- Showcase videos (CMS feed) ---------------- */
@@ -478,11 +491,18 @@ export async function getCreatorPublicPage(username) {
 }
 export async function getCreatorByToken(token) {
   if (!token) return null;
-  const r = await pool.query('SELECT * FROM creators WHERE session_token = $1', [token]);
+  const r = await pool.query(
+    'SELECT * FROM creators WHERE session_token = $1 AND session_expires_at > NOW()',
+    [token]
+  );
   return r.rows[0] || null;
 }
+// Session expires 30 days out — a leaked/stolen token no longer grants access forever.
 export async function setCreatorToken(id, token) {
-  await pool.query('UPDATE creators SET session_token = $1 WHERE id = $2', [token, id]);
+  await pool.query(
+    "UPDATE creators SET session_token = $1, session_expires_at = NOW() + INTERVAL '30 days' WHERE id = $2",
+    [token, id]
+  );
 }
 // Operator issues / resets a creator's login credentials from the admin panel.
 export async function setCreatorCredentials(id, username, password_hash) {
@@ -576,6 +596,20 @@ export async function getBrief(id) {
   const r = await pool.query('SELECT * FROM briefs WHERE id = $1', [id]);
   return r.rows[0] || null;
 }
+/** A creator may submit against a brief only if it's still an open broadcast,
+ * or they were specifically assigned to it — prevents submitting against an
+ * arbitrary brief_id (someone else's, or one still in moderation). */
+export async function creatorCanSubmitToBrief(creatorId, briefId) {
+  const r = await pool.query(
+    `SELECT 1 FROM briefs b
+      WHERE b.id = $2 AND (
+        b.status = 'active'
+        OR EXISTS (SELECT 1 FROM assignments a WHERE a.brief_id = b.id AND a.creator_id = $1)
+      )`,
+    [creatorId, briefId]
+  );
+  return r.rowCount > 0;
+}
 export async function createBrief(b) {
   const r = await pool.query(
     `INSERT INTO briefs
@@ -655,11 +689,18 @@ export async function getBusinessByEmail(email) {
 }
 export async function getBusinessByToken(token) {
   if (!token) return null;
-  const r = await pool.query('SELECT * FROM business_accounts WHERE session_token = $1', [token]);
+  const r = await pool.query(
+    'SELECT * FROM business_accounts WHERE session_token = $1 AND session_expires_at > NOW()',
+    [token]
+  );
   return r.rows[0] || null;
 }
+// Session expires 30 days out — a leaked/stolen token no longer grants access forever.
 export async function setBusinessToken(id, token) {
-  await pool.query('UPDATE business_accounts SET session_token = $1 WHERE id = $2', [token, id]);
+  await pool.query(
+    "UPDATE business_accounts SET session_token = $1, session_expires_at = NOW() + INTERVAL '30 days' WHERE id = $2",
+    [token, id]
+  );
 }
 export async function listBusinessBriefs(businessId) {
   const r = await pool.query('SELECT * FROM briefs WHERE business_id = $1 ORDER BY id DESC', [businessId]);
@@ -745,8 +786,15 @@ export async function setSubmissionAi(id, { ai_score, ai_feedback, status }) {
   );
   return r.rows[0] || null;
 }
-export async function setSubmissionStatus(id, status) {
-  const r = await pool.query('UPDATE submissions SET status = $1 WHERE id = $2 RETURNING *', [status, id]);
+/** Operator sends a video to the business — guarded so an already-accepted or
+ * -rejected submission can't be re-queued (that re-opened it to a second
+ * business accept → a second payout). Returns null if the transition wasn't valid. */
+export async function sendSubmissionToBusiness(id) {
+  const r = await pool.query(
+    `UPDATE submissions SET status='sent_to_business'
+      WHERE id=$1 AND status NOT IN ('accepted','rejected') RETURNING *`,
+    [id]
+  );
   return r.rows[0] || null;
 }
 /* All published orders — a published brief is open to every creator (broadcast) */
@@ -778,12 +826,32 @@ export async function listBusinessSubmissions(businessId) {
   );
   return r.rows;
 }
-export async function getSubmissionBusiness(submissionId) {
+/**
+ * Business accepts a submission — one atomic, conditional UPDATE instead of a
+ * separate read-then-write, so two concurrent accept calls (a double-click, or
+ * the operator re-sending an already-accepted video) can't both succeed and
+ * each trigger their own payout. Only the request that actually flips
+ * sent_to_business → accepted gets a non-null row back.
+ */
+export async function acceptSubmissionByBusiness(submissionId, businessId) {
   const r = await pool.query(
-    `SELECT s.*, b.business_id FROM submissions s JOIN briefs b ON b.id = s.brief_id WHERE s.id = $1`,
-    [submissionId]
+    `UPDATE submissions SET status='accepted', reviewed_at=CURRENT_TIMESTAMP
+       FROM briefs
+      WHERE submissions.id = $1
+        AND submissions.brief_id = briefs.id
+        AND briefs.business_id = $2
+        AND submissions.status = 'sent_to_business'
+      RETURNING submissions.*`,
+    [submissionId, businessId]
   );
-  return r.rows[0] || null;
+  const sub = r.rows[0] || null;
+  if (sub) {
+    await logSubmissionDecision(sub, 'accepted', null);
+    await applyStreak(sub.creator_id);
+    await recomputeXp(sub.creator_id);
+    await handleReferralFirstAccept(sub.creator_id);
+  }
+  return sub;
 }
 /* ---- Gamification accrual (ТЗ §4) ---- */
 // XP = function of accumulated accepted views, plus any bonus XP earned outside
@@ -1043,8 +1111,11 @@ export async function listPayouts() {
   );
   return r.rows;
 }
-export async function createPayout(creatorId, amount) {
-  const r = await pool.query('INSERT INTO payouts (creator_id, amount) VALUES ($1,$2) RETURNING *', [creatorId, amount]);
+export async function createPayout(creatorId, amount, submissionId) {
+  const r = await pool.query(
+    'INSERT INTO payouts (creator_id, amount, submission_id) VALUES ($1,$2,$3) RETURNING *',
+    [creatorId, amount, submissionId || null]
+  );
   return r.rows[0];
 }
 export async function markPayoutPaid(id) {

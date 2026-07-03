@@ -23,7 +23,7 @@ const SUB_STATUS = {
 };
 
 export default function BusinessPortal() {
-  const [token, setToken] = useState(() => localStorage.getItem(KEY) || '');
+  const [token, setToken] = useState(() => sessionStorage.getItem(KEY) || '');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -40,7 +40,7 @@ export default function BusinessPortal() {
       if (!res.ok) throw new Error('unauth');
       setData(await res.json());
     } catch {
-      localStorage.removeItem(KEY);
+      sessionStorage.removeItem(KEY);
       setToken('');
       setData(null);
     } finally {
@@ -53,12 +53,12 @@ export default function BusinessPortal() {
   }, [token, data, loadMe]);
 
   const onAuthed = (tok, payload) => {
-    localStorage.setItem(KEY, tok);
+    sessionStorage.setItem(KEY, tok);
     setToken(tok);
     setData(payload);
   };
   const logout = () => {
-    localStorage.removeItem(KEY);
+    sessionStorage.removeItem(KEY);
     setToken('');
     setData(null);
   };
@@ -346,14 +346,29 @@ function BriefsView({ briefs, authFetch, reload }) {
 
 /* ---------------- Acceptance ---------------- */
 function ReviewView({ incoming, accepted, authFetch, reload }) {
+  const [acceptingId, setAcceptingId] = useState(null);
+  const [error, setError] = useState('');
   const accept = async (id) => {
-    await authFetch(`/api/business/submissions/${id}/accept`, { method: 'POST' });
-    reload();
+    if (acceptingId) return; // one in flight at a time — blocks a rapid double-click double-accept
+    setAcceptingId(id);
+    setError('');
+    try {
+      const res = await authFetch(`/api/business/submissions/${id}/accept`, { method: 'POST' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError((data.errors && data.errors[0]) || 'Не удалось принять работу');
+        return;
+      }
+      reload();
+    } finally {
+      setAcceptingId(null);
+    }
   };
   return (
     <>
       <section className="admin-block">
         <h2 className="admin-block__title">На приёмку ({incoming.length})</h2>
+        {error && <p className="creator-portal__err">{error}</p>}
         {incoming.length ? (
           <div className="bp-cards">
             {incoming.map((s) => (
@@ -368,7 +383,9 @@ function ReviewView({ incoming, accepted, authFetch, reload }) {
                 </p>
                 <div className="creator-portal__row-actions">
                   <a className="btn btn--ghost btn--sm" href={s.video_url} target="_blank" rel="noreferrer">Смотреть видео</a>
-                  <button className="btn btn--primary btn--sm" onClick={() => accept(s.id)}>Принять работу</button>
+                  <button className="btn btn--primary btn--sm" onClick={() => accept(s.id)} disabled={acceptingId === s.id}>
+                    {acceptingId === s.id ? 'Принимаю…' : 'Принять работу'}
+                  </button>
                 </div>
               </div>
             ))}
