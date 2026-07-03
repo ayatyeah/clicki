@@ -16,6 +16,10 @@ export function tiktokAuthorizeUrl(state) {
     response_type: 'code',
     redirect_uri: REDIRECT_URI,
     state,
+    // Always show the consent screen, even if this account already authorized
+    // us before — otherwise TikTok silently skips straight to the redirect on
+    // a returning session, which reads as broken (and hides what's granted).
+    disable_auto_auth: '1',
   });
   return `https://www.tiktok.com/v2/auth/authorize/?${params.toString()}`;
 }
