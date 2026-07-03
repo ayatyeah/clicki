@@ -313,6 +313,8 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
         )}
       </div>
 
+      {c.username && <ReferralLeadsCard authFetch={authFetch} />}
+
       <TikTokCard c={c} authFetch={authFetch} reload={reload} />
 
       <h2 className="creator-portal__h2">Заказы <span className="creator-portal__chip">доступны всем</span></h2>
@@ -375,6 +377,43 @@ const SUB_STATUS_RU = {
   rejected: 'отклонено',
   pending: 'ожидает',
 };
+
+/** Leads/clients the creator's own bio-page link has brought in. */
+function ReferralLeadsCard({ authFetch }) {
+  const [data, setData] = useState(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    (async () => {
+      const r = await (await authFetch('/api/creator/referrals')).json();
+      setData(r.referrals || null);
+    })();
+  }, [authFetch]);
+
+  if (!data) return null;
+  return (
+    <div className="creator-portal__card">
+      <div className="creator-portal__wallet-row">
+        <span>Лиды и клиенты по твоей ссылке</span>
+        <b>{data.total}</b>
+      </div>
+      <p className="creator-portal__muted">
+        Заявки от бизнеса, пришедшие по ссылке в шапку профиля. +{data.xpPerLead} XP за каждую.
+      </p>
+      {data.total > 0 && (
+        <button type="button" className="creator-portal__link" onClick={() => setOpen((o) => !o)}>
+          {open ? 'Скрыть список' : 'Показать список'}
+        </button>
+      )}
+      {open && (
+        <ul style={{ margin: 0, paddingLeft: 18 }}>
+          {data.leads.map((l) => (
+            <li key={l.id} className="creator-portal__muted">{l.at}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 /** Connect TikTok (Login Kit) so view counts sync automatically instead of an operator typing them in. */
 function TikTokCard({ c, authFetch, reload }) {

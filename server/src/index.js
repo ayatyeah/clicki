@@ -84,6 +84,8 @@ import {
   getVisitAnalytics,
   recordReferralLead,
   getReferralLeadStats,
+  getReferralLeadsForCreator,
+  getMonthlyReport,
   createBusiness,
   getBusinessByEmail,
   getBusinessByToken,
@@ -645,6 +647,8 @@ app.post(
     ok(res, { creator: publicCreator(await getCreator(req.creator.id)) });
   })
 );
+// A creator checks their own leads/clients brought in via their referral link.
+app.get('/api/creator/referrals', requireCreator, wrap(async (req, res) => ok(res, { referrals: await getReferralLeadsForCreator(req.creator.id) })));
 // TikTok redirects the browser back here after the creator authorizes (or declines). Public.
 app.get('/api/auth/tiktok/callback', async (req, res) => {
   const { code, state, error } = req.query || {};
@@ -877,6 +881,12 @@ async function syncAllTikTokViews() {
 app.get('/api/admin/analytics', requireAdmin, wrap(async (_req, res) => ok(res, { analytics: await getVisitAnalytics() })));
 // Leads brought in via a creator's public referral link (bio/profile), per creator.
 app.get('/api/admin/referrals', requireAdmin, wrap(async (_req, res) => ok(res, { referrals: await getReferralLeadStats() })));
+// Monthly leaderboard: leads/clients + views brought in per creator, for a given (or the current) month.
+app.get('/api/admin/reports/monthly', requireAdmin, wrap(async (req, res) => {
+  const year = req.query.year ? Number(req.query.year) : undefined;
+  const month = req.query.month ? Number(req.query.month) : undefined;
+  ok(res, { report: await getMonthlyReport(year, month) });
+}));
 // Decision journal: raw accept/reject/rework log — the foundation for future AI, not AI itself.
 app.get('/api/admin/decisions', requireAdmin, wrap(async (_req, res) => ok(res, { decisions: await listDecisionJournal() })));
 // Manually trigger a TikTok view-count sync across all connected creators.

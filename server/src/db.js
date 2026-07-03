@@ -923,6 +923,47 @@ export async function getReferralLeadStats() {
   );
   return { total: totalQ.rows[0].n, xpPerLead: REFERRAL_LEAD_XP, byCreator: byCreator.rows };
 }
+/** A creator's own referral performance — leads/clients brought in via their link, with dates. */
+export async function getReferralLeadsForCreator(creatorId) {
+  const r = await pool.query(
+    `SELECT id, funnel, to_char(created_at,'YYYY-MM-DD HH24:MI') AS at
+       FROM referral_leads WHERE creator_id=$1 ORDER BY created_at DESC`,
+    [creatorId]
+  );
+  return { total: r.rowCount, xpPerLead: REFERRAL_LEAD_XP, leads: r.rows };
+}
+
+/**
+ * Monthly report: for the given calendar month, per creator — how many leads/
+ * clients came in through their referral link, and how many views their
+ * accepted videos earned. Defaults to the current month.
+ */
+export async function getMonthlyReport(year, month) {
+  const y = year || new Date().getFullYear();
+  const m = month || new Date().getMonth() + 1;
+  const r = await pool.query(
+    `SELECT c.id, c.name, c.username,
+            COALESCE(rl.leads, 0)::int AS leads,
+            COALESCE(sv.views, 0)::int AS views
+       FROM creators c
+       LEFT JOIN (
+         SELECT creator_id, COUNT(*)::int AS leads
+           FROM referral_leads
+          WHERE date_trunc('month', created_at) = make_date($1, $2, 1)
+          GROUP BY creator_id
+       ) rl ON rl.creator_id = c.id
+       LEFT JOIN (
+         SELECT creator_id, SUM(views)::int AS views
+           FROM submissions
+          WHERE status = 'accepted' AND date_trunc('month', reviewed_at) = make_date($1, $2, 1)
+          GROUP BY creator_id
+       ) sv ON sv.creator_id = c.id
+      WHERE COALESCE(rl.leads, 0) > 0 OR COALESCE(sv.views, 0) > 0
+      ORDER BY views DESC, leads DESC`,
+    [y, m]
+  );
+  return { year: y, month: m, rows: r.rows };
+}
 
 export function levelFromXp(xp) {
   if (xp >= 15000) return 'Legend';
