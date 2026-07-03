@@ -85,20 +85,30 @@ export function initAppleEmoji() {
   if (started || typeof window === 'undefined') return;
   started = true;
 
-  const run = () => parseAppleEmoji(document.body);
-  run();
+  parseAppleEmoji(document.body);
 
+  // Re-parse only the subtree that actually changed, not the whole page —
+  // walking all of document.body on every mutation gets expensive once
+  // something on the page re-renders every few seconds (live dashboards),
+  // and shows up as a periodic stutter across the whole site (Aurora and
+  // this observer are both mounted globally, on every route).
   let scheduled = false;
+  const pending = new Set();
   const observer = new MutationObserver((mutations) => {
-    // Ignore our own <img.ae> insertions to avoid a re-parse loop.
-    const meaningful = mutations.some((mu) =>
-      [...mu.addedNodes].some((n) => !(n.nodeType === 1 && n.classList?.contains('ae')))
-    );
-    if (!meaningful || scheduled) return;
+    for (const mu of mutations) {
+      for (const n of mu.addedNodes) {
+        if (n.nodeType === 1 && n.classList?.contains('ae')) continue; // our own <img.ae>, avoid a re-parse loop
+        pending.add(n.nodeType === 1 ? n : n.parentElement || document.body);
+      }
+      if (mu.type === 'characterData') pending.add(mu.target.parentElement || document.body);
+    }
+    if (!pending.size || scheduled) return;
     scheduled = true;
     requestAnimationFrame(() => {
       scheduled = false;
-      run();
+      const targets = [...pending];
+      pending.clear();
+      targets.forEach((t) => parseAppleEmoji(t));
     });
   });
   observer.observe(document.body, { childList: true, subtree: true, characterData: true });

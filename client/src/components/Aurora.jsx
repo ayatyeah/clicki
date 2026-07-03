@@ -170,6 +170,13 @@ export default function Aurora(props) {
     ctn.appendChild(gl.canvas);
 
     let animateId = 0;
+    // Cache the parsed color stops and only recompute when they actually change
+    // — colorStops is a constant prop in practice, so re-parsing it into new
+    // Color objects and arrays on every single animation frame (60/s) was pure
+    // garbage-collector pressure, showing up as periodic stutter site-wide
+    // (this component renders globally, on every route).
+    let cachedStopsKey = null;
+    let cachedStopsRgb = colorStopsArray;
     const update = t => {
       animateId = requestAnimationFrame(update);
       const { time = t * 0.01, speed = 1.0 } = propsRef.current;
@@ -177,10 +184,15 @@ export default function Aurora(props) {
       program.uniforms.uAmplitude.value = propsRef.current.amplitude ?? 1.0;
       program.uniforms.uBlend.value = propsRef.current.blend ?? blend;
       const stops = propsRef.current.colorStops ?? colorStops;
-      program.uniforms.uColorStops.value = stops.map(hex => {
-        const c = new Color(hex);
-        return [c.r, c.g, c.b];
-      });
+      const stopsKey = stops.join(',');
+      if (stopsKey !== cachedStopsKey) {
+        cachedStopsKey = stopsKey;
+        cachedStopsRgb = stops.map(hex => {
+          const c = new Color(hex);
+          return [c.r, c.g, c.b];
+        });
+      }
+      program.uniforms.uColorStops.value = cachedStopsRgb;
       renderer.render({ scene: mesh });
     };
 
