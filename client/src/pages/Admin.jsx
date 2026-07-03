@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import { API_BASE } from '../lib/config.js';
 import Icon from '../components/Icon.jsx';
-import { AiAnalysisView, BriefsView, ReviewView, CreatorsView, PayoutsView, DecisionJournalView } from './AdminPlatform.jsx';
+import { AiAnalysisView, BriefsView, ReviewView, CreatorsView, PayoutsView, DecisionJournalView, BriefViewsView } from './AdminPlatform.jsx';
 
 const TOKEN_KEY = 'clicki_admin_token';
 const EMPTY = { showcase: [], devices: { iphone: { image: '' }, laptop: { image: '' } }, creatorVideo: '', hubVideo: '' };
@@ -242,6 +242,7 @@ export default function Admin() {
     { key: 'leads-business', label: 'Заявки Бизнеса', icon: 'inbox' },
     { key: 'leads-creators', label: 'Заявки Креаторов', icon: 'users' },
     { key: 'briefs', label: 'Брифы', icon: 'briefs' },
+    { key: 'brief-views', label: 'Просмотры по брифам', icon: 'eye' },
     { key: 'review', label: 'Проверка видео', icon: 'check' },
     { key: 'decisions', label: 'Дневник решений', icon: 'briefs' },
     { key: 'creators', label: 'Креаторы', icon: 'user' },
@@ -426,6 +427,7 @@ export default function Admin() {
           )}
 
           {view === 'briefs' && <BriefsView authFetch={authFetch} />}
+          {view === 'brief-views' && <BriefViewsView authFetch={authFetch} />}
           {view === 'review' && <ReviewView authFetch={authFetch} />}
           {view === 'decisions' && <DecisionJournalView authFetch={authFetch} />}
           {view === 'creators' && <CreatorsView authFetch={authFetch} />}
