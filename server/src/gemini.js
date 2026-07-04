@@ -8,8 +8,11 @@ let keyIndex = 0;
 
 export const geminiEnabled = KEYS.length > 0;
 
-/** Generate text from a prompt, rotating keys on quota/rate errors. */
-export async function geminiGenerate(prompt, { maxTokens = 700, temperature = 0.4 } = {}) {
+/** Generate text from a prompt, rotating keys on quota/rate errors.
+ *  Pass json: true to get back a raw JSON string (caller parses it) — used
+ *  for structured, multi-item output where a line-based format would be
+ *  fragile (e.g. several brief drafts at once). */
+export async function geminiGenerate(prompt, { maxTokens = 700, temperature = 0.4, json = false } = {}) {
   if (!geminiEnabled) throw new Error('Gemini keys not configured');
   let lastErr;
   // Try each key once (round-robin start), rotating on 429/403.
@@ -24,7 +27,15 @@ export async function geminiGenerate(prompt, { maxTokens = 700, temperature = 0.
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature, maxOutputTokens: maxTokens },
+            // thinkingBudget: 0 — gemini-2.5-flash otherwise spends most of
+            // maxOutputTokens on invisible "thinking" tokens, truncating the
+            // actual reply before it says anything useful.
+            generationConfig: {
+              temperature,
+              maxOutputTokens: maxTokens,
+              thinkingConfig: { thinkingBudget: 0 },
+              ...(json ? { responseMimeType: 'application/json' } : {}),
+            },
           }),
           // Don't let a slow/hung Gemini response hang the request that called this
           // (e.g. the public /api/assistant endpoint) — every caller here has a fallback.

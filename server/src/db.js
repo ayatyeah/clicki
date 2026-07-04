@@ -139,6 +139,8 @@ export async function initDb() {
     // AI auto-check result on submissions (pipeline step 7-9)
     await client.query('ALTER TABLE submissions ADD COLUMN IF NOT EXISTS ai_score INTEGER');
     await client.query('ALTER TABLE submissions ADD COLUMN IF NOT EXISTS ai_feedback TEXT');
+    // AI Coach note generated after the operator's final accept/reject decision.
+    await client.query('ALTER TABLE submissions ADD COLUMN IF NOT EXISTS coach_feedback TEXT');
     // Brief moderation: AI quality check + revision note (business → us → creators/back)
     await client.query('ALTER TABLE briefs ADD COLUMN IF NOT EXISTS ai_score INTEGER');
     await client.query('ALTER TABLE briefs ADD COLUMN IF NOT EXISTS ai_feedback TEXT');
@@ -417,6 +419,42 @@ export async function setSetting(key, value) {
   );
   return getSettings();
 }
+/**
+ * Predictive View Calculator — a business enters a budget (and optionally a
+ * platform) and gets a view estimate. Views-per-budget is exact (that's the
+ * pricing model: client_rate ₸ per real view), the actual estimation is how
+ * many videos/creators that budget realistically buys, using our own accepted
+ * submissions as the per-video yield — plain computation, no LLM involved.
+ */
+export async function getViewEstimate(budget, platform) {
+  const rates = await getRates();
+  const settings = await getSettings();
+  const minViews = settings.min_views_per_video || 2000;
+  const platforms = platform ? rates.filter((r) => r.platform === platform) : rates;
+  if (!platforms.length) return null;
+  const avgQ = await pool.query(
+    `SELECT platform, AVG(views)::float AS avg_views, COUNT(*)::int AS n
+       FROM submissions WHERE status='accepted' AND views >= $1
+       ${platform ? 'AND platform=$2' : ''}
+       GROUP BY platform`,
+    platform ? [minViews, platform] : [minViews]
+  );
+  const avgByPlatform = Object.fromEntries(avgQ.rows.map((r) => [r.platform, r]));
+  return platforms.map((r) => {
+    const stat = avgByPlatform[r.platform];
+    const avgViewsPerVideo = stat?.avg_views || minViews;
+    const totalViews = r.client_rate > 0 ? Math.round(budget / r.client_rate) : 0;
+    const estVideos = avgViewsPerVideo > 0 ? Math.max(1, Math.round(totalViews / avgViewsPerVideo)) : 0;
+    return {
+      platform: r.platform,
+      total_views: totalViews,
+      est_videos: estVideos,
+      avg_views_per_video: Math.round(avgViewsPerVideo),
+      basis: stat ? 'own' : 'baseline',
+      sample_size: stat?.n || 0,
+    };
+  });
+}
 
 /* ---------------- Platform: creators (ТЗ §3, §4) ---------------- */
 /** Blend trust, acceptance ratio and AI quality into a 1–5 star rating. */
@@ -644,11 +682,13 @@ export async function setBriefRevision(id, note) {
 export async function updateBusinessBrief(id, businessId, b) {
   const r = await pool.query(
     `UPDATE briefs SET title=$1, platform=$2, key_message=$3, req_hashtag=$4,
-        duration_max=$5, tone=$6, spec=$7, req_cta_link=$8, status='new', revision_note=NULL, ai_score=NULL, ai_feedback=NULL
-      WHERE id=$9 AND business_id=$10 AND status IN ('new','revision') RETURNING *`,
+        duration_max=$5, tone=$6, spec=$7, req_cta_link=$8, dos=$9, donts=$10,
+        status='new', revision_note=NULL, ai_score=NULL, ai_feedback=NULL
+      WHERE id=$11 AND business_id=$12 AND status IN ('new','revision') RETURNING *`,
     [
       b.title, b.platform || 'TikTok', b.key_message || null, b.req_hashtag || null,
-      b.duration_max || 90, b.tone || null, JSON.stringify(b.spec || {}), b.req_cta_link || null, id, businessId,
+      b.duration_max || 90, b.tone || null, JSON.stringify(b.spec || {}), b.req_cta_link || null,
+      b.dos || null, b.donts || null, id, businessId,
     ]
   );
   return r.rows[0] || null;
@@ -801,6 +841,45 @@ export async function sendSubmissionToBusiness(id) {
 export async function listActiveBriefs() {
   const r = await pool.query("SELECT * FROM briefs WHERE status = 'active' ORDER BY id DESC");
   return r.rows;
+}
+/**
+ * Smart Brief Matching — same broadcast list every creator can see, but sorted
+ * by what it's likely worth to THIS creator: their own average views on that
+ * platform (falling back to the platform-wide average, then a flat baseline)
+ * times the platform's payout rate. No LLM call — payout ranking has to be
+ * accurate, not generative.
+ */
+export async function listActiveBriefsRanked(creatorId) {
+  const briefs = await listActiveBriefs();
+  if (!briefs.length) return briefs;
+  const settings = await getSettings();
+  const minViews = settings.min_views_per_video || 2000;
+  const [ratesQ, ownAvgQ, marketAvgQ] = await Promise.all([
+    pool.query('SELECT platform, creator_rate FROM rates'),
+    pool.query(
+      `SELECT platform, AVG(views)::float AS avg_views FROM submissions
+        WHERE creator_id=$1 AND status='accepted' AND views >= $2
+        GROUP BY platform`,
+      [creatorId, minViews]
+    ),
+    pool.query(
+      `SELECT platform, AVG(views)::float AS avg_views FROM submissions
+        WHERE status='accepted' AND views >= $1
+        GROUP BY platform`,
+      [minViews]
+    ),
+  ]);
+  const rateByPlatform = Object.fromEntries(ratesQ.rows.map((r) => [r.platform, Number(r.creator_rate)]));
+  const ownAvgByPlatform = Object.fromEntries(ownAvgQ.rows.map((r) => [r.platform, r.avg_views]));
+  const marketAvgByPlatform = Object.fromEntries(marketAvgQ.rows.map((r) => [r.platform, r.avg_views]));
+  const ranked = briefs.map((b) => {
+    const rate = rateByPlatform[b.platform] || 0;
+    const own = ownAvgByPlatform[b.platform];
+    const avgViews = own || marketAvgByPlatform[b.platform] || minViews;
+    return { ...b, est_payout: Math.round(avgViews * rate), est_basis: own ? 'own' : 'market' };
+  });
+  ranked.sort((a, b) => b.est_payout - a.est_payout);
+  return ranked;
 }
 /* Published orders a creator hasn't taken yet (optional bookmark) */
 export async function listOpenBriefsForCreator(creatorId) {
@@ -1024,6 +1103,10 @@ export async function reviewSubmission(id, { status, reject_code, checklist }) {
   }
   return sub;
 }
+export async function setCoachFeedback(id, feedback) {
+  const r = await pool.query('UPDATE submissions SET coach_feedback = $1 WHERE id = $2 RETURNING *', [feedback, id]);
+  return r.rows[0] || null;
+}
 /** Manual view entry (ТЗ §9). final = 30-day window check done. Recomputes XP.
  *  Also appends a snapshot — the single `views` column only ever holds the
  *  latest reading, this is the history behind it (anti-fraud + growth chart). */
@@ -1083,6 +1166,117 @@ export async function getFraudSignals() {
   }
   return map;
 }
+/**
+ * Ops Copilot — specific, structured flags an operator should act on, not a
+ * vague narrative. Two rule-based checks (deterministic, no LLM — a threshold
+ * check needs to be correct every time, not "usually right"):
+ *  - a brief that's been live for a while but is still far from filling its slots
+ *  - a creator who used to submit regularly and has gone quiet
+ * Recommendations only — nothing here changes state, the operator decides.
+ */
+export async function getOpsFlags() {
+  const briefsQ = await pool.query(`
+    SELECT b.id, b.title, b.slots,
+           EXTRACT(DAY FROM NOW() - b.created_at)::int AS age_days,
+           COUNT(s.id) FILTER (WHERE s.status = 'accepted')::int AS accepted_count
+      FROM briefs b
+      LEFT JOIN submissions s ON s.brief_id = b.id
+     WHERE b.status = 'active'
+     GROUP BY b.id
+  `);
+  const behindBriefs = briefsQ.rows
+    .filter((b) => b.slots > 0 && b.age_days >= 4 && b.accepted_count < b.slots * 0.5)
+    .map((b) => ({
+      brief_id: b.id,
+      title: b.title,
+      reason: `${b.age_days} дн. в работе, принято ${b.accepted_count} из ${b.slots} слотов`,
+    }))
+    .sort((a, b) => b.brief_id - a.brief_id);
+
+  const churnQ = await pool.query(`
+    SELECT c.id, c.name, COUNT(s.id)::int AS total_submissions, MAX(s.created_at) AS last_submission_at
+      FROM creators c
+      JOIN submissions s ON s.creator_id = c.id
+     WHERE c.account_open = true AND c.status = 'active'
+     GROUP BY c.id
+  `);
+  const CHURN_DAYS = 14;
+  const churnRisk = churnQ.rows
+    .filter((c) => (Date.now() - new Date(c.last_submission_at).getTime()) / 86400000 >= CHURN_DAYS)
+    .map((c) => {
+      const daysInactive = Math.floor((Date.now() - new Date(c.last_submission_at).getTime()) / 86400000);
+      return {
+        creator_id: c.id,
+        name: c.name,
+        days_inactive: daysInactive,
+        reason: `Нет новых видео ${daysInactive} дн. (всего сдал ${c.total_submissions})`,
+      };
+    })
+    .sort((a, b) => b.days_inactive - a.days_inactive);
+
+  return { behindBriefs, churnRisk };
+}
+
+/**
+ * Campaign Autopilot — recommendations only, the operator clicks to act.
+ * "Launch and forget" without the "forget" part: suggests which creators fit
+ * an under-filled brief (by their own track record on that platform) and
+ * which briefs already met their slot quota and can be paused. Plain ranking
+ * SQL, no LLM — a creator-fit ranking has to be reproducible and explainable,
+ * not "creative".
+ */
+export async function getAutopilotRecommendations() {
+  const settings = await getSettings();
+  const minViews = settings.min_views_per_video || 2000;
+  const briefsQ = await pool.query(`
+    SELECT b.id, b.title, b.platform, b.slots,
+           COUNT(s.id) FILTER (WHERE s.status = 'accepted')::int AS accepted_count
+      FROM briefs b
+      LEFT JOIN submissions s ON s.brief_id = b.id
+     WHERE b.status = 'active' AND b.slots > 0
+     GROUP BY b.id
+  `);
+
+  const pauseSuggestions = briefsQ.rows
+    .filter((b) => b.accepted_count >= b.slots)
+    .map((b) => ({ brief_id: b.id, title: b.title, reason: `Слоты заполнены: принято ${b.accepted_count} из ${b.slots}` }))
+    .sort((a, b) => b.brief_id - a.brief_id);
+
+  const needMore = briefsQ.rows.filter((b) => b.accepted_count < b.slots);
+  const assignSuggestions = [];
+  for (const b of needMore) {
+    const candidatesQ = await pool.query(
+      `SELECT c.id, c.name, c.trust_score,
+              AVG(s.views) FILTER (WHERE s.platform = $2 AND s.status = 'accepted' AND s.views >= $3) AS avg_views_platform,
+              COUNT(s.id) FILTER (WHERE s.platform = $2 AND s.status = 'accepted')::int AS videos_on_platform
+         FROM creators c
+         LEFT JOIN submissions s ON s.creator_id = c.id
+        WHERE c.account_open = true AND c.status = 'active'
+          AND NOT EXISTS (SELECT 1 FROM assignments a WHERE a.brief_id = $1 AND a.creator_id = c.id)
+        GROUP BY c.id
+        ORDER BY videos_on_platform DESC, avg_views_platform DESC NULLS LAST, c.trust_score DESC
+        LIMIT 3`,
+      [b.id, b.platform, minViews]
+    );
+    if (candidatesQ.rows.length) {
+      assignSuggestions.push({
+        brief_id: b.id,
+        title: b.title,
+        platform: b.platform,
+        needed: b.slots - b.accepted_count,
+        candidates: candidatesQ.rows.map((c) => ({
+          creator_id: c.id,
+          name: c.name,
+          trust_score: c.trust_score,
+          avg_views_platform: c.avg_views_platform ? Math.round(c.avg_views_platform) : null,
+          videos_on_platform: c.videos_on_platform,
+        })),
+      });
+    }
+  }
+
+  return { assignSuggestions, pauseSuggestions };
+}
 /** View-count history for one submission (drill-down / debugging the signal above). */
 export async function getSubmissionViewHistory(id) {
   const r = await pool.query(
@@ -1127,6 +1321,51 @@ export async function getBusinessGrowth(businessId) {
   return series;
 }
 
+/**
+ * Printable campaign performance report (3.4 + 1.6): views, accepted videos,
+ * spend and cost-per-view per platform, for the business's whole campaign to
+ * date. Plain aggregation off the same accepted-submission data the business
+ * already sees in Analytics — no new tracking, just a print-friendly rollup.
+ */
+export async function getBusinessReport(businessId) {
+  const byPlatformQ = await pool.query(
+    `SELECT s.platform, COUNT(*)::int AS videos, COALESCE(SUM(s.views), 0)::bigint AS views,
+            COALESCE(SUM(s.views * r.client_rate), 0)::float AS spend
+       FROM submissions s
+       JOIN briefs b ON b.id = s.brief_id
+       JOIN rates r ON r.platform = s.platform
+      WHERE b.business_id = $1 AND s.status = 'accepted'
+      GROUP BY s.platform
+      ORDER BY spend DESC`,
+    [businessId]
+  );
+  const topQ = await pool.query(
+    `SELECT s.id, s.platform, s.views, s.video_url, b.title AS brief_title
+       FROM submissions s
+       JOIN briefs b ON b.id = s.brief_id
+      WHERE b.business_id = $1 AND s.status = 'accepted'
+      ORDER BY s.views DESC LIMIT 10`,
+    [businessId]
+  );
+  const byPlatform = byPlatformQ.rows.map((r) => ({
+    platform: r.platform,
+    videos: r.videos,
+    views: Number(r.views),
+    spend: Math.round(r.spend),
+    cost_per_1k_views: r.views > 0 ? Math.round((r.spend / r.views) * 1000) : 0,
+  }));
+  return {
+    generated_at: new Date().toISOString(),
+    totals: {
+      videos: byPlatform.reduce((a, p) => a + p.videos, 0),
+      views: byPlatform.reduce((a, p) => a + p.views, 0),
+      spend: byPlatform.reduce((a, p) => a + p.spend, 0),
+    },
+    byPlatform,
+    topVideos: topQ.rows,
+  };
+}
+
 /* ---------------- Platform: wallet & payouts (ТЗ §8) ---------------- */
 /** Creator earnings: accepted videos past the min-views threshold × creator_rate, minus paid out. */
 export async function getCreatorWallet(creatorId) {
@@ -1145,6 +1384,36 @@ export async function getCreatorWallet(creatorId) {
   const earned = earnedQ.rows[0].earned;
   const paid = paidQ.rows[0].paid;
   return { earned, paid, balance: earned - paid, payout_threshold: settings.payout_threshold || 10000 };
+}
+/**
+ * Earnings Forecaster — projects income from the creator's own recent pace,
+ * not a generic promise. Plain computation (not an LLM call): more reliable
+ * for numbers, and the underlying data pipeline is the real "AI" value here.
+ */
+export async function getEarningsForecast(creatorId) {
+  const settings = await getSettings();
+  const minViews = settings.min_views_per_video || 2000;
+  const recentQ = await pool.query(
+    `SELECT COALESCE(SUM(s.views * r.creator_rate), 0)::float AS earned30, COUNT(*)::int AS videos30
+       FROM submissions s JOIN rates r ON r.platform = s.platform
+      WHERE s.creator_id=$1 AND s.status='accepted' AND s.views >= $2
+        AND s.reviewed_at >= NOW() - INTERVAL '30 days'`,
+    [creatorId, minViews]
+  );
+  const avgQ = await pool.query(
+    `SELECT COALESCE(AVG(s.views * r.creator_rate), 0)::float AS avg_per_video
+       FROM submissions s JOIN rates r ON r.platform = s.platform
+      WHERE s.creator_id=$1 AND s.status='accepted' AND s.views >= $2`,
+    [creatorId, minViews]
+  );
+  const earned30 = recentQ.rows[0].earned30;
+  const avgPerVideo = avgQ.rows[0].avg_per_video;
+  return {
+    pace_30d: Math.round(earned30),
+    videos_30d: recentQ.rows[0].videos30,
+    avg_per_video: Math.round(avgPerVideo),
+    plus_2_briefs: Math.round(earned30 + avgPerVideo * 2),
+  };
 }
 export async function listPayouts() {
   const r = await pool.query(

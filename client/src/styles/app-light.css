@@ -201,6 +201,17 @@
 .bp-bar__val { text-align: right; font-size: 0.86rem; color: var(--fog); }
 @media (max-width: 520px) { .bp-bar { grid-template-columns: 90px 1fr 70px; gap: 8px; } }
 
+.bp-calc { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 10px; }
+.bp-calc input, .bp-calc select {
+  padding: 8px 12px;
+  border-radius: var(--r-icon);
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+.bp-calc input { max-width: 160px; }
+
 .bp-profile__row { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .bp-profile__row:last-of-type { border-bottom: 0; }
 .bp-profile__k { color: var(--fog); }
@@ -363,4 +374,14 @@
 .brief-detail dd { margin: 0; color: var(--ink); }
 @media (max-width: 520px) {
   .brief-detail__row { grid-template-columns: 1fr; gap: 3px; }
+}
+
+/* Printable campaign report: on screen it's a normal in-page section; on
+   print, everything else is hidden so only the report comes out of the printer. */
+.report-print__head { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+.report-print__brand { font-family: var(--font-display); font-weight: 700; font-size: 1.4rem; color: #7c3aed; }
+@media print {
+  body * { visibility: hidden; }
+  #printable-report, #printable-report * { visibility: visible; }
+  #printable-report { position: absolute; top: 0; left: 0; width: 100%; }
 }

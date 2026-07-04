@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import { API_BASE } from '../lib/config.js';
 import Icon from '../components/Icon.jsx';
-import { AiAnalysisView, BriefsView, ReviewView, CreatorsView, PayoutsView, DecisionJournalView, BriefViewsView, MonthlyReportView } from './AdminPlatform.jsx';
+import { AiAnalysisView, AutopilotView, BriefsView, ReviewView, CreatorsView, PayoutsView, DecisionJournalView, BriefViewsView, MonthlyReportView } from './AdminPlatform.jsx';
 
 const TOKEN_KEY = 'clicki_admin_token';
 const EMPTY = { showcase: [], devices: { iphone: { image: '' }, laptop: { image: '' } }, creatorVideo: '', hubVideo: '' };
@@ -237,6 +237,7 @@ export default function Admin() {
   const NAV = [
     { key: 'dashboard', label: 'Дашборд', icon: 'grid' },
     { key: 'ai', label: 'ИИ Аналитика', icon: 'sparkle' },
+    { key: 'autopilot', label: 'Автопилот кампаний', icon: 'sparkle' },
     { key: 'analytics', label: 'Аналитика', icon: 'chart' },
     { key: 'referrals', label: 'Рефералы', icon: 'link' },
     { key: 'leads-business', label: 'Заявки Бизнеса', icon: 'inbox' },
@@ -381,6 +382,7 @@ export default function Admin() {
           )}
 
           {view === 'ai' && <AiAnalysisView authFetch={authFetch} />}
+          {view === 'autopilot' && <AutopilotView authFetch={authFetch} />}
 
           {view === 'analytics' && (
             <AnalyticsView authFetch={authFetch} leads={leads} businessLeads={businessLeads} creatorLeads={creatorLeads} />

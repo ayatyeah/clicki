@@ -2,6 +2,8 @@ import 'dotenv/config';
 import os from 'node:os';
 import crypto from 'node:crypto';
 import path from 'node:path';
+import dns from 'node:dns/promises';
+import net from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { existsSync, createReadStream, statSync, mkdirSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
@@ -59,7 +61,12 @@ import {
   getSubmission,
   setSubmissionAi,
   sendSubmissionToBusiness,
-  listActiveBriefs,
+  listActiveBriefsRanked,
+  setCoachFeedback,
+  getViewEstimate,
+  getOpsFlags,
+  getBusinessReport,
+  getAutopilotRecommendations,
   listOpenBriefsForCreator,
   listBusinessSubmissions,
   acceptSubmissionByBusiness,
@@ -73,6 +80,7 @@ import {
   clearTikTokConnection,
   listCreatorsWithTikTok,
   getCreatorWallet,
+  getEarningsForecast,
   listPayouts,
   createPayout,
   markPayoutPaid,
@@ -512,9 +520,10 @@ async function creatorPayload(c) {
     creator: publicCreator(c),
     level: levelFromXp(c.xp),
     wallet: await getCreatorWallet(c.id),
+    forecast: await getEarningsForecast(c.id),
     briefs: await listAssignmentsForCreator(c.id),
     available: await listOpenBriefsForCreator(c.id),
-    openBriefs: await listActiveBriefs(),
+    openBriefs: await listActiveBriefsRanked(c.id),
     submissions: await listCreatorSubmissions(c.id),
   };
 }
@@ -592,6 +601,128 @@ async function aiAnalyzeBrief(brief) {
   }
 }
 
+// AI Coach: after the operator's final accept/reject decision, generate a short
+// personal note on what worked or what to fix next time. Fail-open (never blocks
+// the review) and non-fatal if Gemini is unavailable — the decision itself has
+// already been saved by the time this runs.
+async function aiCoachFeedback(sub, brief, decision) {
+  if (!geminiEnabled) return null;
+  const REJECT_LABELS = {
+    duration: 'не соответствует хронометражу',
+    hashtag: 'нет обязательного хэштега',
+    mention: 'нет упоминания бренда',
+    quality: 'низкое качество съёмки/монтажа',
+    rights: 'права на контент не подтверждены',
+    off_brief: 'не соответствует брифу',
+  };
+  const reason = decision.reject_code ? (REJECT_LABELS[decision.reject_code] || decision.reject_code) : null;
+  const prompt = decision.status === 'accepted'
+    ? `Ты — AI-коуч для блогеров-креаторов платформы CLICKI (UGC-реклама). Видео креатора приняли по брифу ` +
+      `«${brief?.title || sub.platform}» на платформе ${sub.platform}, набрано ${sub.views || 0} просмотров. ` +
+      `Дай короткую персональную обратную связь: 1) что сработало в этом видео, 2) один конкретный совет, как в следующий раз получить ещё больше просмотров. ` +
+      `2-3 предложения, по-русски, дружелюбно, без общих фраз.`
+    : `Ты — AI-коуч для блогеров-креаторов платформы CLICKI (UGC-реклама). Видео креатора по брифу ` +
+      `«${brief?.title || sub.platform}» отклонили. Причина: ${reason || 'не соответствует требованиям брифа'}. ` +
+      `Дай короткую конструктивную обратную связь: без сожалений, объясни в 1 фразе суть проблемы и дай 1-2 конкретных совета, что изменить в следующем видео, чтобы это приняли. ` +
+      `2-3 предложения, по-русски, по делу.`;
+  try {
+    const out = await geminiGenerate(prompt, { maxTokens: 220, temperature: 0.5 });
+    return out.trim().slice(0, 500) || null;
+  } catch (err) {
+    console.error('[ai-coach]', err.message);
+    return null;
+  }
+}
+
+// Refuses to fetch anything resolving to a private/internal address — a
+// business-supplied URL is untrusted input, and without this an attacker
+// could use the brief constructor to probe our internal network or cloud
+// metadata endpoint (classic SSRF) via a server-side fetch.
+function isPrivateIp(ip) {
+  const type = net.isIP(ip);
+  if (type === 4) {
+    const [a, b] = ip.split('.').map(Number);
+    return (
+      a === 10 || a === 127 || (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || a === 0
+    );
+  }
+  if (type === 6) {
+    const low = ip.toLowerCase();
+    return low === '::1' || low.startsWith('fc') || low.startsWith('fd') || low.startsWith('fe80') || low.startsWith('::ffff:127.');
+  }
+  return true; // not a valid IP → treat as unsafe
+}
+async function fetchPageText(url) {
+  try {
+    const u = new URL(url);
+    if (!/^https?:$/.test(u.protocol)) return null;
+    const { address } = await dns.lookup(u.hostname);
+    if (isPrivateIp(address)) return null;
+    const res = await fetch(u.toString(), {
+      signal: AbortSignal.timeout(6000),
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ClickiBriefBot/1.0)' },
+      redirect: 'manual', // don't silently follow redirects into a private address
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+    const text = html
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return text.slice(0, 3000) || null;
+  } catch {
+    return null;
+  }
+}
+
+// AI Brief Constructor 2.0: a business gives a URL and/or free-text description
+// of what they're promoting, and gets back 3 ready-to-use brief drafts (hook,
+// dos/don'ts, tone) plus a 1-100 clarity score for the input itself. JSON mode
+// (see gemini.js) because 3 structured drafts don't fit the simple
+// SCORE/FEEDBACK line format used elsewhere in this file.
+async function aiBriefConstructor({ url, description, platform }) {
+  if (!geminiEnabled) return null;
+  const pageText = url ? await fetchPageText(url) : null;
+  const context = [
+    description ? `Описание от бизнеса: ${description}` : '',
+    pageText ? `Текст с сайта/страницы: ${pageText}` : (url ? `(ссылка ${url} была недоступна для анализа)` : ''),
+  ].filter(Boolean).join('\n');
+  if (!context.trim()) return null;
+  const prompt =
+    `Ты — AI-конструктор брифов для UGC-платформы CLICKI (площадка: ${platform || 'TikTok'}). ` +
+    `На основе информации о продукте/бренде составь ровно 3 РАЗНЫХ варианта брифа для креатора-блогера. ` +
+    `Также оцени, насколько понятно и полно описан продукт, числом от 0 до 100 (score), и дай 1-2 совета, что стоит уточнить бизнесу (tips). ` +
+    `Информация:\n${context}\n\n` +
+    `Ответь строго в формате JSON без пояснений: ` +
+    `{"score": <число>, "tips": "<текст по-русски>", "drafts": [{"title": "<название>", "hook": "<первая фраза видео, цепляющая с первых секунд>", ` +
+    `"key_message": "<ключевое сообщение ролика>", "dos": "<что обязательно сделать, через ;>", "donts": "<чего избегать, через ;>", "tone": "<стиль/тон>"}]} ` +
+    `Массив drafts должен содержать ровно 3 элемента. Всё на русском языке.`;
+  try {
+    const out = await geminiGenerate(prompt, { maxTokens: 1200, temperature: 0.7, json: true });
+    const parsed = JSON.parse(out);
+    if (!Array.isArray(parsed.drafts) || !parsed.drafts.length) return null;
+    return {
+      score: Math.min(100, Math.max(0, Math.round(Number(parsed.score) || 0))),
+      tips: String(parsed.tips || '').slice(0, 500),
+      drafts: parsed.drafts.slice(0, 3).map((d) => ({
+        title: String(d.title || '').slice(0, 200),
+        hook: String(d.hook || '').slice(0, 300),
+        key_message: String(d.key_message || '').slice(0, 400),
+        dos: String(d.dos || '').slice(0, 400),
+        donts: String(d.donts || '').slice(0, 400),
+        tone: String(d.tone || '').slice(0, 120),
+      })),
+      used_url_text: !!pageText,
+    };
+  } catch (err) {
+    console.error('[ai-brief-constructor]', err.message);
+    return null;
+  }
+}
+
 // Public application to join the platform (ТЗ §3 step 1). Creates a PENDING
 // creator with no login — an operator reviews it and issues credentials from the
 // admin panel, after which the creator logs in.
@@ -649,6 +780,42 @@ app.post(
 );
 // A creator checks their own leads/clients brought in via their referral link.
 app.get('/api/creator/referrals', requireCreator, wrap(async (req, res) => ok(res, { referrals: await getReferralLeadsForCreator(req.creator.id) })));
+
+// AI Script & Teleprompter: generate a ready-to-read script from the brief's own
+// fields so a creator can film straight off the teleprompter instead of guessing
+// what to say. Not persisted — cheap enough (small output) to regenerate on demand.
+app.post('/api/creator/briefs/:id/script', requireCreator, wrap(async (req, res) => {
+  const briefId = Number(req.params.id);
+  if (!(await creatorCanSubmitToBrief(req.creator.id, briefId))) {
+    return res.status(403).json({ ok: false, errors: ['Бриф недоступен'] });
+  }
+  const brief = await getBrief(briefId);
+  if (!brief) return res.status(404).json({ ok: false, errors: ['Бриф не найден'] });
+  if (!geminiEnabled) return res.status(503).json({ ok: false, errors: ['AI временно недоступен'] });
+  const spec = brief.spec || {};
+  const reqs = [
+    `хронометраж ${brief.duration_min}-${brief.duration_max} сек`,
+    brief.req_hashtag ? `хэштег ${brief.req_hashtag}` : '',
+    spec.brand_spoken ? 'обязательно произнести название бренда' : '',
+    spec.logo_first5 ? 'бренд/логотип должен появиться в первые 5 секунд' : '',
+    spec.product_in_frame ? 'продукт должен быть в кадре' : '',
+    brief.tone ? `стиль: ${brief.tone}` : '',
+    brief.dos ? `сделать: ${brief.dos}` : '',
+    brief.donts ? `не делать: ${brief.donts}` : '',
+  ].filter(Boolean).join('; ');
+  const prompt =
+    `Ты — сценарист для UGC-блогеров платформы CLICKI. Напиши готовый сценарий для видео по брифу ` +
+    `«${brief.title}» на платформе ${brief.platform}. Ключевое сообщение: ${brief.key_message || 'нет'}. Требования: ${reqs || 'общие'}. ` +
+    `Раздели сценарий на короткие реплики/кадры (каждая — с новой строки, без нумерации и заголовков), разговорный стиль, ` +
+    `естественная речь от первого лица, без markdown-разметки. Уложись в хронометраж.`;
+  try {
+    const script = await geminiGenerate(prompt, { maxTokens: 500, temperature: 0.7 });
+    ok(res, { script: script.trim() });
+  } catch (err) {
+    console.error('[ai-script]', err.message);
+    res.status(503).json({ ok: false, errors: ['AI временно недоступен — попробуйте позже'] });
+  }
+}));
 // TikTok redirects the browser back here after the creator authorizes (or declines). Public.
 app.get('/api/auth/tiktok/callback', async (req, res) => {
   const { code, state, error } = req.query || {};
@@ -774,6 +941,17 @@ app.get('/api/business/me', requireBusiness, wrap(async (req, res) => ok(res, aw
 // Live growth dashboard: cumulative views across the business's whole campaign, by day.
 app.get('/api/business/growth', requireBusiness, wrap(async (req, res) => ok(res, { growth: await getBusinessGrowth(req.business.id) })));
 
+// Printable campaign performance report: views/videos/spend per platform to date.
+app.get('/api/business/report', requireBusiness, wrap(async (req, res) => ok(res, await getBusinessReport(req.business.id))));
+
+// Predictive View Calculator: budget -> estimated views/videos per platform, from our own historical yield.
+app.get('/api/business/view-calculator', requireBusiness, wrap(async (req, res) => {
+  const budget = Number(req.query.budget);
+  if (!budget || budget <= 0) return res.status(400).json({ ok: false, errors: ['Укажите бюджет'] });
+  const platform = req.query.platform || null;
+  ok(res, { estimate: await getViewEstimate(budget, platform) });
+}));
+
 // Pipeline step 12-13: business accepts the work → final accept + create payout.
 app.post(
   '/api/business/submissions/:id/accept',
@@ -801,6 +979,15 @@ app.post(
     ok(res, await businessPayload(req.business));
   })
 );
+
+// AI Brief Constructor 2.0: URL/description -> 3 brief drafts + input-clarity score.
+app.post('/api/business/brief-constructor', requireBusiness, wrap(async (req, res) => {
+  const { url, description, platform } = req.body || {};
+  if (!url && !description) return res.status(400).json({ ok: false, errors: ['Укажите ссылку или описание'] });
+  const result = await aiBriefConstructor({ url, description, platform });
+  if (!result) return res.status(503).json({ ok: false, errors: ['AI временно недоступен — попробуйте позже'] });
+  ok(res, result);
+}));
 
 // Business creates a brief (detailed creative spec). Lands as 'new' for operator review.
 app.post(
@@ -976,7 +1163,15 @@ app.get(
     res.send('﻿' + [head.join(','), ...rows].join('\n'));
   })
 );
-app.post('/api/admin/submissions/:id/review', requireAdmin, wrap(async (req, res) => ok(res, { submission: await reviewSubmission(Number(req.params.id), req.body || {}) })));
+app.post('/api/admin/submissions/:id/review', requireAdmin, wrap(async (req, res) => {
+  let submission = await reviewSubmission(Number(req.params.id), req.body || {});
+  if (submission && (submission.status === 'accepted' || submission.status === 'rejected')) {
+    const brief = submission.brief_id ? await getBrief(submission.brief_id) : null;
+    const note = await aiCoachFeedback(submission, brief, { status: submission.status, reject_code: submission.reject_code });
+    if (note) submission = await setCoachFeedback(submission.id, note);
+  }
+  ok(res, { submission });
+}));
 // Pipeline step 10-11: manager approves an AI-passed video and forwards it to the business.
 // Guarded (sendSubmissionToBusiness) so an already-accepted/rejected submission can't be re-queued.
 app.post('/api/admin/submissions/:id/send-to-business', requireAdmin, wrap(async (req, res) => {
@@ -1003,6 +1198,15 @@ app.post('/api/admin/payouts', requireAdmin, wrap(async (req, res) => {
   ok(res, { payout: await createPayout(creatorId, amount) });
 }));
 app.post('/api/admin/payouts/:id/paid', requireAdmin, wrap(async (req, res) => ok(res, { payout: await markPayoutPaid(Number(req.params.id)) })));
+
+// Ops Copilot: structured, rule-based flags (behind-schedule briefs, at-risk
+// creators) — separate from the free-text AI analysis below since these are
+// meant to be acted on directly, not read as prose.
+app.get('/api/admin/ops-flags', requireAdmin, wrap(async (req, res) => ok(res, await getOpsFlags())));
+
+// Campaign Autopilot: who to assign, what to pause — recommendations only, the
+// operator acts via the existing assign/status endpoints below.
+app.get('/api/admin/autopilot', requireAdmin, wrap(async (req, res) => ok(res, await getAutopilotRecommendations())));
 
 // AI analysis (Gemini) — cached in DB so we call the API only when data changed
 // or the operator forces a refresh (economical).

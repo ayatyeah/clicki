@@ -2,10 +2,17 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Seo from '../components/Seo.jsx';
 import Icon from '../components/Icon.jsx';
+import Assistant from '../components/Assistant.jsx';
 import { API_BASE } from '../lib/config.js';
 
 const KEY = 'clicki_business_token';
 const PLATFORMS = ['TikTok', 'Instagram Reels', 'YouTube Shorts', 'Threads', 'X (Twitter)'];
+const BUSINESS_QA = [
+  { q: 'Как быстро проверят мой бриф?', a: 'Оператор модерирует новые брифы обычно в течение рабочего дня — статус видно в разделе «Брифы».' },
+  { q: 'Как принять готовую работу?', a: 'В разделе «Приёмка» откройте видео по ссылке и нажмите «Принять работу» — после этого создателю автоматически начисляется оплата.' },
+  { q: 'Как оплачивается результат?', a: 'Вы платите за реальные органические просмотры по действующим тарифам платформы — без предоплаты за показы, которых не было.' },
+  { q: 'Можно исправить бриф после отправки?', a: 'Да, пока он не одобрен — просто отредактируйте его в разделе «Брифы», он снова уйдёт на модерацию.' },
+];
 const STYLES = [
   ['youth', 'Молодёжный'],
   ['premium', 'Премиальный'],
@@ -208,10 +215,11 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
           )}
           {view === 'briefs' && <BriefsView briefs={briefs} authFetch={authFetch} reload={reload} />}
           {view === 'review' && <ReviewView incoming={incoming} accepted={accepted} authFetch={authFetch} reload={reload} />}
-          {view === 'analytics' && <Analytics accepted={accepted} authFetch={authFetch} />}
+          {view === 'analytics' && <Analytics accepted={accepted} authFetch={authFetch} b={b} />}
           {view === 'profile' && <Profile b={b} onLogout={onLogout} />}
         </div>
       </div>
+      <Assistant accent="violet" qa={BUSINESS_QA} />
     </main>
   );
 }
@@ -295,8 +303,15 @@ const BRIEF_STATUS = {
 
 function BriefsView({ briefs, authFetch, reload }) {
   const [editing, setEditing] = useState(null);
+  const [draft, setDraft] = useState(null);
+  const useDraft = (d) => {
+    setEditing(null);
+    setDraft(d);
+  };
   return (
     <>
+      {!editing && <BriefConstructor authFetch={authFetch} onUseDraft={useDraft} />}
+
       <section className="admin-block">
         <h2 className="admin-block__title">{editing ? 'Редактировать бриф' : 'Создать бриф'}</h2>
         {editing && (
@@ -305,7 +320,7 @@ function BriefsView({ briefs, authFetch, reload }) {
             <button className="creator-portal__link" onClick={() => setEditing(null)}>Отмена</button>
           </p>
         )}
-        <BriefForm key={editing?.id || 'new'} authFetch={authFetch} reload={reload} brief={editing} onDone={() => setEditing(null)} />
+        <BriefForm key={editing?.id || draft?.title || 'new'} authFetch={authFetch} reload={reload} brief={editing} draft={draft} onDone={() => { setEditing(null); setDraft(null); }} />
       </section>
 
       <section className="admin-block">
@@ -341,6 +356,95 @@ function BriefsView({ briefs, authFetch, reload }) {
         )}
       </section>
     </>
+  );
+}
+
+/* ---------------- AI Brief Constructor 2.0 ---------------- */
+function BriefConstructor({ authFetch, onUseDraft }) {
+  const [open, setOpen] = useState(false);
+  const [url, setUrl] = useState('');
+  const [description, setDescription] = useState('');
+  const [platform, setPlatform] = useState('TikTok');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [result, setResult] = useState(null);
+
+  const generate = async () => {
+    if (!url.trim() && !description.trim()) return setError('Укажите ссылку на сайт/соцсеть или опишите продукт');
+    setError('');
+    setBusy(true);
+    setResult(null);
+    try {
+      const res = await authFetch('/api/business/brief-constructor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: url.trim() || undefined, description: description.trim() || undefined, platform }),
+      });
+      const j = await res.json();
+      if (!j.ok) return setError(j.errors?.[0] || 'Не удалось сгенерировать брифы');
+      setResult(j);
+    } catch {
+      setError('Не удалось сгенерировать — попробуйте позже');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const useDraft = (d) => {
+    onUseDraft({
+      title: d.title,
+      platform,
+      key_message: [d.hook, d.key_message].filter(Boolean).join(' — '),
+      dos: d.dos,
+      donts: d.donts,
+    });
+  };
+
+  return (
+    <section className="admin-block">
+      <div className="admin-panel__head">
+        <h2 className="admin-block__title">AI-конструктор брифа</h2>
+        <button className="btn btn--ghost btn--sm" onClick={() => setOpen((v) => !v)}>{open ? 'Свернуть' : 'Открыть'}</button>
+      </div>
+      {open && (
+        <>
+          <p className="muted-note" style={{ textAlign: 'left' }}>
+            Укажите ссылку на сайт/соцсеть продукта и/или опишите его словами — AI предложит 3 готовых варианта брифа.
+          </p>
+          <div className="bp-calc" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+            <input placeholder="https://ваш-сайт.kz или ссылка на профиль" value={url} onChange={(e) => setUrl(e.target.value)} />
+            <textarea rows={3} placeholder="Опишите продукт/акцию своими словами (необязательно, если указана ссылка)" value={description} onChange={(e) => setDescription(e.target.value)} />
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+              <select value={platform} onChange={(e) => setPlatform(e.target.value)}>
+                {PLATFORMS.map((p) => <option key={p}>{p}</option>)}
+              </select>
+              <button className="btn btn--primary btn--sm" onClick={generate} disabled={busy}>{busy ? 'Генерирую…' : 'Сгенерировать 3 варианта'}</button>
+            </div>
+          </div>
+          {error && <p className="creator-portal__err">{error}</p>}
+          {result && (
+            <>
+              <p className="creator-portal__muted">
+                Понятность входных данных: <b>{result.score}/100</b>{result.tips ? ` — ${result.tips}` : ''}
+              </p>
+              <div className="bp-cards">
+                {result.drafts.map((d, i) => (
+                  <div key={i} className="bp-card">
+                    <div className="bp-card__head"><b>{d.title || `Вариант ${i + 1}`}</b></div>
+                    {d.hook && <p className="creator-portal__muted"><i>«{d.hook}»</i></p>}
+                    {d.key_message && <p className="creator-portal__muted">{d.key_message}</p>}
+                    {d.tone && <p className="creator-portal__muted">Тон: {d.tone}</p>}
+                    {d.dos && <p className="creator-portal__muted">✓ {d.dos}</p>}
+                    {d.donts && <p className="creator-portal__muted">✗ {d.donts}</p>}
+                    <button className="btn btn--ghost btn--sm" style={{ marginTop: 8 }} onClick={() => useDraft(d)}>Использовать этот вариант</button>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </section>
   );
 }
 
@@ -422,7 +526,7 @@ function ReviewView({ incoming, accepted, authFetch, reload }) {
 }
 
 /* ---------------- Analytics ---------------- */
-function Analytics({ accepted, authFetch }) {
+function Analytics({ accepted, authFetch, b }) {
   const total = sumViews(accepted);
   const byPlatform = {};
   for (const s of accepted) byPlatform[s.platform] = (byPlatform[s.platform] || 0) + (s.views || 0);
@@ -435,6 +539,10 @@ function Analytics({ accepted, authFetch }) {
         <h2 className="admin-block__title">Аналитика <span className="an-live">● live</span></h2>
       </div>
       <GrowthChart authFetch={authFetch} />
+
+      <ViewCalculator authFetch={authFetch} />
+
+      <PrintableReport authFetch={authFetch} business={b} />
 
       <h3 className="admin-block__title admin-subhead">Сводка</h3>
       <div className="admin-stats">
@@ -478,6 +586,157 @@ function Analytics({ accepted, authFetch }) {
         <p className="muted-note" style={{ textAlign: 'left' }}>Пока нет данных.</p>
       )}
     </section>
+  );
+}
+
+/* ---------------- Printable campaign performance report ---------------- */
+function PrintableReport({ authFetch, business }) {
+  const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const r = await (await authFetch('/api/business/report')).json();
+      if (r.ok !== false) setReport(r);
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => { load(); }, []); // eslint-disable-line
+
+  return (
+    <>
+      <h3 className="admin-block__title admin-subhead">Отчёт по кампании</h3>
+      <p className="muted-note" style={{ textAlign: 'left' }}>Сводка по всем принятым работам — просмотры, расходы и стоимость охвата по платформам.</p>
+      <button className="btn btn--ghost btn--sm" onClick={() => window.print()} disabled={loading || !report}>
+        🖨 Печать / сохранить PDF
+      </button>
+
+      {report && (
+        <div id="printable-report" className="report-print">
+          <div className="report-print__head">
+            <div className="report-print__brand">CLICKI</div>
+            <div>
+              <h2>Отчёт по кампании — {business?.company || business?.name}</h2>
+              <p className="creator-portal__muted">Сформирован {new Date(report.generated_at).toLocaleString('ru-RU')}</p>
+            </div>
+          </div>
+
+          <div className="admin-stats">
+            <Stat label="Принято видео" value={report.totals.videos} />
+            <Stat label="Суммарный охват" value={report.totals.views.toLocaleString('ru-RU')} />
+            <Stat label="Потрачено" value={`${report.totals.spend.toLocaleString('ru-RU')} ₸`} />
+          </div>
+
+          <table className="admin-table" style={{ marginTop: 16 }}>
+            <thead><tr><th>Платформа</th><th>Видео</th><th>Просмотры</th><th>Расход</th><th>Цена за 1000 просм.</th></tr></thead>
+            <tbody>
+              {report.byPlatform.map((p) => (
+                <tr key={p.platform}>
+                  <td data-label="Платформа">{p.platform}</td>
+                  <td data-label="Видео">{p.videos}</td>
+                  <td data-label="Просмотры">{p.views.toLocaleString('ru-RU')}</td>
+                  <td data-label="Расход">{p.spend.toLocaleString('ru-RU')} ₸</td>
+                  <td data-label="Цена за 1000 просм.">{p.cost_per_1k_views.toLocaleString('ru-RU')} ₸</td>
+                </tr>
+              ))}
+              {!report.byPlatform.length && <tr><td colSpan={5} className="admin-table__empty">Пока нет принятых работ</td></tr>}
+            </tbody>
+          </table>
+
+          {report.topVideos.length > 0 && (
+            <>
+              <h3 className="admin-block__title admin-subhead">Топ видео</h3>
+              <table className="admin-table">
+                <thead><tr><th>Бриф</th><th>Платформа</th><th>Просмотры</th></tr></thead>
+                <tbody>
+                  {report.topVideos.map((v) => (
+                    <tr key={v.id}>
+                      <td data-label="Бриф">{v.brief_title || 'видео'}</td>
+                      <td data-label="Платформа">{v.platform}</td>
+                      <td data-label="Просмотры">{v.views.toLocaleString('ru-RU')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ---------------- Predictive View Calculator ---------------- */
+function ViewCalculator({ authFetch }) {
+  const [budget, setBudget] = useState('');
+  const [platform, setPlatform] = useState('');
+  const [estimate, setEstimate] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const calc = async () => {
+    const b = Number(budget);
+    if (!b || b <= 0) return setError('Введите бюджет');
+    setError('');
+    setBusy(true);
+    try {
+      const params = new URLSearchParams({ budget: String(b) });
+      if (platform) params.set('platform', platform);
+      const res = await authFetch(`/api/business/view-calculator?${params}`);
+      const j = await res.json();
+      if (!j.ok) return setError(j.errors?.[0] || 'Не удалось посчитать');
+      setEstimate(j.estimate || []);
+    } catch {
+      setError('Не удалось посчитать — попробуйте позже');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <h3 className="admin-block__title admin-subhead">Калькулятор охвата</h3>
+      <p className="muted-note" style={{ textAlign: 'left' }}>Введите бюджет — получите оценку охвата и числа видео на основе реальной статистики CLICKI.</p>
+      <div className="bp-calc">
+        <input
+          type="number"
+          placeholder="Бюджет, ₸"
+          value={budget}
+          onChange={(e) => setBudget(e.target.value)}
+        />
+        <select value={platform} onChange={(e) => setPlatform(e.target.value)}>
+          <option value="">Все платформы</option>
+          {PLATFORMS.map((p) => <option key={p} value={p}>{p}</option>)}
+        </select>
+        <button className="btn btn--primary btn--sm" onClick={calc} disabled={busy}>{busy ? 'Считаю…' : 'Рассчитать'}</button>
+      </div>
+      {error && <p className="creator-portal__err">{error}</p>}
+      {estimate && (
+        estimate.length ? (
+          <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead><tr><th>Платформа</th><th>Охват</th><th>Видео</th><th>Ср. охват/видео</th></tr></thead>
+              <tbody>
+                {estimate.map((e) => (
+                  <tr key={e.platform}>
+                    <td data-label="Платформа">{e.platform}</td>
+                    <td data-label="Охват">{e.total_views.toLocaleString('ru-RU')}</td>
+                    <td data-label="Видео">~{e.est_videos}</td>
+                    <td className="muted-cell" data-label="Ср. охват/видео">
+                      {e.avg_views_per_video.toLocaleString('ru-RU')} {e.basis === 'baseline' && '(ориентир)'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="muted-note" style={{ textAlign: 'left' }}>Нет тарифа для расчёта.</p>
+        )
+      )}
+    </>
   );
 }
 
@@ -621,6 +880,8 @@ const EMPTY_BRIEF = {
   title: '',
   platform: 'TikTok',
   key_message: '',
+  dos: '',
+  donts: '',
   req_hashtag: '',
   req_cta_link: '',
   orientation: 'vertical',
@@ -632,21 +893,24 @@ const EMPTY_BRIEF = {
   style: 'youth',
 };
 
-function BriefForm({ authFetch, reload, brief = null, onDone }) {
-  const initial = brief
+function BriefForm({ authFetch, reload, brief = null, draft = null, onDone }) {
+  const src = brief || draft;
+  const initial = src
     ? {
-        title: brief.title || '',
-        platform: brief.platform || 'TikTok',
-        key_message: brief.key_message || '',
-        req_hashtag: brief.req_hashtag || '',
-        req_cta_link: brief.req_cta_link || '',
-        orientation: brief.spec?.orientation || 'vertical',
-        max_duration: brief.spec?.max_duration || brief.duration_max || 25,
-        cta_required: brief.spec?.cta_required ?? true,
-        logo_first5: brief.spec?.logo_first5 ?? true,
-        brand_spoken: brief.spec?.brand_spoken ?? false,
-        product_in_frame: brief.spec?.product_in_frame ?? true,
-        style: brief.spec?.style || 'youth',
+        title: src.title || '',
+        platform: src.platform || 'TikTok',
+        key_message: src.key_message || '',
+        dos: src.dos || '',
+        donts: src.donts || '',
+        req_hashtag: src.req_hashtag || '',
+        req_cta_link: src.req_cta_link || '',
+        orientation: src.spec?.orientation || 'vertical',
+        max_duration: src.spec?.max_duration || src.duration_max || 25,
+        cta_required: src.spec?.cta_required ?? true,
+        logo_first5: src.spec?.logo_first5 ?? true,
+        brand_spoken: src.spec?.brand_spoken ?? false,
+        product_in_frame: src.spec?.product_in_frame ?? true,
+        style: src.spec?.style || 'youth',
       }
     : EMPTY_BRIEF;
   const [f, setF] = useState(initial);
@@ -666,6 +930,8 @@ function BriefForm({ authFetch, reload, brief = null, onDone }) {
         title: f.title,
         platform: f.platform,
         key_message: f.key_message,
+        dos: f.dos,
+        donts: f.donts,
         req_hashtag: f.req_hashtag,
         req_cta_link: f.req_cta_link,
         duration_max: Number(f.max_duration) || 25,
@@ -765,6 +1031,16 @@ function BriefForm({ authFetch, reload, brief = null, onDone }) {
       <div className="creator-portal__q">
         <div className="creator-portal__q-title">Хэштег (по желанию)</div>
         <input placeholder="#бренд" value={f.req_hashtag} onChange={(e) => set('req_hashtag', e.target.value)} />
+      </div>
+
+      <div className="creator-portal__q">
+        <div className="creator-portal__q-title">Что делать (по желанию)</div>
+        <textarea rows={2} placeholder="Например: показать продукт крупным планом" value={f.dos} onChange={(e) => set('dos', e.target.value)} />
+      </div>
+
+      <div className="creator-portal__q">
+        <div className="creator-portal__q-title">Чего не делать (по желанию)</div>
+        <textarea rows={2} placeholder="Например: не упоминать конкурентов" value={f.donts} onChange={(e) => set('donts', e.target.value)} />
       </div>
 
       {error && <p className="creator-portal__err">{error}</p>}

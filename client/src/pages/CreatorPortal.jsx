@@ -1,10 +1,17 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Seo from '../components/Seo.jsx';
+import Assistant from '../components/Assistant.jsx';
 import { API_BASE, SITE_URL } from '../lib/config.js';
 
 const KEY = 'clicki_creator_token';
 const PLATFORMS = ['TikTok', 'Instagram Reels', 'YouTube Shorts', 'Threads', 'X (Twitter)'];
+const CREATOR_QA = [
+  { q: 'Когда придут деньги?', a: 'Как только баланс в кошельке достигнет порога выплаты, оператор оформит перевод на Kaspi — статус видно во вкладке «Кошелёк».' },
+  { q: 'Почему видео не засчитали?', a: 'Причина отклонения указана рядом со статусом видео — обычно это несоответствие хронометражу, отсутствие хэштега/упоминания или низкое качество.' },
+  { q: 'Как получить больше брифов?', a: 'Открытые заказы видны в разделе «Заказы» — берите любой активный, оператор также может назначить бриф лично.' },
+  { q: 'Что даёт реферальная ссылка?', a: '+500 XP за друга, ставшего креатором, и +30 XP за каждую заявку бизнеса, пришедшую по ссылке в шапке профиля.' },
+];
 
 // Onboarding test (ТЗ §3 step 2) — filters "не по брифу" disputes before filming.
 const QUIZ = [
@@ -79,6 +86,7 @@ function Shell({ children }) {
         </div>
         {children}
       </div>
+      <Assistant accent="violet" qa={CREATOR_QA} />
     </main>
   );
 }
@@ -281,6 +289,8 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
         <p className="creator-portal__muted">До выплаты {threshold.toLocaleString('ru-RU')} ₸ осталось {Math.max(0, Math.round(threshold - wallet.balance)).toLocaleString('ru-RU')} ₸</p>
       </div>
 
+      {data.forecast && <EarningsForecastCard forecast={data.forecast} />}
+
       <div className="creator-portal__card">
         <div className="creator-portal__wallet-row"><span>Пригласи друга</span></div>
         <p className="creator-portal__muted">
@@ -319,7 +329,7 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
 
       <h2 className="creator-portal__h2">Заказы <span className="creator-portal__chip">доступны всем</span></h2>
       {openBriefs.length ? (
-        openBriefs.map((b) => <BriefCard key={b.id} b={b} />)
+        openBriefs.map((b, i) => <BriefCard key={b.id} b={b} top={i === 0 && b.est_payout > 0} authFetch={authFetch} />)
       ) : (
         <p className="creator-portal__muted">Открытых заказов пока нет — менеджер скоро опубликует.</p>
       )}
@@ -327,7 +337,7 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
       {briefs.length > 0 && (
         <>
           <h2 className="creator-portal__h2">Назначенные тебе</h2>
-          {briefs.map((b) => <BriefCard key={b.id} b={b} />)}
+          {briefs.map((b) => <BriefCard key={b.id} b={b} authFetch={authFetch} />)}
         </>
       )}
 
@@ -347,6 +357,9 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
               </div>
               {s.status === 'rework' && s.ai_feedback && (
                 <p className="creator-portal__rework">↻ На доработку: {s.ai_feedback}</p>
+              )}
+              {(s.status === 'accepted' || s.status === 'rejected') && s.coach_feedback && (
+                <p className="creator-portal__muted">🎯 AI-коуч: {s.coach_feedback}</p>
               )}
             </div>
           ))}
@@ -377,6 +390,30 @@ const SUB_STATUS_RU = {
   rejected: 'отклонено',
   pending: 'ожидает',
 };
+
+/** Earnings Forecaster — projects income from the creator's own recent pace. */
+function EarningsForecastCard({ forecast }) {
+  if (!forecast.videos_30d) {
+    return (
+      <div className="creator-portal__card">
+        <div className="creator-portal__wallet-row"><span>Прогноз заработка</span></div>
+        <p className="creator-portal__muted">Прогноз появится после первого принятого видео за последние 30 дней.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="creator-portal__card">
+      <div className="creator-portal__wallet-row"><span>Прогноз заработка</span></div>
+      <p className="creator-portal__muted">
+        В том же темпе (за 30 дней — {forecast.videos_30d} {forecast.videos_30d === 1 ? 'видео' : 'видео'}): примерно{' '}
+        <b>{forecast.pace_30d.toLocaleString('ru-RU')} ₸/мес</b>.
+        {forecast.avg_per_video > 0 && (
+          <> Возьми ещё 2 брифа — примерно <b>{forecast.plus_2_briefs.toLocaleString('ru-RU')} ₸</b>.</>
+        )}
+      </p>
+    </div>
+  );
+}
 
 /** Leads/clients the creator's own bio-page link has brought in. */
 function ReferralLeadsCard({ authFetch }) {
@@ -467,8 +504,9 @@ function TikTokCard({ c, authFetch, reload }) {
   );
 }
 
-function BriefCard({ b }) {
+function BriefCard({ b, top = false, authFetch = null }) {
   const [open, setOpen] = useState(false);
+  const [prompterOpen, setPrompterOpen] = useState(false);
   const spec = b.spec || {};
   const rows = [];
   if (b.goal) rows.push(['Цель', b.goal]);
@@ -493,7 +531,14 @@ function BriefCard({ b }) {
       <div className="creator-portal__brief-head">
         <b>{b.title}</b>
         <span className="pf-badge">{b.platform}</span>
+        {top && <span className="pf-badge pf-badge--accent">Топ по выгоде</span>}
       </div>
+      {b.est_payout > 0 && (
+        <p className="creator-portal__muted">
+          Ожидаемо ~<b>{b.est_payout.toLocaleString('ru-RU')} ₸</b> за видео
+          {b.est_basis === 'own' ? ' (по твоему среднему охвату)' : ' (по среднему охвату на платформе)'}
+        </p>
+      )}
       {b.key_message && <p className="creator-portal__muted">{b.key_message}</p>}
       {open && (
         <dl className="brief-detail">
@@ -505,9 +550,90 @@ function BriefCard({ b }) {
           ))}
         </dl>
       )}
-      <button type="button" className="creator-portal__link" onClick={() => setOpen((o) => !o)}>
-        {open ? 'Свернуть ↑' : 'Читать весь бриф →'}
-      </button>
+      <div className="creator-portal__brief-actions">
+        <button type="button" className="creator-portal__link" onClick={() => setOpen((o) => !o)}>
+          {open ? 'Свернуть ↑' : 'Читать весь бриф →'}
+        </button>
+        {authFetch && (
+          <button type="button" className="creator-portal__link" onClick={() => setPrompterOpen(true)}>
+            🎬 Сценарий и суфлёр
+          </button>
+        )}
+      </div>
+      {prompterOpen && <TeleprompterModal briefId={b.id} authFetch={authFetch} onClose={() => setPrompterOpen(false)} />}
+    </div>
+  );
+}
+
+/** AI Script & Teleprompter — generates a script from the brief, then scrolls
+ * it at an adjustable speed so a creator can read it straight off-camera. */
+function TeleprompterModal({ briefId, authFetch, onClose }) {
+  const [script, setScript] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [playing, setPlaying] = useState(false);
+  const [fontSize, setFontSize] = useState(28);
+  const [speed, setSpeed] = useState(40); // px/sec
+  const scrollRef = useRef(null);
+  const rafRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const res = await authFetch(`/api/creator/briefs/${briefId}/script`, { method: 'POST' });
+        const j = await res.json();
+        if (cancelled) return;
+        if (!j.ok) setError(j.errors?.[0] || 'Не удалось сгенерировать сценарий');
+        else setScript(j.script || '');
+      } catch {
+        if (!cancelled) setError('Не удалось сгенерировать — попробуйте позже');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [briefId, authFetch]);
+
+  useEffect(() => {
+    if (!playing) {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      return;
+    }
+    let last = performance.now();
+    const step = (now) => {
+      const dt = (now - last) / 1000;
+      last = now;
+      if (scrollRef.current) scrollRef.current.scrollTop += speed * dt;
+      rafRef.current = requestAnimationFrame(step);
+    };
+    rafRef.current = requestAnimationFrame(step);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, [playing, speed]);
+
+  return (
+    <div className="teleprompter__backdrop" onClick={onClose}>
+      <div className="teleprompter" onClick={(e) => e.stopPropagation()}>
+        <div className="teleprompter__bar">
+          <button className="btn btn--ghost btn--sm" onClick={() => setFontSize((s) => Math.max(16, s - 2))}>A-</button>
+          <button className="btn btn--ghost btn--sm" onClick={() => setFontSize((s) => Math.min(48, s + 2))}>A+</button>
+          <button className="btn btn--ghost btn--sm" onClick={() => setSpeed((s) => Math.max(10, s - 10))}>Медленнее</button>
+          <button className="btn btn--ghost btn--sm" onClick={() => setSpeed((s) => Math.min(200, s + 10))}>Быстрее</button>
+          <button className="btn btn--primary btn--sm" onClick={() => setPlaying((p) => !p)} disabled={loading || !!error}>
+            {playing ? '⏸ Пауза' : '▶ Старт'}
+          </button>
+          <button className="btn btn--ghost btn--sm" onClick={onClose}>Закрыть ✕</button>
+        </div>
+        <div className="teleprompter__scroll" ref={scrollRef}>
+          {loading && <p className="creator-portal__muted">Генерирую сценарий…</p>}
+          {error && <p className="creator-portal__err">{error}</p>}
+          {!loading && !error && (
+            <p className="teleprompter__text" style={{ fontSize: `${fontSize}px` }}>{script}</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
