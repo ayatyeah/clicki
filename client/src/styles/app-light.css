@@ -208,16 +208,20 @@
 .app-light .admin-sidebar { background: #fff; }
 .app-light .admin-backdrop { background: rgba(20, 16, 38, 0.4); }
 
-/* Business cabinet — grouped brief-form blocks */
+/* Business cabinet — grouped brief-form blocks. Fields tile into a responsive
+   grid so the block fills the width instead of stacking into one tall column. */
 .bp-block {
   border: 1px solid var(--line);
   border-radius: var(--r-card);
   padding: 16px;
   display: grid;
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 14px 18px;
+  align-items: start;
   background: #fbfaff;
 }
 .bp-block__title {
+  grid-column: 1 / -1;
   font-family: var(--font-mono);
   font-size: 0.74rem;
   letter-spacing: 0.08em;
@@ -226,6 +230,25 @@
 }
 .bp-form .creator-portal__q-title { font-size: 0.95rem; }
 .bp-form input[type='number'] { max-width: 140px; }
+
+/* Whole brief form balances into two columns on wider screens so it fills the
+   page width and stays short — much easier to see/screenshot at a glance. */
+@media (min-width: 760px) {
+  .app-light .bp-form {
+    display: block;
+    column-count: 2;
+    column-gap: 18px;
+  }
+  .app-light .bp-form > * {
+    break-inside: avoid;
+    margin-bottom: 12px;
+  }
+  .app-light .bp-form > .creator-portal__q:first-child,
+  .app-light .bp-form > .creator-portal__err,
+  .app-light .bp-form > .btn {
+    column-span: all;
+  }
+}
 
 /* Business dashboard widgets */
 .bp-stat__hint { margin-top: 4px; font-size: 0.78rem; color: var(--fog); }
