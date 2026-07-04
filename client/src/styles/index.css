@@ -321,21 +321,62 @@ img.ae {
 }
 
 /* ---------- Header / navbar ---------- */
+/* Floating glass pill — the one navbar shape used everywhere (Hub, funnels,
+   Contacts), regardless of whether the page itself is light or dark: the
+   pill is always dark glass, so its own text colors below are unconditional,
+   not scoped to .page-light. */
 .site-header {
   position: sticky;
   top: 0;
-  z-index: 40;
-  background: rgba(14, 11, 32, 0.72);
-  backdrop-filter: blur(14px);
-  border-bottom: 1px solid var(--line);
+  z-index: 50;
+  background: transparent;
+  padding-top: 16px;
 }
 .site-header__inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  height: 72px;
+  height: auto;
+  padding: 10px 14px 10px 22px;
+  background: rgba(20, 16, 38, 0.55);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--r-pill);
+  box-shadow: 0 18px 40px -26px rgba(20, 16, 38, 0.6);
 }
+.site-header .logo__word { color: #fff; }
+.site-header .site-nav__link { color: rgba(255, 255, 255, 0.74); }
+.site-header .site-nav__link:hover { color: #fff; }
+.site-header .site-header__login { color: rgba(255, 255, 255, 0.74); }
+.site-header .site-header__login:hover { color: #fff; }
+.site-header .lang-switch,
+.site-header .lang-switch button { color: rgba(255, 255, 255, 0.72); }
+.site-header .lang-switch button.is-active { color: #c4b5fd; }
+.site-header .site-nav__actions .btn--ghost {
+  background: var(--signal, #6d28d9);
+  color: #fff;
+  border-color: transparent;
+}
+.site-header__login--cta {
+  display: inline-flex;
+  align-items: center;
+  padding: 9px 20px;
+  border-radius: var(--r-pill);
+  background: var(--grad-brand);
+  color: #fff !important;
+  font-weight: 600;
+  font-size: 0.92rem;
+  white-space: nowrap;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+.site-header__login--cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px -12px rgba(124, 58, 237, 0.55);
+}
+.site-header .site-header__burger { background: #fff; border-color: rgba(124, 58, 237, 0.2); }
+.site-header .site-header__burger span { background: #181235; }
 .site-nav {
   display: flex;
   align-items: center;
@@ -400,7 +441,7 @@ img.ae {
 }
 @media (max-width: 860px) {
   .site-header__inner {
-    height: 64px;
+    position: relative;
   }
   .site-header__burger {
     display: flex;
@@ -409,26 +450,30 @@ img.ae {
   .site-nav__backdrop {
     display: block;
     position: fixed;
-    inset: 64px 0 0;
+    inset: 0;
     z-index: 30;
     border: none;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(10, 8, 20, 0.55);
   }
-  /* Dropdown sheet anchored under the sticky bar */
+  /* Floating glass card below the pill — same rounded/blurred language as the
+     pill itself, detached with a gap instead of a flush hard-edged sheet. */
   .site-nav {
     position: absolute;
-    top: 100%;
+    top: calc(100% + 10px);
     left: 0;
     right: 0;
     z-index: 35;
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
-    padding: 16px 20px 22px;
-    background: var(--sky);
-    border-bottom: 1px solid var(--line);
+    padding: 16px 18px 20px;
+    background: rgba(20, 16, 38, 0.92);
+    backdrop-filter: blur(18px) saturate(150%);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
     box-shadow: 0 24px 50px -20px rgba(0, 0, 0, 0.7);
-    transform: translateY(-12px);
+    transform: translateY(-8px);
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.2s ease, transform 0.2s ease;
@@ -447,7 +492,7 @@ img.ae {
     display: block;
     padding: 13px 6px;
     font-size: 1.05rem;
-    border-bottom: 1px solid var(--line);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
   .site-nav__actions {
     flex-direction: column;
@@ -558,68 +603,6 @@ img.ae {
   z-index: 1;
   padding-block: 28px 56px;
   width: 100%;
-}
-
-/* Pill nav */
-.hub-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 10px 12px 10px 18px;
-  border-radius: var(--r-pill);
-  background: rgba(20, 16, 38, 0.55);
-  backdrop-filter: blur(18px) saturate(150%);
-  -webkit-backdrop-filter: blur(18px) saturate(150%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 18px 40px -24px rgba(20, 16, 38, 0.55);
-}
-.hub-nav__brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-.hub-nav__mark {
-  width: 40px;
-  height: 40px;
-  object-fit: contain;
-  display: block;
-}
-.hub-nav__word {
-  font-family: var(--font-display);
-  font-size: 1.3rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: #fff;
-}
-.hub-nav__actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 16px;
-}
-.hub-nav__login {
-  color: rgba(255, 255, 255, 0.78);
-  font-weight: 500;
-  font-size: 0.96rem;
-}
-.hub-nav__login:hover {
-  color: #fff;
-}
-.hub-nav__cta {
-  display: inline-flex;
-  align-items: center;
-  padding: 11px 22px;
-  border-radius: var(--r-pill);
-  background: #fff;
-  color: #141026;
-  font-weight: 600;
-  font-size: 0.96rem;
-  transition: transform 0.16s ease, box-shadow 0.16s ease;
-}
-.hub-nav__cta:hover {
-  color: #141026;
-  transform: translateY(-1px);
-  box-shadow: 0 10px 24px -12px rgba(124, 58, 237, 0.6);
 }
 
 /* Hero grid: copy left, video right */
@@ -2884,6 +2867,92 @@ img.ae {
   gap: 12px;
   justify-content: center;
   margin-top: 22px;
+}
+
+/* ---------- Login role-choice gate (/login) ---------- */
+.login-gate {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 24px 60px;
+}
+.login-gate__inner {
+  max-width: 760px;
+  width: 100%;
+  margin: 64px auto 0;
+  text-align: center;
+}
+.login-gate__title {
+  font-size: clamp(1.9rem, 5vw, 2.6rem);
+  letter-spacing: -0.03em;
+  margin-bottom: 10px;
+}
+.login-gate__lead {
+  color: var(--stone);
+  font-size: 1.05rem;
+  max-width: 52ch;
+  margin: 0 auto 36px;
+}
+.login-gate__choices {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 1fr;
+  text-align: left;
+}
+@media (min-width: 640px) {
+  .login-gate__choices {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.login-gate__choice {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 26px 26px 24px;
+  border-radius: var(--r-card);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-card);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.login-gate__choice:hover {
+  color: inherit;
+  transform: translateY(-4px);
+  border-color: rgba(124, 58, 237, 0.4);
+}
+.login-gate__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #c4b5fd;
+  margin-bottom: 8px;
+}
+.login-gate__eyebrow--business { color: #6ee7a8; }
+.login-gate__choice-title {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+.login-gate__choice-desc {
+  color: var(--stone);
+  margin-top: 8px;
+  font-size: 0.94rem;
+  max-width: 34ch;
+}
+.login-gate__arrow {
+  position: absolute;
+  top: 26px;
+  right: 26px;
+  font-size: 1.2rem;
+  color: var(--ink);
+  transition: transform 0.2s ease;
+}
+.login-gate__choice:hover .login-gate__arrow {
+  transform: translateX(4px);
 }
 
 /* ---------- Creator mini-page (link in bio) ---------- */

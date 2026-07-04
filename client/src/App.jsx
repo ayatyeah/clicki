@@ -10,6 +10,7 @@ import { initAppleEmoji, parseAppleEmoji } from './lib/appleEmoji.js';
 const Business = lazy(() => import('./pages/Business.jsx'));
 const Creators = lazy(() => import('./pages/Creators.jsx'));
 const Contacts = lazy(() => import('./pages/Contacts.jsx'));
+const LoginChoice = lazy(() => import('./pages/LoginChoice.jsx'));
 const Privacy = lazy(() => import('./pages/Privacy.jsx'));
 const Terms = lazy(() => import('./pages/Terms.jsx'));
 const ThankYou = lazy(() => import('./pages/ThankYou.jsx'));
@@ -61,6 +62,7 @@ export default function App() {
           <Route path="/business" element={<Business />} />
           <Route path="/creators" element={<Creators />} />
           <Route path="/contacts" element={<Contacts />} />
+          <Route path="/login" element={<LoginChoice />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/thanks/:type" element={<ThankYou />} />

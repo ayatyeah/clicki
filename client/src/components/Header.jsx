@@ -10,6 +10,7 @@ const L = {
     start: 'Стать креатором',
     contacts: 'Контакты',
     login: 'Войти',
+    platformLogin: 'Войти в платформу',
     menu: 'Меню',
     home: 'Главная',
     links: {
@@ -35,6 +36,7 @@ const L = {
     start: 'Become a creator',
     contacts: 'Contacts',
     login: 'Log in',
+    platformLogin: 'Log in to the platform',
     menu: 'Menu',
     home: 'Home',
     links: {
@@ -70,6 +72,9 @@ export default function Header({ variant = 'hub' }) {
 
   const links = t.links[variant] || t.links.hub;
 
+  // Business/creator funnels get their own contextual CTA (consult/apply);
+  // the hub nav already lists Contacts as a link, so no second button there —
+  // its one CTA is the platform login below.
   const cta =
     variant === 'business' ? (
       <a className="btn btn--ghost btn--sm" href="#consult" onClick={close}>
@@ -79,11 +84,10 @@ export default function Header({ variant = 'hub' }) {
       <a className="btn btn--ghost btn--sm" href="#apply" onClick={close}>
         {t.start}
       </a>
-    ) : (
-      <Link className="btn btn--ghost btn--sm" to="/contacts" onClick={close}>
-        {t.contacts}
-      </Link>
-    );
+    ) : null;
+
+  const loginTarget = variant === 'business' ? '/business-cabinet' : variant === 'creator' ? '/creator' : '/login';
+  const isHub = variant !== 'business' && variant !== 'creator';
 
   return (
     <header className="site-header">
@@ -120,8 +124,12 @@ export default function Header({ variant = 'hub' }) {
 
           <div className="site-nav__actions">
             <LangSwitch />
-            <Link className="site-header__login" to={variant === 'business' ? '/business-cabinet' : '/creator'} onClick={close}>
-              {t.login}
+            <Link
+              className={isHub ? 'site-header__login site-header__login--cta' : 'site-header__login'}
+              to={loginTarget}
+              onClick={close}
+            >
+              {isHub ? t.platformLogin : t.login}
             </Link>
             {cta}
           </div>

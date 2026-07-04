@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Seo from '../components/Seo.jsx';
-import LangSwitch from '../components/LangSwitch.jsx';
+import Header from '../components/Header.jsx';
 import IntroAnimation from '../components/ui/scroll-morph-hero';
 import { useLang } from '../i18n.jsx';
 import { useContent } from '../content.jsx';
@@ -82,6 +82,7 @@ export default function Hub() {
   return (
     <main className="hub">
       <Seo title={t.seoTitle} description={t.seoDesc} path="/" />
+      <Header variant="hub" />
 
       <section className="hub__hero">
         <div className="hub__logos" aria-hidden="true">
@@ -90,19 +91,6 @@ export default function Hub() {
           ))}
         </div>
         <div className="container hub__inner">
-          <nav className="hub-nav" aria-label="CLICKI">
-            <div className="hub-nav__brand">
-              <img className="hub-nav__mark" src="/logo-mark.png" alt="" width="40" height="40" />
-              <span className="hub-nav__word">CLICKI</span>
-            </div>
-            <div className="hub-nav__actions">
-              <LangSwitch />
-              <Link className="hub-nav__cta" to="/contacts" data-track="Хаб: Связаться (шапка)">
-                {t.contact}
-              </Link>
-            </div>
-          </nav>
-
           <div className={`hub-hero ${hubVideo ? '' : 'hub-hero--solo'}`}>
             <div className="hub-hero__copy">
               <h1 className="hub-hero__title">

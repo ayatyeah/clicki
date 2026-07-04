@@ -40,44 +40,8 @@
 .page-light .compare__us { color: var(--cobalt) !important; }
 .page-light .lead-form { background: #fff; }
 
-/* ---- Dark pill navbar (matches the Hub) ---- */
-.page-light .site-header {
-  position: sticky;
-  top: 0;
-  background: transparent;
-  backdrop-filter: none;
-  border-bottom: 0;
-  padding-top: 16px;
-  z-index: 50;
-}
-.page-light .site-header__inner {
-  height: auto;
-  padding: 10px 14px 10px 22px;
-  background: rgba(20, 16, 38, 0.55);
-  backdrop-filter: blur(18px) saturate(150%);
-  -webkit-backdrop-filter: blur(18px) saturate(150%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: var(--r-pill);
-  box-shadow: 0 18px 40px -26px rgba(20, 16, 38, 0.6);
-}
-.page-light .site-header .logo__word { color: #fff; }
-.page-light .site-nav__link { color: rgba(255, 255, 255, 0.74); }
-.page-light .site-nav__link:hover { color: #fff; }
-.page-light .site-header__login { color: rgba(255, 255, 255, 0.74); }
-.page-light .site-header__login:hover { color: #fff; }
-.page-light .site-header .lang-switch,
-.page-light .site-header .lang-switch button { color: rgba(255, 255, 255, 0.72); }
-.page-light .site-header .lang-switch button.is-active { color: #c4b5fd; }
-.page-light .site-header .site-nav__actions .btn--ghost {
-  background: var(--fx-accent, #6d28d9);
-  color: #fff;
-  border-color: transparent;
-}
-.page-light .site-header__burger { background: #fff; border-color: rgba(124, 58, 237, 0.2); }
-@media (max-width: 860px) {
-  .page-light .site-nav { background: #141026; border-bottom-color: rgba(255, 255, 255, 0.08); }
-  .page-light .site-nav__link { border-bottom-color: rgba(255, 255, 255, 0.08); }
-}
+/* Navbar is now unconditionally the glass pill everywhere — see .site-header
+   in index.css. Nothing page-light-specific left to override here. */
 
 /* ---- Reserved media slot ---- */
 .fx-media {
