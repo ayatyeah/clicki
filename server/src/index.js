@@ -1082,7 +1082,11 @@ app.get('/api/admin/rates', requireAdmin, wrap(async (_req, res) => ok(res, { ra
 // Update a numeric platform setting (e.g. founding_cap — set as high as desired).
 app.post('/api/admin/settings', requireAdmin, wrap(async (req, res) => {
   const { key, value } = req.body || {};
-  const ALLOWED = ['founding_cap', 'min_views_per_video', 'invoice_threshold', 'payout_threshold', 'fraud_max_views_per_hour', 'fraud_min_smoothness_cv'];
+  const ALLOWED = [
+    'founding_cap', 'min_views_per_video', 'invoice_threshold', 'payout_threshold',
+    'fraud_max_views_per_hour', 'fraud_min_smoothness_cv',
+    'ops_behind_days', 'ops_fill_ratio', 'ops_churn_days',
+  ];
   if (!ALLOWED.includes(key)) return res.status(400).json({ ok: false, errors: ['Недопустимая настройка'] });
   const v = Number(value);
   if (!Number.isFinite(v) || v < 0) return res.status(400).json({ ok: false, errors: ['Некорректное значение'] });
@@ -1171,6 +1175,20 @@ app.post('/api/admin/submissions/:id/review', requireAdmin, wrap(async (req, res
     if (note) submission = await setCoachFeedback(submission.id, note);
   }
   ok(res, { submission });
+}));
+// Manual retry for AI Coach — the note generation at review time fails silently
+// (Gemini down, rate-limited, etc.), so an operator needs a way to re-trigger it
+// for an already-decided submission instead of it just staying blank forever.
+app.post('/api/admin/submissions/:id/coach', requireAdmin, wrap(async (req, res) => {
+  const submission = await getSubmission(Number(req.params.id));
+  if (!submission) return res.status(404).json({ ok: false, errors: ['Видео не найдено'] });
+  if (submission.status !== 'accepted' && submission.status !== 'rejected') {
+    return res.status(400).json({ ok: false, errors: ['Решение по видео ещё не принято'] });
+  }
+  const brief = submission.brief_id ? await getBrief(submission.brief_id) : null;
+  const note = await aiCoachFeedback(submission, brief, { status: submission.status, reject_code: submission.reject_code });
+  if (!note) return res.status(503).json({ ok: false, errors: ['AI временно недоступен — попробуйте позже'] });
+  ok(res, { submission: await setCoachFeedback(submission.id, note) });
 }));
 // Pipeline step 10-11: manager approves an AI-passed video and forwards it to the business.
 // Guarded (sendSubmissionToBusiness) so an already-accepted/rejected submission can't be re-queued.

@@ -426,6 +426,7 @@ export async function setSetting(key, value) {
  * many videos/creators that budget realistically buys, using our own accepted
  * submissions as the per-video yield — plain computation, no LLM involved.
  */
+const MIN_SAMPLE_FOR_OWN_DATA = 3;
 export async function getViewEstimate(budget, platform) {
   const rates = await getRates();
   const settings = await getSettings();
@@ -442,7 +443,9 @@ export async function getViewEstimate(budget, platform) {
   const avgByPlatform = Object.fromEntries(avgQ.rows.map((r) => [r.platform, r]));
   return platforms.map((r) => {
     const stat = avgByPlatform[r.platform];
-    const avgViewsPerVideo = stat?.avg_views || minViews;
+    const sampleSize = stat?.n || 0;
+    const reliable = sampleSize >= MIN_SAMPLE_FOR_OWN_DATA;
+    const avgViewsPerVideo = reliable ? stat.avg_views : minViews;
     const totalViews = r.client_rate > 0 ? Math.round(budget / r.client_rate) : 0;
     const estVideos = avgViewsPerVideo > 0 ? Math.max(1, Math.round(totalViews / avgViewsPerVideo)) : 0;
     return {
@@ -450,8 +453,8 @@ export async function getViewEstimate(budget, platform) {
       total_views: totalViews,
       est_videos: estVideos,
       avg_views_per_video: Math.round(avgViewsPerVideo),
-      basis: stat ? 'own' : 'baseline',
-      sample_size: stat?.n || 0,
+      basis: reliable ? 'own' : sampleSize > 0 ? 'limited' : 'baseline',
+      sample_size: sampleSize,
     };
   });
 }
@@ -849,6 +852,7 @@ export async function listActiveBriefs() {
  * times the platform's payout rate. No LLM call — payout ranking has to be
  * accurate, not generative.
  */
+const MIN_SAMPLE_FOR_OWN_CREATOR_DATA = 2;
 export async function listActiveBriefsRanked(creatorId) {
   const briefs = await listActiveBriefs();
   if (!briefs.length) return briefs;
@@ -857,7 +861,7 @@ export async function listActiveBriefsRanked(creatorId) {
   const [ratesQ, ownAvgQ, marketAvgQ] = await Promise.all([
     pool.query('SELECT platform, creator_rate FROM rates'),
     pool.query(
-      `SELECT platform, AVG(views)::float AS avg_views FROM submissions
+      `SELECT platform, AVG(views)::float AS avg_views, COUNT(*)::int AS n FROM submissions
         WHERE creator_id=$1 AND status='accepted' AND views >= $2
         GROUP BY platform`,
       [creatorId, minViews]
@@ -870,13 +874,19 @@ export async function listActiveBriefsRanked(creatorId) {
     ),
   ]);
   const rateByPlatform = Object.fromEntries(ratesQ.rows.map((r) => [r.platform, Number(r.creator_rate)]));
-  const ownAvgByPlatform = Object.fromEntries(ownAvgQ.rows.map((r) => [r.platform, r.avg_views]));
+  const ownByPlatform = Object.fromEntries(ownAvgQ.rows.map((r) => [r.platform, r]));
   const marketAvgByPlatform = Object.fromEntries(marketAvgQ.rows.map((r) => [r.platform, r.avg_views]));
   const ranked = briefs.map((b) => {
     const rate = rateByPlatform[b.platform] || 0;
-    const own = ownAvgByPlatform[b.platform];
-    const avgViews = own || marketAvgByPlatform[b.platform] || minViews;
-    return { ...b, est_payout: Math.round(avgViews * rate), est_basis: own ? 'own' : 'market' };
+    const own = ownByPlatform[b.platform];
+    const ownReliable = own && own.n >= MIN_SAMPLE_FOR_OWN_CREATOR_DATA;
+    const avgViews = ownReliable ? own.avg_views : marketAvgByPlatform[b.platform] || minViews;
+    return {
+      ...b,
+      est_payout: Math.round(avgViews * rate),
+      est_basis: ownReliable ? 'own' : marketAvgByPlatform[b.platform] ? 'market' : 'baseline',
+      est_sample_size: own?.n || 0,
+    };
   });
   ranked.sort((a, b) => b.est_payout - a.est_payout);
   return ranked;
@@ -1173,8 +1183,15 @@ export async function getFraudSignals() {
  *  - a brief that's been live for a while but is still far from filling its slots
  *  - a creator who used to submit regularly and has gone quiet
  * Recommendations only — nothing here changes state, the operator decides.
+ * Thresholds live in `settings` (ops_behind_days/ops_fill_ratio/ops_churn_days)
+ * so an operator can tune them from the admin panel instead of a redeploy.
  */
 export async function getOpsFlags() {
+  const settings = await getSettings();
+  const behindDays = settings.ops_behind_days ?? 4;
+  const fillRatio = settings.ops_fill_ratio ?? 0.5;
+  const churnDays = settings.ops_churn_days ?? 14;
+
   const briefsQ = await pool.query(`
     SELECT b.id, b.title, b.slots,
            EXTRACT(DAY FROM NOW() - b.created_at)::int AS age_days,
@@ -1185,7 +1202,7 @@ export async function getOpsFlags() {
      GROUP BY b.id
   `);
   const behindBriefs = briefsQ.rows
-    .filter((b) => b.slots > 0 && b.age_days >= 4 && b.accepted_count < b.slots * 0.5)
+    .filter((b) => b.slots > 0 && b.age_days >= behindDays && b.accepted_count < b.slots * fillRatio)
     .map((b) => ({
       brief_id: b.id,
       title: b.title,
@@ -1200,7 +1217,7 @@ export async function getOpsFlags() {
      WHERE c.account_open = true AND c.status = 'active'
      GROUP BY c.id
   `);
-  const CHURN_DAYS = 14;
+  const CHURN_DAYS = churnDays;
   const churnRisk = churnQ.rows
     .filter((c) => (Date.now() - new Date(c.last_submission_at).getTime()) / 86400000 >= CHURN_DAYS)
     .map((c) => {

@@ -421,11 +421,22 @@ function BriefConstructor({ authFetch, onUseDraft }) {
               <button className="btn btn--primary btn--sm" onClick={generate} disabled={busy}>{busy ? 'Генерирую…' : 'Сгенерировать 3 варианта'}</button>
             </div>
           </div>
-          {error && <p className="creator-portal__err">{error}</p>}
+          {error && (
+            <div className="creator-portal__err" style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-start' }}>
+              <span>{error}</span>
+              <button className="btn btn--ghost btn--sm" onClick={generate}>↻ Попробовать снова</button>
+            </div>
+          )}
+          {busy && (
+            <div className="bp-cards">
+              {[0, 1, 2].map((i) => <div key={i} className="bp-card bp-card--skeleton" aria-hidden="true" />)}
+            </div>
+          )}
           {result && (
             <>
-              <p className="creator-portal__muted">
-                Понятность входных данных: <b>{result.score}/100</b>{result.tips ? ` — ${result.tips}` : ''}
+              <p className="creator-portal__muted" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                Понятность входных данных: <ScorePill score={result.score} />
+                {result.tips && <span>{result.tips}</span>}
               </p>
               <div className="bp-cards">
                 {result.drafts.map((d, i) => (
@@ -717,16 +728,15 @@ function ViewCalculator({ authFetch }) {
         estimate.length ? (
           <div className="admin-table-wrap">
             <table className="admin-table">
-              <thead><tr><th>Платформа</th><th>Охват</th><th>Видео</th><th>Ср. охват/видео</th></tr></thead>
+              <thead><tr><th>Платформа</th><th>Охват</th><th>Видео</th><th>Ср. охват/видео</th><th>Достоверность</th></tr></thead>
               <tbody>
                 {estimate.map((e) => (
                   <tr key={e.platform}>
                     <td data-label="Платформа">{e.platform}</td>
                     <td data-label="Охват">{e.total_views.toLocaleString('ru-RU')}</td>
                     <td data-label="Видео">~{e.est_videos}</td>
-                    <td className="muted-cell" data-label="Ср. охват/видео">
-                      {e.avg_views_per_video.toLocaleString('ru-RU')} {e.basis === 'baseline' && '(ориентир)'}
-                    </td>
+                    <td className="muted-cell" data-label="Ср. охват/видео">{e.avg_views_per_video.toLocaleString('ru-RU')}</td>
+                    <td data-label="Достоверность"><BasisPill basis={e.basis} sampleSize={e.sample_size} /></td>
                   </tr>
                 ))}
               </tbody>
@@ -738,6 +748,23 @@ function ViewCalculator({ authFetch }) {
       )}
     </>
   );
+}
+
+/** Shared confidence indicator for any AI-ish estimate built off historical
+ * data: distinguishes "enough of our own data", "a couple data points, take
+ * with a grain of salt", and "no data at all, this is a flat guess" — so a
+ * business doesn't mistake a 1-video average for a reliable number. */
+function BasisPill({ basis, sampleSize }) {
+  if (basis === 'own') return <span className="pf-status pf-status--accepted">по {sampleSize} видео</span>;
+  if (basis === 'limited') return <span className="pf-status pf-status--rework">мало данных ({sampleSize})</span>;
+  return <span className="pf-status pf-status--pending">ориентир, данных нет</span>;
+}
+
+/** 0-100 quality/clarity score → color pill, so a number carries its own
+ * verdict at a glance instead of requiring the reader to interpret it. */
+function ScorePill({ score }) {
+  const cls = score >= 70 ? 'pf-status--accepted' : score >= 40 ? 'pf-status--rework' : 'pf-status--rejected';
+  return <span className={`pf-status ${cls}`}>{score}/100</span>;
 }
 
 /* ---------------- Live growth chart ---------------- */

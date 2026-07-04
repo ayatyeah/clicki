@@ -2463,8 +2463,18 @@ img.ae {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: center;
   padding: 10px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.teleprompter__group { display: flex; align-items: center; gap: 6px; }
+.teleprompter__value {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.6);
+  min-width: 52px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 .teleprompter__scroll {
   flex: 1;
@@ -2478,6 +2488,13 @@ img.ae {
   white-space: pre-wrap;
   text-align: center;
   font-weight: 600;
+}
+.teleprompter__error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
 }
 .creator-portal__req {
   margin: 0;

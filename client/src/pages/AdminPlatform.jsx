@@ -60,6 +60,11 @@ export function AiAnalysisView({ authFetch }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [flags, setFlags] = useState(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const loadFlags = async () => {
+    const r = await (await authFetch('/api/admin/ops-flags')).json();
+    if (r.ok !== false) setFlags(r);
+  };
   const load = async (refresh) => {
     setLoading(true);
     try {
@@ -71,10 +76,7 @@ export function AiAnalysisView({ authFetch }) {
   };
   useEffect(() => {
     load(false);
-    (async () => {
-      const r = await (await authFetch('/api/admin/ops-flags')).json();
-      if (r.ok !== false) setFlags(r);
-    })();
+    loadFlags();
   }, []); // eslint-disable-line
 
   return (
@@ -82,9 +84,13 @@ export function AiAnalysisView({ authFetch }) {
       <section className="admin-block">
         <div className="admin-panel__head">
           <h2 className="admin-block__title">Ops Copilot <span className="creator-portal__muted">— на что обратить внимание</span></h2>
+          <button className="btn btn--ghost btn--sm" onClick={() => setSettingsOpen((v) => !v)}>
+            {settingsOpen ? 'Скрыть пороги' : 'Настроить пороги'}
+          </button>
         </div>
+        {settingsOpen && <OpsSettingsForm authFetch={authFetch} onSaved={loadFlags} />}
         {!flags ? (
-          <p className="muted-note">Загрузка…</p>
+          <div className="bp-cards"><div className="bp-card bp-card--skeleton" aria-hidden="true" /><div className="bp-card bp-card--skeleton" aria-hidden="true" /></div>
         ) : !flags.behindBriefs.length && !flags.churnRisk.length ? (
           <p className="muted-note">Флагов нет — брифы и креаторы в норме.</p>
         ) : (
@@ -132,6 +138,66 @@ export function AiAnalysisView({ authFetch }) {
   );
 }
 
+/** Ops Copilot's flag thresholds used to be hardcoded — this lets an operator
+ * tune them (e.g. "4 days" was too twitchy for a slow-moving campaign) without
+ * a redeploy. Values persist in the same `settings` table admin/rates already use. */
+function OpsSettingsForm({ authFetch, onSaved }) {
+  const [values, setValues] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      const r = await (await authFetch('/api/admin/rates')).json();
+      const s = r.settings || {};
+      setValues({
+        ops_behind_days: s.ops_behind_days ?? 4,
+        ops_fill_ratio: Math.round((s.ops_fill_ratio ?? 0.5) * 100),
+        ops_churn_days: s.ops_churn_days ?? 14,
+      });
+    })();
+  }, []); // eslint-disable-line
+
+  const set = (k, v) => setValues((s) => ({ ...s, [k]: v }));
+
+  const save = async () => {
+    setSaving(true);
+    setMsg('');
+    try {
+      await Promise.all([
+        authFetch('/api/admin/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'ops_behind_days', value: values.ops_behind_days }) }),
+        authFetch('/api/admin/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'ops_fill_ratio', value: values.ops_fill_ratio / 100 }) }),
+        authFetch('/api/admin/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'ops_churn_days', value: values.ops_churn_days }) }),
+      ]);
+      setMsg('Сохранено ✓');
+      onSaved?.();
+    } finally {
+      setSaving(false);
+      setTimeout(() => setMsg(''), 2000);
+    }
+  };
+
+  if (!values) return null;
+  return (
+    <div className="ops-settings">
+      <div className="creator-portal__q">
+        <div className="creator-portal__q-title">Бриф считается отстающим через, дней</div>
+        <input type="number" min="1" value={values.ops_behind_days} onChange={(e) => set('ops_behind_days', Number(e.target.value))} />
+      </div>
+      <div className="creator-portal__q">
+        <div className="creator-portal__q-title">...если заполнено меньше, % слотов</div>
+        <input type="number" min="1" max="100" value={values.ops_fill_ratio} onChange={(e) => set('ops_fill_ratio', Number(e.target.value))} />
+      </div>
+      <div className="creator-portal__q">
+        <div className="creator-portal__q-title">Риск оттока креатора — нет видео, дней</div>
+        <input type="number" min="1" value={values.ops_churn_days} onChange={(e) => set('ops_churn_days', Number(e.target.value))} />
+      </div>
+      <button className="btn btn--primary btn--sm" onClick={save} disabled={saving}>{saving ? 'Сохраняю…' : 'Сохранить пороги'}</button>
+      {msg && <span className="creator-portal__muted" style={{ marginLeft: 10, color: '#15803d' }}>{msg}</span>}
+    </div>
+  );
+}
+
 /* ---------------- Campaign Autopilot (recommendations only) ---------------- */
 export function AutopilotView({ authFetch }) {
   const [data, setData] = useState(null);
@@ -174,7 +240,16 @@ export function AutopilotView({ authFetch }) {
     }
   };
 
-  if (!data) return <section className="admin-block"><p className="muted-note">Загрузка…</p></section>;
+  if (!data) {
+    return (
+      <section className="admin-block">
+        <div className="bp-cards">
+          <div className="bp-card bp-card--skeleton" aria-hidden="true" />
+          <div className="bp-card bp-card--skeleton" aria-hidden="true" />
+        </div>
+      </section>
+    );
+  }
 
   return (
     <>
@@ -472,6 +547,16 @@ export function ReviewView({ authFetch }) {
   const setViews = async (id, views, final) => {
     if (await post(`/api/admin/submissions/${id}/views`, { views: Number(views) || 0, final })) load();
   };
+  const [coachBusyId, setCoachBusyId] = useState(null);
+  const regenerateCoach = async (id) => {
+    setCoachBusyId(id);
+    try {
+      await post(`/api/admin/submissions/${id}/coach`);
+      load();
+    } finally {
+      setCoachBusyId(null);
+    }
+  };
 
   return (
     <section className="admin-block">
@@ -528,6 +613,23 @@ export function ReviewView({ authFetch }) {
                     <div className="fraud-flag" title={s.fraud.reasons.join('; ')}>
                       ⚠️ Подозрительный рост
                       <div className="fraud-flag__reasons">{s.fraud.reasons.join('; ')}</div>
+                    </div>
+                  )}
+                  {(s.status === 'accepted' || s.status === 'rejected') && (
+                    <div style={{ marginTop: 6 }}>
+                      {s.coach_feedback ? (
+                        <div style={{ fontSize: '0.76rem', color: 'var(--fog)' }}>🎯 {s.coach_feedback}</div>
+                      ) : (
+                        <div style={{ fontSize: '0.76rem', color: 'var(--fog)' }}>🎯 AI-коуч не сгенерирован</div>
+                      )}
+                      <button
+                        className="btn btn--ghost btn--sm"
+                        style={{ marginTop: 4 }}
+                        disabled={coachBusyId === s.id}
+                        onClick={() => regenerateCoach(s.id)}
+                      >
+                        {coachBusyId === s.id ? 'Генерирую…' : '↻ Пересоздать AI-коуч'}
+                      </button>
                     </div>
                   )}
                 </td>

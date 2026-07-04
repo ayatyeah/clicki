@@ -403,10 +403,12 @@ function EarningsForecastCard({ forecast }) {
   }
   return (
     <div className="creator-portal__card">
-      <div className="creator-portal__wallet-row"><span>Прогноз заработка</span></div>
+      <div className="creator-portal__wallet-row">
+        <span>Прогноз заработка</span>
+        <b>{forecast.pace_30d.toLocaleString('ru-RU')} ₸/мес</b>
+      </div>
       <p className="creator-portal__muted">
-        В том же темпе (за 30 дней — {forecast.videos_30d} {forecast.videos_30d === 1 ? 'видео' : 'видео'}): примерно{' '}
-        <b>{forecast.pace_30d.toLocaleString('ru-RU')} ₸/мес</b>.
+        В том же темпе (за 30 дней — {forecast.videos_30d} {forecast.videos_30d === 1 ? 'видео' : 'видео'}).
         {forecast.avg_per_video > 0 && (
           <> Возьми ещё 2 брифа — примерно <b>{forecast.plus_2_briefs.toLocaleString('ru-RU')} ₸</b>.</>
         )}
@@ -536,7 +538,9 @@ function BriefCard({ b, top = false, authFetch = null }) {
       {b.est_payout > 0 && (
         <p className="creator-portal__muted">
           Ожидаемо ~<b>{b.est_payout.toLocaleString('ru-RU')} ₸</b> за видео
-          {b.est_basis === 'own' ? ' (по твоему среднему охвату)' : ' (по среднему охвату на платформе)'}
+          {b.est_basis === 'own' && ` (по твоим ${b.est_sample_size} видео на этой площадке)`}
+          {b.est_basis === 'market' && ' (по среднему охвату на платформе)'}
+          {b.est_basis === 'baseline' && ' (ориентир, данных пока нет)'}
         </p>
       )}
       {b.key_message && <p className="creator-portal__muted">{b.key_message}</p>}
@@ -574,6 +578,7 @@ function TeleprompterModal({ briefId, authFetch, onClose }) {
   const [playing, setPlaying] = useState(false);
   const [fontSize, setFontSize] = useState(28);
   const [speed, setSpeed] = useState(40); // px/sec
+  const [attempt, setAttempt] = useState(0);
   const scrollRef = useRef(null);
   const rafRef = useRef(null);
 
@@ -595,7 +600,7 @@ function TeleprompterModal({ briefId, authFetch, onClose }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [briefId, authFetch]);
+  }, [briefId, authFetch, attempt]);
 
   useEffect(() => {
     if (!playing) {
@@ -617,10 +622,16 @@ function TeleprompterModal({ briefId, authFetch, onClose }) {
     <div className="teleprompter__backdrop" onClick={onClose}>
       <div className="teleprompter" onClick={(e) => e.stopPropagation()}>
         <div className="teleprompter__bar">
-          <button className="btn btn--ghost btn--sm" onClick={() => setFontSize((s) => Math.max(16, s - 2))}>A-</button>
-          <button className="btn btn--ghost btn--sm" onClick={() => setFontSize((s) => Math.min(48, s + 2))}>A+</button>
-          <button className="btn btn--ghost btn--sm" onClick={() => setSpeed((s) => Math.max(10, s - 10))}>Медленнее</button>
-          <button className="btn btn--ghost btn--sm" onClick={() => setSpeed((s) => Math.min(200, s + 10))}>Быстрее</button>
+          <div className="teleprompter__group">
+            <button className="btn btn--ghost btn--sm" onClick={() => setFontSize((s) => Math.max(16, s - 2))} aria-label="Уменьшить шрифт">A-</button>
+            <span className="teleprompter__value">{fontSize}px</span>
+            <button className="btn btn--ghost btn--sm" onClick={() => setFontSize((s) => Math.min(48, s + 2))} aria-label="Увеличить шрифт">A+</button>
+          </div>
+          <div className="teleprompter__group">
+            <button className="btn btn--ghost btn--sm" onClick={() => setSpeed((s) => Math.max(10, s - 10))} aria-label="Медленнее">−</button>
+            <span className="teleprompter__value">{speed} px/с</span>
+            <button className="btn btn--ghost btn--sm" onClick={() => setSpeed((s) => Math.min(200, s + 10))} aria-label="Быстрее">+</button>
+          </div>
           <button className="btn btn--primary btn--sm" onClick={() => setPlaying((p) => !p)} disabled={loading || !!error}>
             {playing ? '⏸ Пауза' : '▶ Старт'}
           </button>
@@ -628,7 +639,12 @@ function TeleprompterModal({ briefId, authFetch, onClose }) {
         </div>
         <div className="teleprompter__scroll" ref={scrollRef}>
           {loading && <p className="creator-portal__muted">Генерирую сценарий…</p>}
-          {error && <p className="creator-portal__err">{error}</p>}
+          {error && (
+            <div className="teleprompter__error">
+              <p className="creator-portal__err">{error}</p>
+              <button className="btn btn--ghost btn--sm" onClick={() => setAttempt((n) => n + 1)}>↻ Попробовать снова</button>
+            </div>
+          )}
           {!loading && !error && (
             <p className="teleprompter__text" style={{ fontSize: `${fontSize}px` }}>{script}</p>
           )}

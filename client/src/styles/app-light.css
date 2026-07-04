@@ -192,6 +192,17 @@
   box-shadow: var(--shadow-soft);
 }
 .bp-card__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.bp-card--skeleton {
+  height: 140px;
+  background: linear-gradient(90deg, var(--veil, #f1eefb) 25%, var(--line) 37%, var(--veil, #f1eefb) 63%);
+  background-size: 400% 100%;
+  animation: bp-shimmer 1.4s ease infinite;
+}
+@media (prefers-reduced-motion: reduce) { .bp-card--skeleton { animation: none; } }
+@keyframes bp-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
 
 .bp-bars { display: grid; gap: 12px; max-width: 640px; }
 .bp-bar { display: grid; grid-template-columns: 130px 1fr 90px; align-items: center; gap: 12px; }
@@ -385,3 +396,10 @@
   #printable-report, #printable-report * { visibility: visible; }
   #printable-report { position: absolute; top: 0; left: 0; width: 100%; }
 }
+
+.ops-settings {
+  display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end;
+  background: var(--surface-2, #f4f1f9); border-radius: var(--r-card); padding: 16px 18px; margin-bottom: 18px;
+}
+.ops-settings .creator-portal__q { margin: 0; }
+.ops-settings input[type='number'] { width: 90px; }
