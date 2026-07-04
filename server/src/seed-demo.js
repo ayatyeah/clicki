@@ -36,11 +36,18 @@ async function main() {
   try {
     await client.query('BEGIN');
 
+    // Idempotent: remove this script's own prior demo entities (by the demo
+    // email/username) so it can be re-run without duplicates. Other accounts
+    // are left untouched. Deleting the creator cascades its submissions/payouts.
+    await client.query("DELETE FROM creators WHERE username = 'aruzhan'");
+    await client.query("DELETE FROM briefs WHERE business_id IN (SELECT id FROM business_accounts WHERE email = 'business@demo.kz')");
+    await client.query("DELETE FROM business_accounts WHERE email = 'business@demo.kz'");
+
     // 1) Business account + its brief (active → visible in matching).
     const biz = (await client.query(
       `INSERT INTO business_accounts (name, email, company, password_hash)
        VALUES ($1,$2,$3,$4) RETURNING id`,
-      ['Айгерим Жумабекова', 'business@demo.kz', 'AURA Perfume', hashPassword(PW)]
+      ['CLICKI · маркетинг', 'business@demo.kz', 'CLICKI', hashPassword(PW)]
     )).rows[0];
 
     const spec = {
@@ -50,7 +57,7 @@ async function main() {
       logo_first5: true,
       brand_spoken: true,
       product_in_frame: true,
-      style: 'premium',
+      style: 'youth',
     };
     const brief = (await client.query(
       `INSERT INTO briefs
@@ -58,15 +65,15 @@ async function main() {
          req_hashtag, req_mention, req_cta_link, dos, donts, tone, slots, status, business_id, spec)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'active',$15,$16) RETURNING id`,
       [
-        'Запуск нового аромата AURA',
-        'Показать новый аромат и вызвать желание попробовать',
-        'Девушки 18–30, интересующиеся бьюти и парфюмерией',
-        'AURA — твой новый ежедневный ритуал. Лёгкий, свежий, твой.',
+        'Запуск UGC-платформы CLICKI',
+        'Рассказать, что CLICKI — платформа органических просмотров с оплатой за результат: бренды получают охваты, креаторы зарабатывают на коротких видео',
+        'Малый и средний бизнес, маркетологи и креаторы 18–30',
+        'CLICKI — живая органика с оплатой за результат. Без накруток и фейка.',
         'TikTok', 15, 30,
-        '#AURA', true, 'https://aura.kz/new',
-        'Показать флакон крупным планом, естественный свет, распылить в кадре',
-        'Не сравнивать с конкурентами, не использовать чужую музыку',
-        'Премиальный, эстетичный', 5, biz.id, JSON.stringify(spec),
+        '#CLICKI', true, 'https://clicki-platform.com',
+        'Показать экран платформы/кабинет, говорить своими словами, дать живой пример',
+        'Не обещать гарантированные суммы, не использовать чужой контент',
+        'Динамичный, молодёжный', 5, biz.id, JSON.stringify(spec),
       ]
     )).rows[0];
 
