@@ -64,10 +64,71 @@
   border-color: rgba(124, 58, 237, 0.18);
 }
 
-/* Sidebar nav — minimalist active state */
+/* Form controls polish — kill the cheap "default browser" look: brand-tinted
+   checkboxes/radios, consistent field radius, a clear violet focus ring. */
+.app-light input[type='checkbox'],
+.app-light input[type='radio'] {
+  accent-color: #7c3aed;
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+.app-light .pf-check,
+.app-light .creator-portal__opt {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+}
+.app-light input:not([type='checkbox']):not([type='radio']),
+.app-light select,
+.app-light textarea {
+  font: inherit;
+  border-radius: 8px;
+  border: 1px solid rgba(124, 58, 237, 0.18);
+  background: #fff;
+  color: var(--ink);
+  padding: 11px 13px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.app-light textarea {
+  min-height: 88px;
+  resize: vertical;
+  line-height: 1.5;
+}
+.app-light input::placeholder,
+.app-light textarea::placeholder {
+  font-family: var(--font);
+  color: var(--fog);
+}
+.app-light input:not([type='checkbox']):not([type='radio']):focus,
+.app-light select:focus,
+.app-light textarea:focus {
+  outline: none;
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.14);
+}
+/* Selects: swap the native arrow for a consistent custom chevron. */
+.app-light select {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236d28d9' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 34px;
+}
+
+/* Sidebar nav — strict, serious active state: small radius, restrained tint and
+   a left accent bar instead of a big rounded pill. */
+.app-light .admin-nav__btn {
+  border-radius: 8px;
+}
 .app-light .admin-nav__btn.is-active {
-  background: rgba(124, 58, 237, 0.1);
+  background: rgba(124, 58, 237, 0.08);
   color: #6d28d9;
+  font-weight: 600;
+  box-shadow: inset 2px 0 0 #7c3aed;
 }
 .app-light .admin-nav__btn:hover {
   background: rgba(124, 58, 237, 0.06);
@@ -101,7 +162,18 @@
 
 /* Creator portal specifics */
 .app-light .creator-portal__err { color: #b91c1c; }
-.app-light .creator-portal__tab.is-active { background: #6d28d9; color: #fff; }
+
+/* Strict cabinet restyle — squarer corners, flatter cards, segmented tabs.
+   Scoped to .creator-portal (creator cabinet + both auth screens); the admin /
+   business-cabinet layout keeps the softer 20px SnowUI language. */
+.app-light.creator-portal { --r-card: 12px; --r-icon: 8px; --r-pill: 8px; }
+.app-light .creator-portal__tabs { background: #f3f0fb; padding: 4px; }
+.app-light .creator-portal__tab { border-radius: 6px; }
+.app-light .creator-portal__tab.is-active {
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgba(24, 20, 48, 0.12);
+}
 .app-light .creator-portal__link:hover { color: var(--cobalt); }
 .app-light .creator-portal__applied-icon { background: rgba(22, 163, 74, 0.14); color: #15803d; }
 .app-light .creator-portal__card:has(.creator-portal__bar) {
@@ -391,10 +463,13 @@
    print, everything else is hidden so only the report comes out of the printer. */
 .report-print__head { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
 .report-print__brand { font-family: var(--font-display); font-weight: 700; font-size: 1.4rem; color: #7c3aed; }
+/* The report is built only for the printout the button produces — hidden on
+   screen so it doesn't clutter the analytics view. */
+.report-print { display: none; }
 @media print {
   body * { visibility: hidden; }
-  #printable-report, #printable-report * { visibility: visible; }
-  #printable-report { position: absolute; top: 0; left: 0; width: 100%; }
+  .report-print, #printable-report, #printable-report * { visibility: visible; }
+  #printable-report { display: block; position: absolute; top: 0; left: 0; width: 100%; }
 }
 
 .ops-settings {

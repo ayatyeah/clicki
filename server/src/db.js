@@ -764,6 +764,42 @@ export async function createBusinessBrief(businessId, b) {
   );
   return r.rows[0];
 }
+// Admin: list all business accounts (never expose password_hash / session_token).
+export async function listBusinesses() {
+  const r = await pool.query(
+    `SELECT b.id, b.name, b.email, b.company, b.created_at,
+            (SELECT COUNT(*) FROM briefs WHERE business_id = b.id)::int AS briefs
+       FROM business_accounts b
+       ORDER BY b.id DESC`
+  );
+  return r.rows;
+}
+// Admin: reset a business's email/password (also drops any live session).
+export async function setBusinessCredentials(id, email, password_hash) {
+  const r = await pool.query(
+    `UPDATE business_accounts
+        SET email = $2, password_hash = $3, session_token = NULL
+      WHERE id = $1 RETURNING id, name, email, company, created_at`,
+    [id, email, password_hash]
+  );
+  return r.rows[0] || null;
+}
+// Admin: delete a business account (its briefs keep, business_id → NULL per schema).
+export async function deleteBusiness(id) {
+  const r = await pool.query('DELETE FROM business_accounts WHERE id = $1 RETURNING id', [id]);
+  return r.rowCount > 0;
+}
+/**
+ * Danger zone: wipe all account + transactional data for a clean slate.
+ * Keeps site content (site_content/media/videos) and config (settings/rates).
+ * The admin account lives in env, not the DB, so it is never affected.
+ */
+export async function resetPlatformData() {
+  await pool.query(`TRUNCATE TABLE
+    submissions, assignments, payouts, referral_leads, submission_decisions,
+    view_snapshots, oauth_states, visits, ai_cache, briefs, creators, business_accounts
+    RESTART IDENTITY CASCADE`);
+}
 
 /* ---------------- Platform: submissions & review (ТЗ §3, §9) ---------------- */
 export async function createSubmission(s) {
@@ -832,11 +868,12 @@ export async function setSubmissionAi(id, { ai_score, ai_feedback, status }) {
 /** Operator sends a video to the business — guarded so an already-accepted or
  * -rejected submission can't be re-queued (that re-opened it to a second
  * business accept → a second payout). Returns null if the transition wasn't valid. */
-export async function sendSubmissionToBusiness(id) {
+export async function sendSubmissionToBusiness(id, checklist) {
   const r = await pool.query(
-    `UPDATE submissions SET status='sent_to_business'
+    `UPDATE submissions SET status='sent_to_business',
+        checklist = COALESCE($2, checklist)
       WHERE id=$1 AND status NOT IN ('accepted','rejected') RETURNING *`,
-    [id]
+    [id, checklist ? JSON.stringify(checklist) : null]
   );
   return r.rows[0] || null;
 }

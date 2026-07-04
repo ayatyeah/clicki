@@ -8,9 +8,9 @@ const COPY = {
     seoTitle: 'CLICKI - вход в платформу',
     seoDesc: 'Выберите, как вы хотите войти: как креатор или как бизнес.',
     title: 'Как вы хотите войти?',
-    lead: 'Выберите свой кабинет — вход и функции отличаются для криэйторов и бизнеса.',
-    creatorEyebrow: 'Я криэйтор',
-    creatorTitle: 'Кабинет криэйтора',
+    lead: 'Выберите свой кабинет — вход и функции отличаются для креаторов и бизнеса.',
+    creatorEyebrow: 'Я креатор',
+    creatorTitle: 'Кабинет креатора',
     creatorDesc: 'Брифы, кошелёк, автосинк просмотров и AI-инструменты для съёмки.',
     businessEyebrow: 'Я бизнес',
     businessTitle: 'Кабинет бизнеса',
@@ -37,14 +37,14 @@ export default function LoginChoice() {
   const { lang } = useLang();
   const t = COPY[lang] || COPY.ru;
   return (
-    <main className="login-gate">
+    <main className="login-gate page-light">
       <Seo title={t.seoTitle} description={t.seoDesc} path="/login" noindex />
       <Header variant="hub" />
       <div className="login-gate__inner">
         <h1 className="login-gate__title">{t.title}</h1>
         <p className="login-gate__lead">{t.lead}</p>
         <div className="login-gate__choices">
-          <Link to="/creator" className="login-gate__choice" data-track="Вход: криэйтор">
+          <Link to="/creator" className="login-gate__choice" data-track="Вход: креатор">
             <span className="login-gate__eyebrow login-gate__eyebrow--creator">{t.creatorEyebrow}</span>
             <span className="login-gate__choice-title">{t.creatorTitle}</span>
             <span className="login-gate__choice-desc">{t.creatorDesc}</span>

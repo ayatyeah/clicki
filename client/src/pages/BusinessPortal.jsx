@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Seo from '../components/Seo.jsx';
 import Icon from '../components/Icon.jsx';
-import Assistant from '../components/Assistant.jsx';
 import { API_BASE } from '../lib/config.js';
 
 const KEY = 'clicki_business_token';
@@ -44,12 +43,18 @@ export default function BusinessPortal() {
     setLoading(true);
     try {
       const res = await authFetch('/api/business/me');
-      if (!res.ok) throw new Error('unauth');
+      // Only a real auth failure should drop the session; a transient network
+      // error or a 5xx must not log the business out.
+      if (res.status === 401 || res.status === 403) {
+        sessionStorage.removeItem(KEY);
+        setToken('');
+        setData(null);
+        return;
+      }
+      if (!res.ok) throw new Error('load-failed');
       setData(await res.json());
     } catch {
-      sessionStorage.removeItem(KEY);
-      setToken('');
-      setData(null);
+      /* keep the session; retry on next mount / reload */
     } finally {
       setLoading(false);
     }
@@ -229,7 +234,6 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
           {view === 'profile' && <Profile b={b} onLogout={onLogout} />}
         </div>
       </div>
-      <Assistant accent="violet" qa={BUSINESS_QA} />
     </main>
   );
 }

@@ -16,8 +16,8 @@ export default function Assistant({ accent = 'violet', qa = [] }) {
   const bodyRef = useRef(null);
 
   const t = {
-    ru: { title: 'Помощник CLICKI', hint: 'Выберите вопрос или напишите свой 👇', placeholder: 'Напишите вопрос…', send: 'Отправить', open: 'Помощник', typing: 'печатает…' },
-    en: { title: 'CLICKI assistant', hint: 'Pick a question or type your own 👇', placeholder: 'Type a question…', send: 'Send', open: 'Assistant', typing: 'typing…' },
+    ru: { title: 'Помощник CLICKI', hint: 'Выберите вопрос или напишите свой 👇', placeholder: 'Напишите вопрос…', send: 'Отправить', open: 'Помощник', typing: 'печатает…', online: 'онлайн', close: 'Закрыть' },
+    en: { title: 'CLICKI assistant', hint: 'Pick a question or type your own 👇', placeholder: 'Type a question…', send: 'Send', open: 'Assistant', typing: 'typing…', online: 'online', close: 'Close' },
   }[lang] || {};
 
   const scrollDown = () => {
@@ -66,9 +66,9 @@ export default function Assistant({ accent = 'violet', qa = [] }) {
             </span>
             <div>
               <div className="assistant__title">{t.title}</div>
-              <div className="assistant__status">{busy ? t.typing : 'online'}</div>
+              <div className="assistant__status">{busy ? t.typing : t.online}</div>
             </div>
-            <button className="assistant__close" onClick={() => setOpen(false)} aria-label="Закрыть">✕</button>
+            <button className="assistant__close" onClick={() => setOpen(false)} aria-label={t.close}>✕</button>
           </div>
 
           <div className="assistant__body" ref={bodyRef}>

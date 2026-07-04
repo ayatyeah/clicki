@@ -2,7 +2,13 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import Seo from '../components/Seo.jsx';
 import Logo from '../components/Logo.jsx';
+import { useLang } from '../i18n.jsx';
 import { API_BASE } from '../lib/config.js';
+
+const COPY = {
+  ru: { tag: 'UGC-креатор на CLICKI', cta: 'Заказать похожий контент', desc: (n) => `Профиль ${n} на CLICKI` },
+  en: { tag: 'UGC creator on CLICKI', cta: 'Order similar content', desc: (n) => `${n} on CLICKI` },
+};
 
 /** Turn a freeform social-link token into a clickable href, best-effort. */
 function toHref(token) {
@@ -21,6 +27,8 @@ function toHref(token) {
 export default function CreatorMiniPage() {
   const { login } = useParams();
   const navigate = useNavigate();
+  const { lang } = useLang();
+  const t = COPY[lang] || COPY.ru;
   const [page, setPage] = useState(null);
   const [notFound, setNotFound] = useState(false);
 
@@ -59,11 +67,11 @@ export default function CreatorMiniPage() {
 
   return (
     <main className="creator-page page-light app-light">
-      <Seo title={`${page.name} — CLICKI`} description={`Профиль ${page.name} на CLICKI`} path={`/${login}`} noindex />
+      <Seo title={`${page.name} — CLICKI`} description={t.desc(page.name)} path={`/${login}`} noindex />
       <div className="creator-page__inner">
         <Logo to="/" />
         <h1 className="creator-page__name">{page.name}</h1>
-        <p className="creator-page__tag">UGC-креатор на CLICKI</p>
+        <p className="creator-page__tag">{t.tag}</p>
 
         {page.brandLinks.length > 0 && (
           <div className="creator-page__brands">
@@ -83,7 +91,7 @@ export default function CreatorMiniPage() {
         )}
 
         <div className="creator-page__cta">
-          <Link to="/business" className="btn btn--primary">Заказать похожий контент</Link>
+          <Link to="/business" className="btn btn--primary">{t.cta}</Link>
         </div>
 
         {socials.length > 0 && (

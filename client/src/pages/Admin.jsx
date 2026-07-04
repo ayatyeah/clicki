@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import { API_BASE } from '../lib/config.js';
 import Icon from '../components/Icon.jsx';
-import { AiAnalysisView, AutopilotView, BriefsView, ReviewView, CreatorsView, PayoutsView, DecisionJournalView, BriefViewsView, MonthlyReportView } from './AdminPlatform.jsx';
+import { AiAnalysisView, AutopilotView, BriefsView, ReviewView, CreatorsView, BusinessesView, PayoutsView, DecisionJournalView, BriefViewsView, MonthlyReportView, ResetDataView } from './AdminPlatform.jsx';
 
 const TOKEN_KEY = 'clicki_admin_token';
 const EMPTY = { showcase: [], devices: { iphone: { image: '' }, laptop: { image: '' } }, creatorVideo: '', hubVideo: '' };
@@ -32,12 +32,17 @@ export default function Admin() {
     setError('');
     try {
       const res = await authFetch('/api/admin/leads');
+      // Only clear the session on a real auth failure — a transient network
+      // error or a 5xx should surface as an error, not force a re-login.
+      if (res.status === 401 || res.status === 403) {
+        sessionStorage.removeItem(TOKEN_KEY);
+        setToken('');
+        return;
+      }
       const data = await res.json();
       if (!res.ok) throw new Error((data.errors && data.errors[0]) || 'Ошибка');
       setLeads(data.leads || []);
     } catch (e) {
-      sessionStorage.removeItem(TOKEN_KEY);
-      setToken('');
       setError(e.message);
     } finally {
       setLoading(false);
@@ -64,6 +69,7 @@ export default function Admin() {
   async function onLogin(e) {
     e.preventDefault();
     setError('');
+    setBusy(true);
     try {
       const res = await fetch(`${API_BASE}/api/admin/login`, {
         method: 'POST',
@@ -76,6 +82,8 @@ export default function Admin() {
       setToken(data.token);
     } catch (e) {
       setError(e.message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -225,7 +233,7 @@ export default function Admin() {
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
           </label>
           {error && <p className="lead-form__errors" role="alert">{error}</p>}
-          <button type="submit" className="btn btn--primary btn--block">Войти</button>
+          <button type="submit" className="btn btn--primary btn--block" disabled={busy}>{busy ? 'Вхожу…' : 'Войти'}</button>
           <Link to="/" className="admin-login__back">← На сайт</Link>
         </form>
       </main>
@@ -248,11 +256,13 @@ export default function Admin() {
     { key: 'review', label: 'Проверка видео', icon: 'check' },
     { key: 'decisions', label: 'Дневник решений', icon: 'briefs' },
     { key: 'creators', label: 'Креаторы', icon: 'user' },
+    { key: 'businesses', label: 'Бизнесы', icon: 'users' },
     { key: 'payouts', label: 'Выплаты', icon: 'wallet' },
     { key: 'videos', label: 'Загрузка видео', icon: 'video' },
     { key: 'hub-video', label: 'Видео на главной', icon: 'home' },
     { key: 'creator-page', label: 'Видео креаторов', icon: 'film' },
     { key: 'content', label: 'Контент сайта', icon: 'image' },
+    { key: 'reset', label: 'Очистка данных', icon: 'inbox' },
   ];
 
   return (
@@ -435,6 +445,7 @@ export default function Admin() {
           {view === 'review' && <ReviewView authFetch={authFetch} />}
           {view === 'decisions' && <DecisionJournalView authFetch={authFetch} />}
           {view === 'creators' && <CreatorsView authFetch={authFetch} />}
+          {view === 'businesses' && <BusinessesView authFetch={authFetch} />}
           {view === 'payouts' && <PayoutsView authFetch={authFetch} />}
 
           {view === 'hub-video' && (
@@ -548,6 +559,8 @@ export default function Admin() {
               </div>
             </section>
           )}
+
+          {view === 'reset' && <ResetDataView authFetch={authFetch} />}
         </div>
       </div>
     </main>

@@ -12,7 +12,7 @@ const L = {
     login: 'Войти',
     platformLogin: 'Войти в платформу',
     menu: 'Меню',
-    home: 'Главная',
+    close: 'Закрыть',
     links: {
       business: [
         ['Как работает', '#how'],
@@ -38,7 +38,7 @@ const L = {
     login: 'Log in',
     platformLogin: 'Log in to the platform',
     menu: 'Menu',
-    home: 'Home',
+    close: 'Close',
     links: {
       business: [
         ['How it works', '#how'],
@@ -135,7 +135,7 @@ export default function Header({ variant = 'hub' }) {
           </div>
         </nav>
 
-        {open && <button className="site-nav__backdrop" aria-label="Закрыть" onClick={close} />}
+        {open && <button className="site-nav__backdrop" aria-label={t.close} onClick={close} />}
       </div>
     </header>
   );

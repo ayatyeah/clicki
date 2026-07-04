@@ -182,6 +182,18 @@ img.ae {
   background: var(--white);
   border-color: var(--ink);
 }
+.btn--danger {
+  background: #dc2626;
+  color: #fff;
+  border-color: transparent;
+}
+.btn--danger:hover {
+  background: #b91c1c;
+}
+.btn--danger:disabled {
+  background: #e5a5a5;
+  cursor: not-allowed;
+}
 .btn--lg {
   font-size: 1.06rem;
   padding: 16px 32px;
@@ -339,12 +351,12 @@ img.ae {
   gap: 24px;
   height: auto;
   padding: 10px 14px 10px 22px;
-  background: rgba(20, 16, 38, 0.55);
-  backdrop-filter: blur(18px) saturate(150%);
-  -webkit-backdrop-filter: blur(18px) saturate(150%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(18, 14, 34, 0.38);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--r-pill);
-  box-shadow: 0 18px 40px -26px rgba(20, 16, 38, 0.6);
+  box-shadow: 0 18px 40px -26px rgba(20, 16, 38, 0.5);
 }
 .site-header .logo__word { color: #fff; }
 .site-header .site-nav__link { color: rgba(255, 255, 255, 0.74); }
@@ -428,6 +440,15 @@ img.ae {
   border-radius: var(--r-icon);
   background: var(--paper);
   cursor: pointer;
+  /* Kill the rectangular mobile tap-highlight box around the rounded button. */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.site-header__burger:focus { outline: none; }
+.site-header__burger:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
 }
 .site-header__burger span {
   display: block;
@@ -453,7 +474,8 @@ img.ae {
     inset: 0;
     z-index: 30;
     border: none;
-    background: rgba(10, 8, 20, 0.55);
+    /* No dark film — just an invisible click-catcher to close the menu. */
+    background: transparent;
   }
   /* Floating glass card below the pill — same rounded/blurred language as the
      pill itself, detached with a gap instead of a flush hard-edged sheet. */
@@ -577,11 +599,14 @@ img.ae {
 /* ---------- Hub (entry / hook screen) — light "Shinta-style" ---------- */
 .hub {
   position: relative;
+  /* Base light canvas so the area behind the floating (transparent) header
+     matches the hero/content instead of revealing the dark Aurora backdrop. */
+  background: linear-gradient(180deg, #f3ecff 0%, #e7dcf8 100%);
 }
 /* Light hero: near-white canvas with a barely-there violet tint + soft glow. */
 .hub__hero {
   position: relative;
-  min-height: 100vh;
+  min-height: 100svh;
   display: flex;
   align-items: center;
   background:
@@ -2630,6 +2655,49 @@ img.ae {
   background: linear-gradient(90deg, rgba(124, 58, 237, 0.22), transparent);
   border-bottom-color: transparent;
 }
+
+/* Dashboard top tab navigation (strict cabinet card/tab restyle lives in
+   app-light.css, which owns the light-theme cabinet surfaces). */
+.creator-portal__inner {
+  max-width: 720px;
+}
+.cp-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 0 0 22px;
+  padding: 4px;
+  background: #f3f0fb;
+  border: 1px solid rgba(24, 20, 48, 0.08);
+  border-radius: 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.cp-tabs::-webkit-scrollbar {
+  display: none;
+}
+.cp-tab {
+  flex: 1 0 auto;
+  padding: 9px 16px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--stone);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.92rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.cp-tab:hover {
+  color: var(--ink);
+}
+.cp-tab.is-active {
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgba(24, 20, 48, 0.12);
+}
 /* Mobile admin top bar + off-canvas drawer (hidden on desktop) */
 .admin-topbar {
   display: none;
@@ -2926,10 +2994,10 @@ img.ae {
   font-size: 0.74rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #c4b5fd;
+  color: #7c3aed;
   margin-bottom: 8px;
 }
-.login-gate__eyebrow--business { color: #6ee7a8; }
+.login-gate__eyebrow--business { color: #16a34a; }
 .login-gate__choice-title {
   font-family: var(--font-display);
   font-size: 1.4rem;

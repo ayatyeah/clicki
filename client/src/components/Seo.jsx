@@ -1,7 +1,10 @@
 import { Helmet } from 'react-helmet-async';
 import { useLang } from '../i18n.jsx';
+import { SITE_URL } from '../lib/config.js';
 
-const ORIGIN = 'https://clicki.kz';
+// Canonical production origin — single source of truth (config.js / VITE_SITE_URL),
+// so canonical + OG URLs always match the domain used for shareable links.
+const ORIGIN = SITE_URL;
 
 /**
  * Per-page meta: title, description, canonical, Open Graph + Twitter Card,

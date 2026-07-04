@@ -100,6 +100,10 @@ import {
   setBusinessToken,
   listBusinessBriefs,
   createBusinessBrief,
+  listBusinesses,
+  setBusinessCredentials,
+  deleteBusiness,
+  resetPlatformData,
 } from './db.js';
 import { geminiGenerate, geminiEnabled } from './gemini.js';
 import { uploadToSpaces, spacesEnabled } from './storage.js';
@@ -1125,6 +1129,44 @@ app.post('/api/admin/creators/:id/credentials', requireAdmin, wrap(async (req, r
 }));
 app.post('/api/admin/creators/:id', requireAdmin, wrap(async (req, res) => ok(res, { creator: publicCreator(await updateCreator(Number(req.params.id), req.body || {})) })));
 
+/* ---------------- Admin: business accounts ---------------- */
+app.get('/api/admin/businesses', requireAdmin, wrap(async (_req, res) => ok(res, { businesses: await listBusinesses() })));
+// Operator creates a business account directly (with email + password).
+app.post('/api/admin/businesses', requireAdmin, wrap(async (req, res) => {
+  const { name, email, company, password } = req.body || {};
+  if (!name || !String(name).trim()) return res.status(400).json({ ok: false, errors: ['Название обязательно'] });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || ''))) return res.status(400).json({ ok: false, errors: ['Некорректный email'] });
+  if (!password || String(password).length < 6) return res.status(400).json({ ok: false, errors: ['Пароль не короче 6 символов'] });
+  if (await getBusinessByEmail(email)) return res.status(409).json({ ok: false, errors: ['Аккаунт с таким email уже существует'] });
+  const b = await createBusiness({ name: String(name).trim(), email: String(email).trim(), company, password_hash: hashPassword(password) });
+  ok(res, { business: { id: b.id, name: b.name, email: b.email, company: b.company, created_at: b.created_at, briefs: 0 } });
+}));
+// Operator resets a business's email/password.
+app.post('/api/admin/businesses/:id/credentials', requireAdmin, wrap(async (req, res) => {
+  const { email, password } = req.body || {};
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || ''))) return res.status(400).json({ ok: false, errors: ['Некорректный email'] });
+  if (!password || String(password).length < 6) return res.status(400).json({ ok: false, errors: ['Пароль не короче 6 символов'] });
+  const existing = await getBusinessByEmail(email);
+  if (existing && existing.id !== Number(req.params.id)) return res.status(409).json({ ok: false, errors: ['Такой email уже занят'] });
+  const b = await setBusinessCredentials(Number(req.params.id), String(email).trim(), hashPassword(password));
+  if (!b) return res.status(404).json({ ok: false, errors: ['Бизнес не найден'] });
+  ok(res, { business: b });
+}));
+// Operator deletes a business account.
+app.post('/api/admin/businesses/:id/delete', requireAdmin, wrap(async (req, res) => {
+  const done = await deleteBusiness(Number(req.params.id));
+  if (!done) return res.status(404).json({ ok: false, errors: ['Бизнес не найден'] });
+  ok(res, {});
+}));
+
+// Danger zone: wipe all accounts + transactional data for a clean slate.
+// Double-guarded: admin-only + an explicit confirm phrase in the body.
+app.post('/api/admin/reset-data', requireAdmin, wrap(async (req, res) => {
+  if (req.body?.confirm !== 'ОЧИСТИТЬ') return res.status(400).json({ ok: false, errors: ['Подтверждение не совпало'] });
+  await resetPlatformData();
+  ok(res, {});
+}));
+
 app.get('/api/admin/briefs', requireAdmin, wrap(async (_req, res) => ok(res, { briefs: await listBriefs() })));
 app.post('/api/admin/briefs', requireAdmin, wrap(async (req, res) => ok(res, { brief: await createBrief(req.body || {}) })));
 app.post('/api/admin/briefs/:id/status', requireAdmin, wrap(async (req, res) => ok(res, { brief: await setBriefStatus(Number(req.params.id), req.body?.status) })));
@@ -1193,7 +1235,7 @@ app.post('/api/admin/submissions/:id/coach', requireAdmin, wrap(async (req, res)
 // Pipeline step 10-11: manager approves an AI-passed video and forwards it to the business.
 // Guarded (sendSubmissionToBusiness) so an already-accepted/rejected submission can't be re-queued.
 app.post('/api/admin/submissions/:id/send-to-business', requireAdmin, wrap(async (req, res) => {
-  const submission = await sendSubmissionToBusiness(Number(req.params.id));
+  const submission = await sendSubmissionToBusiness(Number(req.params.id), req.body?.checklist);
   if (!submission) return res.status(400).json({ ok: false, errors: ['Видео уже принято или отклонено'] });
   ok(res, { submission });
 }));

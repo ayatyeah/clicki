@@ -1,9 +1,9 @@
 import Seo from '../components/Seo.jsx';
 import Header from '../components/Header.jsx';
 import Footer from '../components/Footer.jsx';
+import Assistant from '../components/Assistant.jsx';
 import FloatingContacts from '../components/FloatingContacts.jsx';
 import FloatingBg from '../components/FloatingBg.jsx';
-import Assistant from '../components/Assistant.jsx';
 import LeadForm from '../components/LeadForm.jsx';
 import {
   FunnelHero,

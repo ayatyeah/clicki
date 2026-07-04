@@ -17,6 +17,8 @@ const COPY = {
       back: 'Вернуться на главную',
     },
     community: 'Telegram-сообщество',
+    seoTitle: 'Спасибо — CLICKI',
+    seoDesc: 'Заявка отправлена.',
   },
   en: {
     client: {
@@ -30,6 +32,8 @@ const COPY = {
       back: 'Back to home',
     },
     community: 'Telegram community',
+    seoTitle: 'Thank you — CLICKI',
+    seoDesc: 'Your request has been sent.',
   },
 };
 
@@ -44,7 +48,7 @@ export default function ThankYou() {
 
   return (
     <main className="thanks">
-      <Seo title="Спасибо — CLICKI" description="Заявка отправлена." path={`/thanks/${type}`} noindex />
+      <Seo title={t.seoTitle} description={t.seoDesc} path={`/thanks/${type}`} noindex />
       <div className="thanks__inner">
         <Logo to={backTo} />
         <div className="thanks__check" aria-hidden="true">
