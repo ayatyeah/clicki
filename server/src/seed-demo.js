@@ -84,8 +84,8 @@ async function main() {
          founding, username, password_hash, status)
        VALUES ($1,$2,$3,$4,true,$5,100,$6,true,$7,$8,'active') RETURNING id`,
       [
-        'Аружан Смаилова', '+7 701 234 56 78',
-        'instagram.com/aruzhan.smail, tiktok.com/@aruzhan',
+        'Clicki', '+7 701 234 56 78',
+        'instagram.com/clicki.app, tiktok.com/@clicki',
         'Алматы', 1480, 6, 'aruzhan', hashPassword(PW),
       ]
     )).rows[0];
