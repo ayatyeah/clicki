@@ -152,9 +152,9 @@ function LoginForm({ onAuthed, toApply }) {
   };
 
   return (
-    <form className="creator-portal__card" onSubmit={submit}>
-      <input placeholder="Логин" autoComplete="username" value={f.username} onChange={(e) => set('username', e.target.value)} required />
-      <input type="password" placeholder="Пароль" autoComplete="current-password" value={f.password} onChange={(e) => set('password', e.target.value)} required />
+    <form className="creator-portal__card" onSubmit={submit} noValidate>
+      <input name="username" placeholder="Логин" autoComplete="username" value={f.username} onChange={(e) => set('username', e.target.value)} />
+      <input name="password" type="password" placeholder="Пароль" autoComplete="current-password" value={f.password} onChange={(e) => set('password', e.target.value)} />
       {error && <p className="creator-portal__err">{error}</p>}
       <button className="btn btn--primary btn--block" disabled={busy}>{busy ? 'Вхожу…' : 'Войти'}</button>
       <p className="creator-portal__muted creator-portal__switch">
@@ -192,9 +192,9 @@ function ApplyForm({ refId, onDone }) {
   };
 
   return (
-    <form className="creator-portal__card" onSubmit={submit}>
-      <input placeholder="Имя" autoComplete="name" value={f.name} onChange={(e) => set('name', e.target.value)} required />
-      <input placeholder="Телефон / Telegram" value={f.contact} onChange={(e) => set('contact', e.target.value)} required />
+    <form className="creator-portal__card" onSubmit={submit} noValidate>
+      <input name="name" placeholder="Имя" autoComplete="name" value={f.name} onChange={(e) => set('name', e.target.value)} />
+      <input name="contact" placeholder="Телефон / Telegram" autoComplete="tel" value={f.contact} onChange={(e) => set('contact', e.target.value)} />
       {error && <p className="creator-portal__err">{error}</p>}
       <button className="btn btn--primary btn--block" disabled={busy}>{busy ? 'Отправляю…' : 'Отправить заявку'}</button>
       <p className="creator-portal__muted creator-portal__switch">

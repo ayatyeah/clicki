@@ -111,6 +111,8 @@ function AuthScreen({ onAuthed }) {
   );
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function AuthForm({ endpoint, onAuthed, register, toRegister }) {
   const [f, setF] = useState({ name: '', company: '', email: '', password: '' });
   const [error, setError] = useState('');
@@ -120,6 +122,14 @@ function AuthForm({ endpoint, onAuthed, register, toRegister }) {
   const submit = async (e) => {
     e.preventDefault();
     setError('');
+    // Validate ourselves (form has noValidate) so a bad value — including one the
+    // browser autofilled, e.g. a saved login that isn't actually an email — always
+    // produces a visible message instead of the browser silently blocking submit
+    // with a native tooltip that's easy to miss.
+    if (register && !f.name.trim()) return setError('Укажите имя');
+    if (!EMAIL_RE.test(f.email)) return setError('Введите настоящий email (проверьте, не подставил ли браузер что-то другое)');
+    if (register && f.password.length < 6) return setError('Пароль не короче 6 символов');
+    else if (!register && !f.password) return setError('Введите пароль');
     setBusy(true);
     try {
       const res = await fetch(`${API_BASE}${endpoint}`, {
@@ -138,15 +148,15 @@ function AuthForm({ endpoint, onAuthed, register, toRegister }) {
   };
 
   return (
-    <form className="creator-portal__card" onSubmit={submit}>
+    <form className="creator-portal__card" onSubmit={submit} noValidate>
       {register && (
         <>
-          <input placeholder="Имя" autoComplete="name" value={f.name} onChange={(e) => set('name', e.target.value)} required />
-          <input placeholder="Компания / бренд" value={f.company} onChange={(e) => set('company', e.target.value)} />
+          <input name="name" placeholder="Имя" autoComplete="name" value={f.name} onChange={(e) => set('name', e.target.value)} />
+          <input name="organization" placeholder="Компания / бренд" autoComplete="organization" value={f.company} onChange={(e) => set('company', e.target.value)} />
         </>
       )}
-      <input type="email" placeholder="Email" autoComplete="email" value={f.email} onChange={(e) => set('email', e.target.value)} required />
-      <input type="password" placeholder="Пароль" autoComplete={register ? 'new-password' : 'current-password'} value={f.password} onChange={(e) => set('password', e.target.value)} required />
+      <input name="email" type="email" placeholder="Email" autoComplete="email" value={f.email} onChange={(e) => set('email', e.target.value)} />
+      <input name="password" type="password" placeholder="Пароль" autoComplete={register ? 'new-password' : 'current-password'} value={f.password} onChange={(e) => set('password', e.target.value)} />
       {error && <p className="creator-portal__err">{error}</p>}
       <button className="btn btn--primary btn--block" disabled={busy}>{busy ? '…' : register ? 'Создать аккаунт' : 'Войти'}</button>
       <p className="creator-portal__muted creator-portal__switch">
