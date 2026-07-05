@@ -96,17 +96,12 @@ async function main() {
     await client.query(
       `INSERT INTO submissions
         (brief_id, creator_id, platform, video_url, published_at, rights_confirmed,
-         status, views, ai_score, coach_feedback, reviewed_at)
+         status, views, ai_score, reviewed_at)
        VALUES
-        ($1,$2,'TikTok','https://tiktok.com/@aruzhan/video/1',$3,true,'accepted',22000,88,$4,NOW()),
-        ($1,$2,'Instagram Reels','https://instagram.com/reel/2',$5,true,'accepted',8000,76,$6,NOW()),
-        ($1,$2,'TikTok','https://tiktok.com/@aruzhan/video/3',$7,true,'ai_passed',4200,82,NULL,NULL)`,
-      [
-        brief.id, cr.id,
-        dstr(9), 'Отличный хук в первые 2 секунды и живой ритм. В следующий раз добавь чёткий CTA в конце.',
-        dstr(6), 'Хороший продукт в кадре. Света можно чуть больше.',
-        dstr(1),
-      ]
+        ($1,$2,'TikTok','https://tiktok.com/@aruzhan/video/1',$3,true,'accepted',22000,88,NOW()),
+        ($1,$2,'Instagram Reels','https://instagram.com/reel/2',$4,true,'accepted',8000,76,NOW()),
+        ($1,$2,'TikTok','https://tiktok.com/@aruzhan/video/3',$5,true,'ai_passed',4200,82,NULL)`,
+      [brief.id, cr.id, dstr(9), dstr(6), dstr(1)]
     );
 
     // 4) A pending payout so the payouts screen isn't empty.
