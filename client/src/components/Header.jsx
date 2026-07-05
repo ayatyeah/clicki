@@ -27,6 +27,7 @@ const L = {
       hub: [
         ['Бизнесу', '/business'],
         ['Креаторам', '/creators'],
+        ['О нас', '/about'],
         ['Контакты', '/contacts'],
       ],
     },
@@ -53,6 +54,7 @@ const L = {
       hub: [
         ['For business', '/business'],
         ['For creators', '/creators'],
+        ['About', '/about'],
         ['Contacts', '/contacts'],
       ],
     },

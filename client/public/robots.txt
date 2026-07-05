@@ -2,5 +2,7 @@ User-agent: *
 Allow: /
 Disallow: /admin
 Disallow: /creator
+Allow: /creators
+Disallow: /business-cabinet
 
-Sitemap: https://clicki.kz/sitemap.xml
+Sitemap: https://clicki-platform.com/sitemap.xml

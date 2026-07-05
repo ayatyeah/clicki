@@ -10,6 +10,7 @@ const L = {
     terms: 'Условия использования',
     rights: 'Все права защищены.',
     portal: 'Кабинет креатора',
+    about: 'О нас',
   },
   en: {
     tagline: 'Performance platform for organic views. Astana, Kazakhstan.',
@@ -18,6 +19,7 @@ const L = {
     terms: 'Terms of Service',
     rights: 'All rights reserved.',
     portal: 'Creator portal',
+    about: 'About',
   },
 };
 
@@ -40,6 +42,7 @@ export default function Footer() {
           <a href={EMAIL_URL}>{EMAIL}</a>
         </div>
         <nav className="site-footer__links">
+          <Link to="/about">{t.about}</Link>
           <Link to="/creator">{t.portal}</Link>
           <Link to="/contacts">{t.contacts}</Link>
           <Link to="/privacy">{t.privacy}</Link>
