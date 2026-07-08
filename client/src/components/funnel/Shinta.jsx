@@ -214,9 +214,9 @@ export function Compare({ id, eyebrow, title, head = [], rows = [] }) {
             <tbody>
               {rows.map((r) => (
                 <tr key={r[0]}>
-                  <td>{r[0]}</td>
-                  <td>{r[1]}</td>
-                  <td className="fx-compare__us">{r[2]}</td>
+                  <td data-label={head[0]}>{r[0]}</td>
+                  <td data-label={head[1]}>{r[1]}</td>
+                  <td className="fx-compare__us" data-label={head[2]}>{r[2]}</td>
                 </tr>
               ))}
             </tbody>
