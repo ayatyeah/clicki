@@ -429,6 +429,43 @@
 .app-light .pf-status--sent_to_business { background: rgba(37, 99, 235, 0.12); color: #1d4ed8; }
 .app-light .pf-status--rework { background: rgba(245, 158, 11, 0.16); color: #b45309; }
 .app-light .pf-status--accepted { background: rgba(22, 163, 74, 0.14); color: #15803d; }
+
+.demo-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 8px;
+  background: #eef6ff;
+  color: var(--ink);
+}
+
+.demo-banner b {
+  color: #15803d;
+}
+
+.demo-pill {
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
+  min-height: 28px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.demo-login-note {
+  margin-top: -4px;
+  text-align: left;
+}
 .ai-score {
   display: inline-block;
   font-family: var(--font-mono);

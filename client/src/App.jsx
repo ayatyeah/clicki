@@ -17,6 +17,7 @@ const Terms = lazy(() => import('./pages/Terms.jsx'));
 const ThankYou = lazy(() => import('./pages/ThankYou.jsx'));
 const NotFound = lazy(() => import('./pages/NotFound.jsx'));
 const Admin = lazy(() => import('./pages/Admin.jsx'));
+const DemoAdmin = lazy(() => import('./pages/DemoAdmin.jsx'));
 const CreatorPortal = lazy(() => import('./pages/CreatorPortal.jsx'));
 const BusinessPortal = lazy(() => import('./pages/BusinessPortal.jsx'));
 const Referral = lazy(() => import('./pages/Referral.jsx'));
@@ -70,6 +71,7 @@ export default function App() {
           <Route path="/terms" element={<Terms />} />
           <Route path="/thanks/:type" element={<ThankYou />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/demo-admin" element={<DemoAdmin />} />
           <Route path="/creator" element={<CreatorPortal />} />
           <Route path="/business-cabinet" element={<BusinessPortal />} />
           <Route path="/friend/:login" element={<Referral />} />
