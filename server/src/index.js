@@ -1020,29 +1020,27 @@ app.post(
   })
 );
 
-// Public investor demo snapshot: real site analytics + real platform counters
-// (aggregated only, no sensitive rows/tokens).
-app.get('/api/demo/analytics', wrap(async (_req, res) => {
-  const [analytics, creators, businesses, briefs, submissions] = await Promise.all([
-    getVisitAnalytics(),
-    listCreators(),
-    listBusinesses(),
-    listBriefs(),
-    listSubmissions(),
-  ]);
-
-  ok(res, {
-    analytics,
-    platform: {
-      creators: creators.length,
-      businesses: businesses.length,
-      briefs: briefs.length,
-      activeBriefs: briefs.filter((b) => b.status === 'active').length,
-      submissions: submissions.length,
-      acceptedSubmissions: submissions.filter((s) => s.status === 'accepted').length,
-    },
-    updatedAt: new Date().toISOString(),
-  });
+// ---------------------------------------------------------------------------
+// Investor demo (read-only). The public /demo-admin surface shows a trimmed
+// admin: Дашборд, Аналитика, Рефералы, Брифы, Просмотры по брифам, Отчёт за
+// месяц, Проверка видео. These endpoints return the SAME real data as the
+// matching /api/admin/* routes, but require no token and never mutate anything
+// — an investor can look at live numbers, not touch them. Nothing here exposes
+// tokens, password hashes or contact PII beyond what the admin lead list holds.
+// ---------------------------------------------------------------------------
+app.get('/api/demo/admin/leads', wrap(async (_req, res) => {
+  const leads = await readLeads();
+  ok(res, { count: leads.length, leads });
+}));
+app.get('/api/demo/admin/analytics', wrap(async (_req, res) => ok(res, { analytics: await getVisitAnalytics() })));
+app.get('/api/demo/admin/referrals', wrap(async (_req, res) => ok(res, { referrals: await getReferralLeadStats() })));
+app.get('/api/demo/admin/briefs', wrap(async (_req, res) => ok(res, { briefs: await listBriefs() })));
+app.get('/api/demo/admin/creators', wrap(async (_req, res) => ok(res, { creators: (await listCreators()).map(publicCreator) })));
+app.get('/api/demo/admin/submissions', wrap(async (req, res) => ok(res, { submissions: await listSubmissions(req.query.status) })));
+app.get('/api/demo/admin/reports/monthly', wrap(async (req, res) => {
+  const year = req.query.year ? Number(req.query.year) : undefined;
+  const month = req.query.month ? Number(req.query.month) : undefined;
+  ok(res, { report: await getMonthlyReport(year, month) });
 }));
 
 // ---- TikTok auto-sync: pulls real view_count for a creator's videos instead of

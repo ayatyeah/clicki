@@ -1,55 +1,52 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import Icon from '../components/Icon.jsx';
 import { API_BASE } from '../lib/config.js';
+import { BriefsView, ReviewView, BriefViewsView, MonthlyReportView } from './AdminPlatform.jsx';
 
-const DEMO_BUSINESS_EMAIL = 'business@demo.kz';
-const DEMO_CREATOR_LOGIN = 'aruzhan';
-const DEMO_PASS = 'demo1234';
-const BUSINESS_TOKEN_KEY = 'clicki_demo_business_token';
-const CREATOR_TOKEN_KEY = 'clicki_demo_creator_token';
-
+// Investor demo = a trimmed, READ-ONLY copy of the real admin. Only these seven
+// sections are exposed; the business/creator cabinets are reached by logging in
+// to the real /business-cabinet and /creator surfaces, not from here.
 const NAV = [
-  { key: 'admin', label: 'Админ (урезанный)', icon: 'grid' },
-  { key: 'business', label: 'Тест-кабинет бизнеса', icon: 'briefs' },
-  { key: 'creator', label: 'Тест-кабинет креатора', icon: 'users' },
+  { key: 'dashboard', label: 'Дашборд', icon: 'grid' },
+  { key: 'analytics', label: 'Аналитика', icon: 'chart' },
+  { key: 'referrals', label: 'Рефералы', icon: 'link' },
+  { key: 'briefs', label: 'Брифы', icon: 'briefs' },
+  { key: 'brief-views', label: 'Просмотры по брифам', icon: 'eye' },
+  { key: 'monthly-report', label: 'Отчёт за месяц', icon: 'chart' },
+  { key: 'review', label: 'Проверка видео', icon: 'check' },
 ];
 
-const SUB_STATUS = {
-  ai_check: 'AI-проверка',
-  ai_passed: 'на проверке',
-  rework: 'на доработке',
-  sent_to_business: 'готово к приёмке',
-  accepted: 'принято',
-  rejected: 'отклонено',
-  pending: 'ожидает',
-};
-
-async function fetchJson(path, options = {}) {
-  const res = await fetch(`${API_BASE}${path}`, options);
-  let data = {};
-  try {
-    data = await res.json();
-  } catch {
-    data = {};
+// Every reused admin component calls authFetch('/api/admin/...'). demoFetch
+// rewrites those reads to the public, token-free /api/demo/admin/* mirrors
+// (real data), and refuses any write so the demo can never mutate the DB.
+function demoFetch(url, opts = {}) {
+  const method = (opts.method || 'GET').toUpperCase();
+  // Read-only: block every mutation, plus the CSV export (a full submissions
+  // dump shouldn't be downloadable from a public, token-free demo surface).
+  const isExport = url.includes('/export');
+  if (method !== 'GET' || isExport) {
+    return Promise.resolve(
+      new Response(
+        JSON.stringify({ ok: false, errors: ['Демо-режим только для просмотра — действие отключено'] }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
+      )
+    );
   }
-  if (!res.ok || data.ok === false) {
-    throw new Error(data.errors?.[0] || 'Не удалось выполнить запрос');
-  }
-  return data;
+  const demoUrl = url.replace(/^\/api\/admin\//, '/api/demo/admin/');
+  return fetch(`${API_BASE}${demoUrl}`, opts);
 }
 
 export default function DemoAdmin() {
-  const [view, setView] = useState('admin');
+  const [view, setView] = useState('dashboard');
   const [navOpen, setNavOpen] = useState(false);
-
   const current = useMemo(() => NAV.find((n) => n.key === view), [view]);
 
   return (
     <main className="admin page-light app-light ae-skip">
       <Helmet>
-        <title>CLICKI - демо админка</title>
+        <title>CLICKI — демо админка</title>
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
       <header className="admin-topbar">
@@ -66,8 +63,8 @@ export default function DemoAdmin() {
         {navOpen && <div className="admin-backdrop" onClick={() => setNavOpen(false)} />}
         <aside className={`admin-sidebar ${navOpen ? 'is-open' : ''}`}>
           <div className="admin-sidebar__head">
-            <div className="admin-sidebar__brand">CLICKI · инвест-демо</div>
-            <button className="admin-sidebar__close" onClick={() => setNavOpen(false)} aria-label="Закрыть меню">x</button>
+            <div className="admin-sidebar__brand">CLICKI · демо-админка</div>
+            <button className="admin-sidebar__close" onClick={() => setNavOpen(false)} aria-label="Закрыть меню">×</button>
           </div>
           <nav className="admin-nav">
             {NAV.map((n) => (
@@ -88,481 +85,272 @@ export default function DemoAdmin() {
 
         <div className="admin-main">
           <div className="demo-banner">
-            <span className="demo-pill">Реальные данные</span>
-            <span>Это инвесторский режим: разделы урезаны, но аналитика и действия идут через живой API.</span>
+            <span className="demo-pill">Реальные данные · только просмотр</span>
+            <span>Инвесторская витрина админки: цифры настоящие, кнопки изменения отключены. Кабинеты бизнеса и креатора — через обычный вход на сайте.</span>
           </div>
 
-          {view === 'admin' && <AdminMiniSection />}
-          {view === 'business' && <BusinessMiniSection />}
-          {view === 'creator' && <CreatorMiniSection />}
+          {view === 'dashboard' && <DemoDashboard />}
+          {view === 'analytics' && <DemoAnalytics />}
+          {view === 'referrals' && <DemoReferrals />}
+          {view === 'briefs' && <BriefsView authFetch={demoFetch} />}
+          {view === 'brief-views' && <BriefViewsView authFetch={demoFetch} />}
+          {view === 'monthly-report' && <MonthlyReportView authFetch={demoFetch} />}
+          {view === 'review' && <ReviewView authFetch={demoFetch} />}
         </div>
       </div>
     </main>
   );
 }
 
-function AdminMiniSection() {
-  const [data, setData] = useState(null);
+/* ---------------------------- Дашборд ---------------------------- */
+function DemoDashboard() {
+  const [leads, setLeads] = useState([]);
+  const [showcase, setShowcase] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const byDay = data?.analytics?.byDay || [];
-  const maxVisits = Math.max(...byDay.map((d) => d.visits), 1);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      setData(await fetchJson('/api/demo/analytics'));
-    } catch (err) {
-      setError(err.message);
+      const [l, c] = await Promise.all([
+        demoFetch('/api/admin/leads').then((r) => r.json()),
+        fetch(`${API_BASE}/api/content`).then((r) => r.json()).catch(() => ({})),
+      ]);
+      setLeads(l.leads || []);
+      setShowcase((c.showcase || []).length);
+    } catch (e) {
+      setError(e.message || 'Ошибка загрузки');
     } finally {
       setLoading(false);
     }
-  }
-
-  useEffect(() => {
-    load();
   }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const businessLeads = leads.filter((l) => l.funnel === 'client');
+  const creatorLeads = leads.filter((l) => l.funnel !== 'client');
 
   return (
     <section className="admin-block">
       <div className="admin-panel__head">
-        <h2 className="admin-block__title">Админ-раздел (урезанный)</h2>
+        <h2 className="admin-block__title">Дашборд</h2>
         <button className="btn btn--ghost btn--sm" onClick={load} disabled={loading}>{loading ? 'Обновляю…' : 'Обновить'}</button>
       </div>
-      <p className="muted-note" style={{ textAlign: 'left' }}>
-        В этом разделе показывается реальная веб-аналитика сайта и агрегаты по платформе.
-      </p>
       {error && <p className="lead-form__errors" role="alert">{error}</p>}
-      {!data ? (
-        <p className="muted-note">{loading ? 'Загрузка…' : 'Нет данных'}</p>
+      <div className="kpi-grid">
+        <Kpi tone="rose" icon="inbox" value={leads.length} label="Всего заявок" />
+        <Kpi tone="violet" icon="user" value={businessLeads.length} label="Заявки бизнеса" />
+        <Kpi tone="green" icon="users" value={creatorLeads.length} label="Заявки креаторов" />
+        <Kpi tone="amber" icon="video" value={showcase} label="Видео в ленте" />
+      </div>
+
+      <h3 className="admin-block__title admin-subhead">Последние заявки</h3>
+      <div className="admin-table-wrap">
+        <table className="admin-table">
+          <thead>
+            <tr><th>Воронка</th><th>Данные</th><th>Страница</th><th>Время</th></tr>
+          </thead>
+          <tbody>
+            {leads.slice(0, 6).map((l, i) => (
+              <tr key={i}>
+                <td data-label="Воронка">
+                  <span className={`lead-pill lead-pill--${l.funnel === 'client' ? 'biz' : 'creator'}`}>
+                    {l.funnel === 'client' ? 'Бизнес' : 'Креатор'}
+                  </span>
+                </td>
+                <td data-label="Данные">
+                  {Object.entries(l.fields || {}).slice(0, 2).map(([, v]) => `${v}`).join(' · ') || '-'}
+                </td>
+                <td className="muted-cell" data-label="Страница">{l.page || '-'}</td>
+                <td className="muted-cell" data-label="Время">{l.createdAt ? new Date(l.createdAt).toLocaleString('ru-RU') : '-'}</td>
+              </tr>
+            ))}
+            {!leads.length && (
+              <tr><td colSpan={4} className="admin-table__empty">Заявок пока нет</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+/* --------------------------- Аналитика --------------------------- */
+function DemoAnalytics() {
+  const [a, setA] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await demoFetch('/api/admin/analytics').then((res) => res.json());
+      setA(r.analytics || null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const maxDay = a && a.byDay.length ? Math.max(1, ...a.byDay.map((d) => d.visits)) : 1;
+  const dev = a?.device || { mobile: 0, desktop: 0 };
+  const devTotal = (dev.mobile || 0) + (dev.desktop || 0);
+  const mobilePct = devTotal ? Math.round((dev.mobile / devTotal) * 100) : 0;
+
+  return (
+    <section className="admin-block">
+      <div className="admin-panel__head">
+        <h2 className="admin-block__title">Аналитика посещаемости</h2>
+        <button className="btn btn--ghost btn--sm" onClick={load} disabled={loading}>{loading ? 'Обновляю…' : 'Обновить'}</button>
+      </div>
+      {!a ? (
+        <p className="muted-note" style={{ textAlign: 'left' }}>Загрузка…</p>
       ) : (
         <>
-          <div className="kpi-grid">
-            <Kpi tone="violet" icon="chart" value={(data.analytics?.totals?.visits || 0).toLocaleString('ru-RU')} label="Визиты (всего)" />
-            <Kpi tone="green" icon="users" value={(data.analytics?.totals?.uniques || 0).toLocaleString('ru-RU')} label="Уникальные" />
-            <Kpi tone="rose" icon="briefs" value={data.platform?.briefs || 0} label="Брифы" />
-            <Kpi tone="amber" icon="check" value={data.platform?.submissions || 0} label="Отправки видео" />
+          <div className="admin-stats">
+            <Stat label="Всего визитов" value={(a.totals?.visits || 0).toLocaleString('ru-RU')} />
+            <Stat label="Уникальных" value={(a.totals?.uniques || 0).toLocaleString('ru-RU')} />
+            <Stat label="Сегодня" value={(a.today?.visits || 0).toLocaleString('ru-RU')} />
+            <Stat label="Мобильных" value={`${mobilePct}%`} />
           </div>
 
-          <h3 className="admin-block__title admin-subhead">Посещаемость за 14 дней</h3>
-          <div className="an-days">
-            {byDay.map((d) => (
-              <div key={d.day} className="an-day" title={`${d.day}: ${d.visits}`}>
-                <span className="an-day__bar" style={{ height: `${Math.round((d.visits / maxVisits) * 100)}%` }} />
-                <span className="an-day__label">{d.day.slice(5)}</span>
-              </div>
-            ))}
-          </div>
+          <h3 className="admin-block__title admin-subhead">Визиты за 14 дней</h3>
+          {a.byDay.length ? (
+            <div className="an-days">
+              {a.byDay.map((d) => (
+                <div key={d.day} className="an-day" title={`${d.day}: ${d.visits} визитов`}>
+                  <span className="an-day__bar" style={{ height: `${Math.round((d.visits / maxDay) * 100)}%` }} />
+                  <span className="an-day__label">{d.day.slice(5)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="muted-note" style={{ textAlign: 'left' }}>Данных пока нет — цифры появятся по мере посещений.</p>
+          )}
 
           <div className="an-cols">
-            <MiniTable
-              title="Топ страниц"
-              rows={(data.analytics?.byPage || []).map((r) => [r.path, Number(r.visits || 0).toLocaleString('ru-RU')])}
-            />
-            <MiniTable
-              title="Источники"
-              rows={(data.analytics?.bySource || []).map((r) => [String(r.source || 'прямой переход'), Number(r.visits || 0).toLocaleString('ru-RU')])}
-            />
+            <div>
+              <h3 className="admin-block__title admin-subhead">Топ страниц</h3>
+              <div className="admin-table-wrap">
+                <table className="admin-table">
+                  <thead><tr><th>Страница</th><th>Визитов</th></tr></thead>
+                  <tbody>
+                    {a.byPage.map((p) => (
+                      <tr key={p.path}><td data-label="Страница">{p.path}</td><td className="muted-cell" data-label="Визитов">{p.visits}</td></tr>
+                    ))}
+                    {!a.byPage.length && <tr><td colSpan={2} className="admin-table__empty">—</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div>
+              <h3 className="admin-block__title admin-subhead">Источники трафика</h3>
+              <div className="admin-table-wrap">
+                <table className="admin-table">
+                  <thead><tr><th>Источник</th><th>Визитов</th></tr></thead>
+                  <tbody>
+                    {a.bySource.map((s) => (
+                      <tr key={s.source}><td data-label="Источник">{s.source}</td><td className="muted-cell" data-label="Визитов">{s.visits}</td></tr>
+                    ))}
+                    {!a.bySource.length && <tr><td colSpan={2} className="admin-table__empty">—</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
 
-          <p className="muted-note" style={{ textAlign: 'left' }}>
-            Последнее обновление: {new Date(data.updatedAt).toLocaleString('ru-RU')}
-          </p>
+          <h3 className="admin-block__title admin-subhead">Устройства</h3>
+          <div className="bp-bars">
+            <div className="bp-bar">
+              <span className="bp-bar__label">Мобильные</span>
+              <span className="bp-bar__track"><span className="bp-bar__fill" style={{ width: `${mobilePct}%` }} /></span>
+              <span className="bp-bar__val">{dev.mobile}</span>
+            </div>
+            <div className="bp-bar">
+              <span className="bp-bar__label">Десктоп</span>
+              <span className="bp-bar__track"><span className="bp-bar__fill" style={{ width: `${100 - mobilePct}%` }} /></span>
+              <span className="bp-bar__val">{dev.desktop}</span>
+            </div>
+          </div>
+
+          <h3 className="admin-block__title admin-subhead">Куда нажимают (кнопки и переходы)</h3>
+          {a.topClicks && a.topClicks.length ? (
+            <div className="admin-table-wrap">
+              <table className="admin-table">
+                <thead><tr><th>Действие</th><th>Нажатий</th></tr></thead>
+                <tbody>
+                  {a.topClicks.map((c) => (
+                    <tr key={c.label}><td data-label="Действие">{c.label}</td><td className="muted-cell" data-label="Нажатий">{c.clicks}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="muted-note" style={{ textAlign: 'left' }}>Пока нет данных о нажатиях.</p>
+          )}
         </>
       )}
     </section>
   );
 }
 
-function BusinessMiniSection() {
-  const [token, setToken] = useState(() => sessionStorage.getItem(BUSINESS_TOKEN_KEY) || '');
-  const [data, setData] = useState(null);
-  const [email, setEmail] = useState(DEMO_BUSINESS_EMAIL);
-  const [password, setPassword] = useState(DEMO_PASS);
-  const [error, setError] = useState('');
+/* --------------------------- Рефералы ---------------------------- */
+function DemoReferrals() {
+  const [r, setR] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ title: '', platform: 'TikTok', key_message: '', slots: 3 });
-
-  async function authFetch(path, options = {}) {
-    return fetchJson(path, {
-      ...options,
-      headers: {
-        ...(options.headers || {}),
-        Authorization: `Bearer ${token}`,
-      },
-    });
-  }
-
-  async function loadMe() {
-    if (!token) return;
+  const load = useCallback(async () => {
     setLoading(true);
-    setError('');
     try {
-      setData(await authFetch('/api/business/me'));
-    } catch (err) {
-      setError(err.message);
-      if (/войдите|401|403/i.test(err.message)) {
-        sessionStorage.removeItem(BUSINESS_TOKEN_KEY);
-        setToken('');
-      }
+      const res = await demoFetch('/api/admin/referrals').then((x) => x.json());
+      setR(res.referrals || null);
     } finally {
       setLoading(false);
     }
-  }
-
-  useEffect(() => {
-    loadMe();
-  }, [token]);
-
-  async function login(e) {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      const res = await fetchJson('/api/business/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      sessionStorage.setItem(BUSINESS_TOKEN_KEY, res.token);
-      setToken(res.token);
-      setData(res);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function logout() {
-    sessionStorage.removeItem(BUSINESS_TOKEN_KEY);
-    setToken('');
-    setData(null);
-  }
-
-  async function createBrief(e) {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      await authFetch('/api/business/briefs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
-      setForm({ title: '', platform: 'TikTok', key_message: '', slots: 3 });
-      await loadMe();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function acceptSubmission(id) {
-    setLoading(true);
-    setError('');
-    try {
-      await authFetch(`/api/business/submissions/${id}/accept`, { method: 'POST' });
-      await loadMe();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  if (!token || !data) {
-    return (
-      <section className="admin-block">
-        <h2 className="admin-block__title">Тест-кабинет бизнеса</h2>
-        <p className="muted-note" style={{ textAlign: 'left' }}>
-          Реальный тестовый поток: вход, создание брифа, приёмка видео. Данные пишутся в БД.
-        </p>
-        <form className="lead-form" onSubmit={login}>
-          <label className="lead-form__field">
-            <span className="lead-form__label">Email</span>
-            <input value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
-          </label>
-          <label className="lead-form__field">
-            <span className="lead-form__label">Пароль</span>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
-          </label>
-          {error && <p className="lead-form__errors" role="alert">{error}</p>}
-          <button className="btn btn--primary btn--sm" disabled={loading}>{loading ? 'Вход…' : 'Войти в тест-кабинет'}</button>
-        </form>
-      </section>
-    );
-  }
-
-  const briefs = data.briefs || [];
-  const incoming = (data.submissions || []).filter((s) => s.status === 'sent_to_business');
+  }, []);
+  useEffect(() => { load(); }, [load]);
 
   return (
     <section className="admin-block">
       <div className="admin-panel__head">
-        <h2 className="admin-block__title">Тест-кабинет бизнеса</h2>
-        <button className="btn btn--ghost btn--sm" onClick={logout}>Выйти</button>
+        <h2 className="admin-block__title">Рефералы</h2>
+        <button className="btn btn--ghost btn--sm" onClick={load} disabled={loading}>{loading ? 'Обновляю…' : 'Обновить'}</button>
       </div>
-
-      {error && <p className="lead-form__errors" role="alert">{error}</p>}
-
-      <div className="admin-stats">
-        <Stat label="Брифов" value={briefs.length} />
-        <Stat label="На приёмке" value={incoming.length} />
-      </div>
-
-      <h3 className="admin-block__title admin-subhead">Новый бриф</h3>
-      <form className="pf-form" onSubmit={createBrief}>
-        <input placeholder="Название брифа" value={form.title} onChange={(e) => setForm((s) => ({ ...s, title: e.target.value }))} required />
-        <select value={form.platform} onChange={(e) => setForm((s) => ({ ...s, platform: e.target.value }))}>
-          <option>TikTok</option>
-          <option>Instagram Reels</option>
-          <option>YouTube Shorts</option>
-          <option>Threads</option>
-          <option>X (Twitter)</option>
-        </select>
-        <input placeholder="Ключевое сообщение" value={form.key_message} onChange={(e) => setForm((s) => ({ ...s, key_message: e.target.value }))} />
-        <input type="number" min="1" placeholder="Слотов" value={form.slots} onChange={(e) => setForm((s) => ({ ...s, slots: Number(e.target.value) }))} />
-        <button className="btn btn--primary btn--sm" disabled={loading}>{loading ? 'Сохранение…' : 'Отправить бриф'}</button>
-      </form>
-
-      <h3 className="admin-block__title admin-subhead">Мои брифы</h3>
-      <div className="admin-table-wrap">
-        <table className="admin-table">
-          <thead><tr><th>Название</th><th>Платформа</th><th>Статус</th></tr></thead>
-          <tbody>
-            {briefs.map((b) => (
-              <tr key={b.id}>
-                <td data-label="Название">{b.title}</td>
-                <td data-label="Платформа">{b.platform}</td>
-                <td data-label="Статус"><span className={`pf-status pf-status--${b.status === 'active' ? 'accepted' : b.status === 'revision' ? 'rework' : 'pending'}`}>{b.status}</span></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <h3 className="admin-block__title admin-subhead">Видео на приёмке</h3>
-      <div className="admin-table-wrap">
-        <table className="admin-table">
-          <thead><tr><th>Бриф</th><th>Креатор</th><th>Видео</th><th></th></tr></thead>
-          <tbody>
-            {incoming.map((s) => (
-              <tr key={s.id}>
-                <td data-label="Бриф">{s.brief_title || s.platform}</td>
-                <td data-label="Креатор">{s.creator_name || `#${s.creator_id}`}</td>
-                <td data-label="Видео"><a href={s.video_url} target="_blank" rel="noreferrer">Открыть</a></td>
-                <td data-label=""><button className="btn btn--ghost btn--sm" onClick={() => acceptSubmission(s.id)} disabled={loading}>Принять</button></td>
-              </tr>
-            ))}
-            {!incoming.length && (
-              <tr><td colSpan={4} className="muted-cell">Пока нет видео для приёмки</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <p className="muted-note" style={{ textAlign: 'left', marginTop: 0 }}>
+        Заявки бизнеса, пришедшие по персональной ссылке креатора (та, что он размещает в шапке профиля). За каждую такую заявку креатор получает {r?.xpPerLead ?? 30} XP.
+      </p>
+      {!r ? (
+        <p className="muted-note" style={{ textAlign: 'left' }}>Загрузка…</p>
+      ) : (
+        <>
+          <div className="kpi-grid">
+            <Kpi tone="violet" icon="link" value={r.total} label="Заявок по рефералам" />
+            <Kpi tone="green" icon="users" value={r.byCreator.length} label="Креаторов привели заявки" />
+          </div>
+          <div className="admin-table-wrap" style={{ marginTop: 16 }}>
+            <table className="admin-table">
+              <thead>
+                <tr><th>Креатор</th><th>Логин</th><th>Заявок</th><th>XP от рефералов</th></tr>
+              </thead>
+              <tbody>
+                {r.byCreator.map((c) => (
+                  <tr key={c.id}>
+                    <td data-label="Креатор">{c.name}</td>
+                    <td className="muted-cell" data-label="Логин">{c.username || '-'}</td>
+                    <td data-label="Заявок">{c.leads}</td>
+                    <td className="muted-cell" data-label="XP от рефералов">{c.leads * r.xpPerLead}</td>
+                  </tr>
+                ))}
+                {!r.byCreator.length && (
+                  <tr><td colSpan={4} className="admin-table__empty">Пока нет заявок по рефералам</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </section>
   );
 }
 
-function CreatorMiniSection() {
-  const [token, setToken] = useState(() => sessionStorage.getItem(CREATOR_TOKEN_KEY) || '');
-  const [data, setData] = useState(null);
-  const [username, setUsername] = useState(DEMO_CREATOR_LOGIN);
-  const [password, setPassword] = useState(DEMO_PASS);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ brief_id: '', platform: 'TikTok', video_url: '' });
-
-  async function authFetch(path, options = {}) {
-    return fetchJson(path, {
-      ...options,
-      headers: {
-        ...(options.headers || {}),
-        Authorization: `Bearer ${token}`,
-      },
-    });
-  }
-
-  async function loadMe() {
-    if (!token) return;
-    setLoading(true);
-    setError('');
-    try {
-      setData(await authFetch('/api/creator/me'));
-    } catch (err) {
-      setError(err.message);
-      if (/войдите|401|403/i.test(err.message)) {
-        sessionStorage.removeItem(CREATOR_TOKEN_KEY);
-        setToken('');
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    loadMe();
-  }, [token]);
-
-  async function login(e) {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      const res = await fetchJson('/api/creator/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      });
-      sessionStorage.setItem(CREATOR_TOKEN_KEY, res.token);
-      setToken(res.token);
-      setData(res);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function logout() {
-    sessionStorage.removeItem(CREATOR_TOKEN_KEY);
-    setToken('');
-    setData(null);
-  }
-
-  async function submitVideo(e) {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      await authFetch('/api/creator/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          brief_id: form.brief_id ? Number(form.brief_id) : undefined,
-          platform: form.platform,
-          video_url: form.video_url,
-          rights_confirmed: true,
-        }),
-      });
-      setForm((s) => ({ ...s, video_url: '' }));
-      await loadMe();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  if (!token || !data) {
-    return (
-      <section className="admin-block">
-        <h2 className="admin-block__title">Тест-кабинет креатора</h2>
-        <p className="muted-note" style={{ textAlign: 'left' }}>
-          Реальный поток креатора: вход, выбор брифа, отправка видео.
-        </p>
-        <form className="lead-form" onSubmit={login}>
-          <label className="lead-form__field">
-            <span className="lead-form__label">Логин</span>
-            <input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" />
-          </label>
-          <label className="lead-form__field">
-            <span className="lead-form__label">Пароль</span>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
-          </label>
-          {error && <p className="lead-form__errors" role="alert">{error}</p>}
-          <button className="btn btn--primary btn--sm" disabled={loading}>{loading ? 'Вход…' : 'Войти в тест-кабинет'}</button>
-        </form>
-      </section>
-    );
-  }
-
-  const openBriefs = data.openBriefs || data.available || [];
-  const submissions = data.submissions || [];
-
-  return (
-    <section className="admin-block">
-      <div className="admin-panel__head">
-        <h2 className="admin-block__title">Тест-кабинет креатора</h2>
-        <button className="btn btn--ghost btn--sm" onClick={logout}>Выйти</button>
-      </div>
-
-      {error && <p className="lead-form__errors" role="alert">{error}</p>}
-
-      <div className="admin-stats">
-        <Stat label="Открытые брифы" value={openBriefs.length} />
-        <Stat label="Мои отправки" value={submissions.length} />
-      </div>
-
-      <h3 className="admin-block__title admin-subhead">Отправить видео</h3>
-      <form className="pf-form" onSubmit={submitVideo}>
-        <select value={form.brief_id} onChange={(e) => setForm((s) => ({ ...s, brief_id: e.target.value }))}>
-          <option value="">Без привязки к брифу</option>
-          {openBriefs.map((b) => (
-            <option key={b.id} value={b.id}>{b.title || `Бриф #${b.id}`}</option>
-          ))}
-        </select>
-        <select value={form.platform} onChange={(e) => setForm((s) => ({ ...s, platform: e.target.value }))}>
-          <option>TikTok</option>
-          <option>Instagram Reels</option>
-          <option>YouTube Shorts</option>
-          <option>Threads</option>
-          <option>X (Twitter)</option>
-        </select>
-        <input placeholder="Ссылка на видео" value={form.video_url} onChange={(e) => setForm((s) => ({ ...s, video_url: e.target.value }))} required />
-        <button className="btn btn--primary btn--sm" disabled={loading}>{loading ? 'Отправка…' : 'Отправить видео'}</button>
-      </form>
-
-      <h3 className="admin-block__title admin-subhead">Мои видео</h3>
-      <div className="admin-table-wrap">
-        <table className="admin-table">
-          <thead><tr><th>Бриф</th><th>Площадка</th><th>Статус</th><th>Просмотры</th></tr></thead>
-          <tbody>
-            {submissions.map((s) => (
-              <tr key={s.id}>
-                <td data-label="Бриф">{s.brief_title || `#${s.brief_id || '-'}`}</td>
-                <td data-label="Площадка">{s.platform}</td>
-                <td data-label="Статус"><span className={`pf-status pf-status--${s.status}`}>{SUB_STATUS[s.status] || s.status}</span></td>
-                <td data-label="Просмотры">{Number(s.views || 0).toLocaleString('ru-RU')}</td>
-              </tr>
-            ))}
-            {!submissions.length && (
-              <tr><td colSpan={4} className="muted-cell">Пока нет отправленных видео</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
-
-function MiniTable({ title, rows }) {
-  return (
-    <div>
-      <h3 className="admin-block__title admin-subhead">{title}</h3>
-      <div className="admin-table-wrap">
-        <table className="admin-table">
-          <tbody>
-            {rows.map(([name, value]) => (
-              <tr key={`${name}-${value}`}>
-                <td data-label={title}>{name}</td>
-                <td className="muted-cell" data-label="Значение">{value}</td>
-              </tr>
-            ))}
-            {!rows.length && (
-              <tr><td className="muted-cell">Нет данных</td><td /></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
+/* ---------------------------- helpers ---------------------------- */
 function Stat({ label, value }) {
   return (
     <div className="admin-stat">
