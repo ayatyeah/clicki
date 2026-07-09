@@ -290,9 +290,70 @@ export async function initDb() {
     // meaning a leaked token was permanent, unrevocable account access.
     await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS session_expires_at TIMESTAMP');
     await client.query('ALTER TABLE business_accounts ADD COLUMN IF NOT EXISTS session_expires_at TIMESTAMP');
+
+    // Leads used to live in server/data/leads.jsonl. On an ephemeral-filesystem
+    // host (DO App Platform) that file is destroyed on every redeploy, silently
+    // losing every lead the site had collected. They belong in the DB, like media.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS leads (
+        id BIGSERIAL PRIMARY KEY,
+        funnel VARCHAR(20) NOT NULL,
+        fields JSONB NOT NULL DEFAULT '{}'::jsonb,
+        page VARCHAR(200),
+        ref VARCHAR(40),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+    await client.query('CREATE INDEX IF NOT EXISTS leads_created_at_idx ON leads (created_at DESC)');
+
+    // ---- Hot-path indexes ----
+    // Every authenticated request resolves a bearer token to an account. Without
+    // these two, that is a sequential scan of the whole table on each request.
+    await client.query('CREATE INDEX IF NOT EXISTS creators_session_token_idx ON creators (session_token)');
+    await client.query('CREATE INDEX IF NOT EXISTS business_session_token_idx ON business_accounts (session_token)');
+    // Foreign keys Postgres does NOT index automatically — these back the joins
+    // and per-account lookups in the creator/business/admin dashboards.
+    await client.query('CREATE INDEX IF NOT EXISTS submissions_creator_idx ON submissions (creator_id)');
+    await client.query('CREATE INDEX IF NOT EXISTS submissions_brief_idx ON submissions (brief_id)');
+    await client.query('CREATE INDEX IF NOT EXISTS submissions_status_idx ON submissions (status)');
+    await client.query('CREATE INDEX IF NOT EXISTS assignments_creator_idx ON assignments (creator_id)');
+    await client.query('CREATE INDEX IF NOT EXISTS assignments_brief_idx ON assignments (brief_id)');
+    await client.query('CREATE INDEX IF NOT EXISTS payouts_creator_idx ON payouts (creator_id)');
+    await client.query('CREATE INDEX IF NOT EXISTS briefs_business_idx ON briefs (business_id)');
+    await client.query('CREATE INDEX IF NOT EXISTS briefs_status_idx ON briefs (status)');
+    // getVisitAnalytics() filters every aggregate on kind, then groups by day.
+    await client.query('CREATE INDEX IF NOT EXISTS visits_kind_created_idx ON visits (kind, created_at)');
   } finally {
     client.release();
   }
+}
+
+/* ---------------- Leads (lead-capture funnels) ---------------- */
+export async function insertLead(lead) {
+  const r = await pool.query(
+    'INSERT INTO leads (funnel, fields, page, ref, created_at) VALUES ($1,$2,$3,$4,COALESCE($5, CURRENT_TIMESTAMP)) RETURNING id',
+    [lead.funnel, JSON.stringify(lead.fields || {}), lead.page || null, lead.ref || null, lead.createdAt || null]
+  );
+  return r.rows[0].id;
+}
+
+/** Newest first — matches the previous JSONL-reverse behaviour the admin UI expects. */
+export async function listLeads(limit = 1000) {
+  const r = await pool.query(
+    'SELECT funnel, fields, page, ref, created_at FROM leads ORDER BY created_at DESC, id DESC LIMIT $1',
+    [limit]
+  );
+  return r.rows.map((row) => ({
+    funnel: row.funnel,
+    fields: row.fields,
+    page: row.page || undefined,
+    ref: row.ref || undefined,
+    createdAt: row.created_at?.toISOString?.() ?? row.created_at,
+  }));
+}
+
+export async function countLeads() {
+  const r = await pool.query('SELECT COUNT(*)::int AS n FROM leads');
+  return r.rows[0].n;
 }
 
 /** Cheap connectivity check for /api/health — a real DB round-trip, not just

@@ -3,9 +3,13 @@ import { Link } from 'react-router-dom';
 import Seo from '../components/Seo.jsx';
 import Icon from '../components/Icon.jsx';
 import { API_BASE } from '../lib/config.js';
+import { safeHref } from '../lib/safeHref.js';
 
 const KEY = 'clicki_business_token';
 const PLATFORMS = ['TikTok', 'Instagram Reels', 'YouTube Shorts', 'Threads', 'X (Twitter)'];
+// TODO: written but never rendered — no component consumes this FAQ. Either wire
+// it into the cabinet or delete it. Kept so the copy isn't lost silently.
+// eslint-disable-next-line no-unused-vars
 const BUSINESS_QA = [
   { q: 'Как быстро проверят мой бриф?', a: 'Оператор модерирует новые брифы обычно в течение рабочего дня — статус видно в разделе «Брифы».' },
   { q: 'Как принять готовую работу?', a: 'В разделе «Приёмка» откройте видео по ссылке и нажмите «Принять работу» — после этого создателю автоматически начисляется оплата.' },
@@ -318,13 +322,13 @@ const BRIEF_STATUS = {
 function BriefsView({ briefs, authFetch, reload }) {
   const [editing, setEditing] = useState(null);
   const [draft, setDraft] = useState(null);
-  const useDraft = (d) => {
+  const applyDraft = (d) => {
     setEditing(null);
     setDraft(d);
   };
   return (
     <>
-      {!editing && <BriefConstructor authFetch={authFetch} onUseDraft={useDraft} />}
+      {!editing && <BriefConstructor authFetch={authFetch} onUseDraft={applyDraft} />}
 
       <section className="admin-block">
         <h2 className="admin-block__title">{editing ? 'Редактировать бриф' : 'Создать бриф'}</h2>
@@ -404,7 +408,7 @@ function BriefConstructor({ authFetch, onUseDraft }) {
     }
   };
 
-  const useDraft = (d) => {
+  const applyDraft = (d) => {
     onUseDraft({
       title: d.title,
       platform,
@@ -461,7 +465,7 @@ function BriefConstructor({ authFetch, onUseDraft }) {
                     {d.tone && <p className="creator-portal__muted">Тон: {d.tone}</p>}
                     {d.dos && <p className="creator-portal__muted">✓ {d.dos}</p>}
                     {d.donts && <p className="creator-portal__muted">✗ {d.donts}</p>}
-                    <button className="btn btn--ghost btn--sm" style={{ marginTop: 8 }} onClick={() => useDraft(d)}>Использовать этот вариант</button>
+                    <button className="btn btn--ghost btn--sm" style={{ marginTop: 8 }} onClick={() => applyDraft(d)}>Использовать этот вариант</button>
                   </div>
                 ))}
               </div>
@@ -511,7 +515,7 @@ function ReviewView({ incoming, accepted, authFetch, reload }) {
                   {s.ai_score != null ? ` · AI ${s.ai_score}/100` : ''}
                 </p>
                 <div className="creator-portal__row-actions">
-                  <a className="btn btn--ghost btn--sm" href={s.video_url} target="_blank" rel="noreferrer">Смотреть видео</a>
+                  <a className="btn btn--ghost btn--sm" href={safeHref(s.video_url)} target="_blank" rel="noreferrer">Смотреть видео</a>
                   <button className="btn btn--primary btn--sm" onClick={() => accept(s.id)} disabled={acceptingId === s.id}>
                     {acceptingId === s.id ? 'Принимаю…' : 'Принять работу'}
                   </button>
@@ -535,7 +539,7 @@ function ReviewView({ incoming, accepted, authFetch, reload }) {
                   <tr key={s.id}>
                     <td data-label="Бриф">{s.brief_title || s.platform}</td>
                     <td className="muted-cell" data-label="Креатор">{s.creator_name || `#${s.creator_id}`}</td>
-                    <td data-label="Видео"><a href={s.video_url} target="_blank" rel="noreferrer">ссылка</a></td>
+                    <td data-label="Видео"><a href={safeHref(s.video_url)} target="_blank" rel="noreferrer">ссылка</a></td>
                     <td className="muted-cell" data-label="Просмотры">{(s.views || 0).toLocaleString('ru-RU')}</td>
                   </tr>
                 ))}
@@ -599,7 +603,7 @@ function Analytics({ accepted, authFetch, b }) {
             <tbody>
               {top.map((s) => (
                 <tr key={s.id}>
-                  <td data-label="Бриф"><a href={s.video_url} target="_blank" rel="noreferrer">{s.brief_title || 'видео'}</a></td>
+                  <td data-label="Бриф"><a href={safeHref(s.video_url)} target="_blank" rel="noreferrer">{s.brief_title || 'видео'}</a></td>
                   <td className="muted-cell" data-label="Платформа">{s.platform}</td>
                   <td className="muted-cell" data-label="Просмотры">{(s.views || 0).toLocaleString('ru-RU')}</td>
                 </tr>

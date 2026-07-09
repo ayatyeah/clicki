@@ -4,6 +4,7 @@ import Seo from '../components/Seo.jsx';
 import Logo from '../components/Logo.jsx';
 import { useLang } from '../i18n.jsx';
 import { API_BASE } from '../lib/config.js';
+import { safeHref } from '../lib/safeHref.js';
 
 const COPY = {
   ru: { tag: 'UGC-креатор на CLICKI', cta: 'Заказать похожий контент', desc: (n) => `Профиль ${n} на CLICKI` },
@@ -78,7 +79,7 @@ export default function CreatorMiniPage() {
             {page.brandLinks.map((b) => (
               <a
                 key={b.id}
-                href={b.url}
+                href={safeHref(b.url)}
                 target="_blank"
                 rel="noreferrer"
                 className="creator-page__brand"

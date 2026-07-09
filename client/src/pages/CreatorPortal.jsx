@@ -2,9 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Seo from '../components/Seo.jsx';
 import { API_BASE, SITE_URL } from '../lib/config.js';
+import { safeHref } from '../lib/safeHref.js';
 
 const KEY = 'clicki_creator_token';
 const PLATFORMS = ['TikTok', 'Instagram Reels', 'YouTube Shorts', 'Threads', 'X (Twitter)'];
+// TODO: written but never rendered — no component consumes this FAQ. Either wire
+// it into the cabinet or delete it. Kept so the copy isn't lost silently.
+// eslint-disable-next-line no-unused-vars
 const CREATOR_QA = [
   { q: 'Когда придут деньги?', a: 'Как только баланс в кошельке достигнет порога выплаты, оператор оформит перевод на Kaspi — статус видно во вкладке «Кошелёк».' },
   { q: 'Почему видео не засчитали?', a: 'Причина отклонения указана рядом со статусом видео — обычно это несоответствие хронометражу, отсутствие хэштега/упоминания или низкое качество.' },
@@ -329,7 +333,7 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
         <>
           <h2 className="creator-portal__h2">Заказы <span className="creator-portal__chip">доступны всем</span></h2>
           {openBriefs.length ? (
-            openBriefs.map((b, i) => <BriefCard key={b.id} b={b} top={i === 0 && b.est_payout > 0} authFetch={authFetch} />)
+            openBriefs.map((b, i) => <BriefCard key={b.id} b={b} top={i === 0 && b.est_payout > 0} />)
           ) : (
             <p className="creator-portal__muted">Открытых заказов пока нет — менеджер скоро опубликует.</p>
           )}
@@ -337,7 +341,7 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
           {briefs.length > 0 && (
             <>
               <h2 className="creator-portal__h2">Назначенные тебе</h2>
-              {briefs.map((b) => <BriefCard key={b.id} b={b} authFetch={authFetch} />)}
+              {briefs.map((b) => <BriefCard key={b.id} b={b} />)}
             </>
           )}
         </>
@@ -354,7 +358,7 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
               {submissions.map((s) => (
                 <div key={s.id} className="creator-portal__sub-row">
                   <div className="creator-portal__sub">
-                    <a href={s.video_url} target="_blank" rel="noreferrer">{s.brief_title || s.platform}</a>
+                    <a href={safeHref(s.video_url)} target="_blank" rel="noreferrer">{s.brief_title || s.platform}</a>
                     <span className={`pf-status pf-status--${s.status}`}>{SUB_STATUS_RU[s.status] || s.status}</span>
                     <span className="creator-portal__muted">{(s.views || 0).toLocaleString('ru-RU')} просм.</span>
                     {s.ai_score != null && <span className="ai-score">AI {s.ai_score}/100</span>}
@@ -561,7 +565,7 @@ function TikTokCard({ c, authFetch, reload }) {
   );
 }
 
-function BriefCard({ b, top = false, authFetch = null }) {
+function BriefCard({ b, top = false }) {
   const [open, setOpen] = useState(false);
   const spec = b.spec || {};
   const rows = [];

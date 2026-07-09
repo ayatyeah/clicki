@@ -73,10 +73,18 @@ services:
         scope: RUN_TIME
         type: SECRET
         value: REPLACE_ME_IN_DO_DASHBOARD
+      # Break-glass / automation token. Admin logins now mint a random, expiring
+      # session token instead of handing this to the browser.
       - key: ADMIN_TOKEN
         scope: RUN_TIME
         type: SECRET
         value: REPLACE_ME_IN_DO_DASHBOARD
+      # Content-Security-Policy: enforce | report-only | off. The allowlist lives
+      # in server/src/security.js. If a newly added third-party tag gets blocked,
+      # set report-only, read the browser console, add the host, switch back.
+      - key: CSP_MODE
+        scope: RUN_TIME
+        value: "enforce"
       - key: TELEGRAM_BOT_TOKEN
         scope: RUN_TIME
         type: SECRET

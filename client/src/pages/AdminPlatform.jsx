@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { safeHref } from '../lib/safeHref.js';
 
 /* Operator CRM views (ТЗ §13): briefs, video review, creators, payouts.
    Each view manages its own data via the passed authFetch. */
@@ -359,25 +360,6 @@ export function BriefsView({ authFetch }) {
     setForm({ title: '', platform: 'TikTok', duration_min: 15, duration_max: 90, slots: 5 });
     load();
   };
-  const assign = async (briefId, creatorId) => {
-    if (!creatorId) return;
-    setError('');
-    const res = await authFetch(`/api/admin/briefs/${briefId}/assign`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ creator_id: Number(creatorId) }),
-    });
-    if (await check(res)) load();
-  };
-  const publish = async (briefId) => {
-    setError('');
-    const res = await authFetch(`/api/admin/briefs/${briefId}/status`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'active' }),
-    });
-    if (await check(res)) load();
-  };
   const setF = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   return (
@@ -588,7 +570,7 @@ export function ReviewView({ authFetch }) {
                   <div style={{ color: 'var(--fog)', fontSize: '0.85rem' }}>{s.brief_title || 'без брифа'}</div>
                 </td>
                 <td data-label="Видео">
-                  <a href={s.video_url} target="_blank" rel="noreferrer">ссылка</a>
+                  <a href={safeHref(s.video_url)} target="_blank" rel="noreferrer">ссылка</a>
                   <div style={{ fontSize: '0.8rem', color: 'var(--fog)' }}>{s.platform} · {s.published_at || '—'}</div>
                   {s.rights_confirmed ? <span style={{ color: '#6ee7a8', fontSize: '0.8rem' }}>права ✓</span> : <span style={{ color: '#f59e0b', fontSize: '0.8rem' }}>права ✗</span>}
                 </td>

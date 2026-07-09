@@ -2,8 +2,6 @@ import 'dotenv/config';
 import os from 'node:os';
 import crypto from 'node:crypto';
 import path from 'node:path';
-import dns from 'node:dns/promises';
-import net from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { existsSync, createReadStream, statSync, mkdirSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
@@ -16,7 +14,7 @@ import multer from 'multer';
 import { validateLead } from './validate.js';
 import { verifyRecaptcha } from './recaptcha.js';
 import { dispatchLead, notifyOps } from './notify.js';
-import { saveLead, readLeads } from './store.js';
+import { saveLead, readLeads, migrateLegacyLeads } from './store.js';
 import { readContent, writeContent } from './content.js';
 import {
   tiktokEnabled,
@@ -104,9 +102,12 @@ import {
   setBusinessCredentials,
   deleteBusiness,
   resetPlatformData,
+  countLeads,
 } from './db.js';
 import { geminiGenerate, geminiEnabled } from './gemini.js';
 import { uploadToSpaces, spacesEnabled } from './storage.js';
+import { safeHttpUrl, fetchPageText, buildCspDirectives } from './security.js';
+import { maskName, maskContact, maskLeadFields, maskCreatorRow } from './mask.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIST = path.join(__dirname, '..', '..', 'client', 'dist');
@@ -119,21 +120,50 @@ mkdirSync(MEDIA_CACHE, { recursive: true });
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+const IS_PROD = process.env.NODE_ENV === 'production';
 
 app.set('trust proxy', 1);
-// CSP disabled: this server also serves the SPA, which loads external
-// fonts/analytics; a strict default CSP would block them.
-app.use(helmet({ contentSecurityPolicy: false }));
+
+// CSP_MODE=report-only ships the policy as Report-Only (the browser logs
+// violations but blocks nothing) — use it to smoke-test a change before
+// enforcing. CSP_MODE=off disables it entirely. Default is enforce.
+const CSP_MODE = process.env.CSP_MODE || 'enforce';
+const cspDirectives = buildCspDirectives({
+  isProd: IS_PROD,
+  mediaHosts: [process.env.SPACES_CDN, process.env.SPACES_ENDPOINT],
+});
+
+app.use(
+  helmet({
+    contentSecurityPolicy:
+      CSP_MODE === 'off'
+        ? false
+        : { useDefaults: false, directives: cspDirectives, reportOnly: CSP_MODE === 'report-only' },
+    // The SPA and its media are served from this origin; a same-origin embed is fine.
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  })
+);
 app.use(express.json({ limit: '32kb' }));
 
 // Media is stored in Postgres (not local disk) so it survives redeploys on
 // ephemeral-filesystem hosts. Uploads are buffered in memory, then inserted.
+//
+// SVG is rejected even though it is an `image/*` type: an .svg served from our
+// own origin with its real Content-Type executes any <script> inside it, which
+// would be stored XSS against the admin session. The same applies to XML-ish
+// image types. Everything the CMS actually needs is a raster image or a video.
+const ALLOWED_UPLOAD_MIME = new Set([
+  'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif',
+  'video/mp4', 'video/quicktime', 'video/webm',
+]);
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 150 * 1024 * 1024 }, // 150 MB per file
+  limits: { fileSize: 150 * 1024 * 1024, files: 1 }, // 150 MB per file
   fileFilter: (_req, file, cb) => {
-    const ok = /^(image|video)\//.test(file.mimetype);
-    cb(ok ? null : new Error('Только изображения и видео'), ok);
+    const ok = ALLOWED_UPLOAD_MIME.has(file.mimetype);
+    cb(ok ? null : new Error('Разрешены только JPEG/PNG/WebP/GIF/AVIF и MP4/MOV/WebM'), ok);
   },
 });
 
@@ -152,7 +182,6 @@ const leadLimiter = rateLimit({
 });
 
 // ---- Admin auth ----
-const IS_PROD = process.env.NODE_ENV === 'production';
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.ADMIN_PASS || 'admin';
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'clicki-admin-token';
@@ -167,6 +196,13 @@ if (IS_PROD) {
     throw new Error(
       `Refusing to start: set a strong value for ${insecure.join(', ')} in production (the default is publicly known).`,
     );
+  }
+  // verifyRecaptcha() short-circuits to ok when no secret is configured, so an
+  // empty RECAPTCHA_SECRET in production means the lead forms have NO spam
+  // protection at all — the fail-closed branch below never even runs. Not fatal
+  // (that would take lead capture down), but it must not pass unnoticed.
+  if (!process.env.RECAPTCHA_SECRET) {
+    console.warn('[startup] WARNING: RECAPTCHA_SECRET is not set — lead forms accept unverified submissions.');
   }
 }
 
@@ -195,9 +231,37 @@ function safeEqual(a, b) {
   return crypto.timingSafeEqual(ha, hb);
 }
 
+// Admin sessions. Login used to hand back the long-lived ADMIN_TOKEN itself: one
+// leak (XSS, a shared screen, a log line) meant permanent admin access with no
+// way to revoke short of redeploying with a new secret. Logins now mint a random,
+// expiring token held server-side. ADMIN_TOKEN stays valid as a break-glass /
+// automation credential, but it is never handed to a browser.
+const ADMIN_SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12h
+const adminSessions = new Map(); // token -> expiresAt (ms)
+
+function issueAdminSession() {
+  const token = crypto.randomBytes(32).toString('hex');
+  adminSessions.set(token, Date.now() + ADMIN_SESSION_TTL_MS);
+  return token;
+}
+function isValidAdminSession(token) {
+  const expiresAt = adminSessions.get(token);
+  if (!expiresAt) return false;
+  if (expiresAt <= Date.now()) {
+    adminSessions.delete(token);
+    return false;
+  }
+  return true;
+}
+// Bounded memory: sweep expired sessions hourly rather than growing forever.
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, expiresAt] of adminSessions) if (expiresAt <= now) adminSessions.delete(token);
+}, 60 * 60 * 1000).unref();
+
 function requireAdmin(req, res, next) {
-  const auth = req.headers.authorization || '';
-  if (!safeEqual(auth, `Bearer ${ADMIN_TOKEN}`)) {
+  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  if (!token || (!isValidAdminSession(token) && !safeEqual(token, ADMIN_TOKEN))) {
     return res.status(401).json({ ok: false, errors: ['Нет доступа'] });
   }
   next();
@@ -231,7 +295,11 @@ app.get('/api/creator-page/:login', async (req, res) => {
   try {
     const page = await getCreatorPublicPage(req.params.login);
     if (!page) return res.status(404).json({ ok: false, errors: ['Не найдено'] });
-    res.json({ ok: true, ...page });
+    // brandLinks[].url is the business-supplied `req_cta_link`, rendered straight
+    // into an <a href> on this public page. Drop anything that isn't http(s) —
+    // filtering on read (not just on write) also cleans rows already in the DB.
+    const brandLinks = page.brandLinks.map((l) => ({ ...l, url: safeHttpUrl(l.url) })).filter((l) => l.url);
+    res.json({ ok: true, ...page, brandLinks });
   } catch (err) {
     console.error('[creator-page]', err.message);
     res.status(500).json({ ok: false, errors: ['Ошибка'] });
@@ -360,20 +428,27 @@ async function handleLead(funnel, req, res) {
 app.post('/api/lead/client', leadLimiter, (req, res) => handleLead('client', req, res));
 app.post('/api/lead/creator', leadLimiter, (req, res) => handleLead('creator', req, res));
 
-// Admin login → returns a bearer token used for the admin API.
+// Admin login → mints a short-lived session token (never the raw ADMIN_TOKEN).
 app.post('/api/admin/login', loginLimiter, (req, res) => {
   const { username, password } = req.body || {};
   if (safeEqual(username, ADMIN_USER) && safeEqual(password, ADMIN_PASS)) {
-    return res.json({ ok: true, token: ADMIN_TOKEN });
+    return res.json({ ok: true, token: issueAdminSession(), expiresIn: ADMIN_SESSION_TTL_MS / 1000 });
   }
   return res.status(401).json({ ok: false, errors: ['Неверный логин или пароль'] });
+});
+
+// Explicit logout so a shared/kiosk browser can drop its session immediately
+// instead of leaving a valid token alive for the rest of the TTL.
+app.post('/api/admin/logout', requireAdmin, (req, res) => {
+  adminSessions.delete((req.headers.authorization || '').replace(/^Bearer\s+/i, ''));
+  res.json({ ok: true });
 });
 
 // Minimal admin endpoint to review collected leads (Bearer token).
 app.get('/api/admin/leads', requireAdmin, async (_req, res) => {
   try {
-    const leads = await readLeads();
-    res.json({ ok: true, count: leads.length, leads });
+    const [leads, count] = await Promise.all([readLeads(), countLeads()]);
+    res.json({ ok: true, count, leads });
   } catch (err) {
     console.error('[leads]', err.message);
     res.status(500).json({ ok: false, errors: ['Внутренняя ошибка'] });
@@ -429,6 +504,14 @@ app.get('/api/media/:id', async (req, res) => {
     res.set('Content-Type', meta.mime);
     res.set('Accept-Ranges', 'bytes');
     res.set('Cache-Control', 'public, max-age=604800, immutable');
+    // Defence in depth for user-uploaded bytes served from our own origin: the
+    // sandbox CSP strips script execution and same-origin privileges from
+    // anything navigated to directly, and nosniff stops the browser from
+    // second-guessing the declared type. Rows predating the SVG upload ban are
+    // covered by this too, so old data can't be used to run script on us.
+    res.set('Content-Security-Policy', "sandbox; default-src 'none'");
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.set('Content-Disposition', 'inline');
 
     const range = req.headers.range;
     if (range) {
@@ -518,18 +601,19 @@ async function requireCreator(req, res, next) {
     res.status(500).json({ ok: false, errors: ['Внутренняя ошибка'] });
   }
 }
-// Full cabinet payload for the logged-in creator.
+// Full cabinet payload for the logged-in creator. The six queries are
+// independent, so they run concurrently — serially they made every cabinet load
+// (and every /api/creator/me poll) pay the sum of six round-trips.
 async function creatorPayload(c) {
-  return {
-    creator: publicCreator(c),
-    level: levelFromXp(c.xp),
-    wallet: await getCreatorWallet(c.id),
-    forecast: await getEarningsForecast(c.id),
-    briefs: await listAssignmentsForCreator(c.id),
-    available: await listOpenBriefsForCreator(c.id),
-    openBriefs: await listActiveBriefsRanked(c.id),
-    submissions: await listCreatorSubmissions(c.id),
-  };
+  const [wallet, forecast, briefs, available, openBriefs, submissions] = await Promise.all([
+    getCreatorWallet(c.id),
+    getEarningsForecast(c.id),
+    listAssignmentsForCreator(c.id),
+    listOpenBriefsForCreator(c.id),
+    listActiveBriefsRanked(c.id),
+    listCreatorSubmissions(c.id),
+  ]);
+  return { creator: publicCreator(c), level: levelFromXp(c.xp), wallet, forecast, briefs, available, openBriefs, submissions };
 }
 
 // Pipeline step 7: AI auto-check on upload. The model scores likely compliance
@@ -634,50 +718,6 @@ async function aiCoachFeedback(sub, brief, decision) {
     return out.trim().slice(0, 500) || null;
   } catch (err) {
     console.error('[ai-coach]', err.message);
-    return null;
-  }
-}
-
-// Refuses to fetch anything resolving to a private/internal address — a
-// business-supplied URL is untrusted input, and without this an attacker
-// could use the brief constructor to probe our internal network or cloud
-// metadata endpoint (classic SSRF) via a server-side fetch.
-function isPrivateIp(ip) {
-  const type = net.isIP(ip);
-  if (type === 4) {
-    const [a, b] = ip.split('.').map(Number);
-    return (
-      a === 10 || a === 127 || (a === 169 && b === 254) ||
-      (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || a === 0
-    );
-  }
-  if (type === 6) {
-    const low = ip.toLowerCase();
-    return low === '::1' || low.startsWith('fc') || low.startsWith('fd') || low.startsWith('fe80') || low.startsWith('::ffff:127.');
-  }
-  return true; // not a valid IP → treat as unsafe
-}
-async function fetchPageText(url) {
-  try {
-    const u = new URL(url);
-    if (!/^https?:$/.test(u.protocol)) return null;
-    const { address } = await dns.lookup(u.hostname);
-    if (isPrivateIp(address)) return null;
-    const res = await fetch(u.toString(), {
-      signal: AbortSignal.timeout(6000),
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ClickiBriefBot/1.0)' },
-      redirect: 'manual', // don't silently follow redirects into a private address
-    });
-    if (!res.ok) return null;
-    const html = await res.text();
-    const text = html
-      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    return text.slice(0, 3000) || null;
-  } catch {
     return null;
   }
 }
@@ -869,10 +909,17 @@ app.post(
     if (!b.platform || !b.video_url || !b.rights_confirmed) {
       return res.status(400).json({ ok: false, errors: ['Укажите видео, платформу и подтвердите права'] });
     }
+    // Reject non-http(s) links at the door, so nothing that can execute as script
+    // ever reaches the DB and, from there, the operator's review queue.
+    const videoUrl = safeHttpUrl(b.video_url);
+    if (!videoUrl) return res.status(400).json({ ok: false, errors: ['Ссылка на видео должна быть обычной http(s)-ссылкой'] });
+    const screenshotUrl = b.screenshot_url ? safeHttpUrl(b.screenshot_url) : null;
+    if (b.screenshot_url && !screenshotUrl) return res.status(400).json({ ok: false, errors: ['Некорректная ссылка на скриншот'] });
+
     if (b.brief_id && !(await creatorCanSubmitToBrief(req.creator.id, b.brief_id))) {
       return res.status(400).json({ ok: false, errors: ['Этот бриф вам недоступен'] });
     }
-    const submission = await createSubmission({ ...b, creator_id: req.creator.id });
+    const submission = await createSubmission({ ...b, video_url: videoUrl, screenshot_url: screenshotUrl, creator_id: req.creator.id });
     const brief = b.brief_id ? await getBrief(b.brief_id) : null;
     const { score, feedback } = await aiCheckSubmission(submission, brief);
     const status = score >= AI_THRESHOLD ? 'ai_passed' : 'rework';
@@ -901,11 +948,8 @@ async function requireBusiness(req, res, next) {
   }
 }
 async function businessPayload(b) {
-  return {
-    business: publicBusiness(b),
-    briefs: await listBusinessBriefs(b.id),
-    submissions: await listBusinessSubmissions(b.id),
-  };
+  const [briefs, submissions] = await Promise.all([listBusinessBriefs(b.id), listBusinessSubmissions(b.id)]);
+  return { business: publicBusiness(b), briefs, submissions };
 }
 
 // Self-service registration: a brand creates its own account.
@@ -1021,26 +1065,49 @@ app.post(
 );
 
 // ---------------------------------------------------------------------------
-// Investor demo (read-only). The public /demo-admin surface shows a trimmed
-// admin: Дашборд, Аналитика, Рефералы, Брифы, Просмотры по брифам, Отчёт за
-// месяц, Проверка видео. These endpoints return the SAME real data as the
-// matching /api/admin/* routes, but require no token and never mutate anything
-// — an investor can look at live numbers, not touch them. Nothing here exposes
-// tokens, password hashes or contact PII beyond what the admin lead list holds.
+// Investor demo (read-only, unauthenticated). The public /demo-admin surface
+// shows a trimmed admin: Дашборд, Аналитика, Рефералы, Брифы, Просмотры по
+// брифам, Отчёт за месяц, Проверка видео.
+//
+// These endpoints serve the REAL aggregate numbers, but every piece of personal
+// data is masked before it leaves the process. They previously returned raw
+// leads — full name, phone and email of every person who ever filled in the
+// form — to anyone who requested the URL, with no token. Masking happens here,
+// server-side, because the /demo-admin page's own read-only guard is client-side
+// JS and does nothing for someone calling the endpoint with curl.
 // ---------------------------------------------------------------------------
+
+const demoLead = (l) => ({ ...l, fields: maskLeadFields(l.fields) });
+const demoCreator = (c) => {
+  const { contact, username, socials, ...safe } = publicCreator(c);
+  return { ...safe, name: maskName(safe.name), contact: maskContact(contact), username: username ? maskName(username) : null };
+};
+// video_url is attacker-controlled free text — never hand a `javascript:` URL to
+// an anonymous visitor's browser, even on the demo page.
+const demoSubmission = (s) => ({ ...s, creator_name: maskName(s.creator_name), video_url: safeHttpUrl(s.video_url) });
+
+// The demo hits the same aggregate queries as the admin dashboard but has no
+// auth in front of it — cap it so an anonymous caller can't hammer Postgres.
+const demoLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false });
+app.use('/api/demo/', demoLimiter);
+
 app.get('/api/demo/admin/leads', wrap(async (_req, res) => {
-  const leads = await readLeads();
-  ok(res, { count: leads.length, leads });
+  const [leads, count] = await Promise.all([readLeads(200), countLeads()]);
+  ok(res, { count, leads: leads.map(demoLead) });
 }));
 app.get('/api/demo/admin/analytics', wrap(async (_req, res) => ok(res, { analytics: await getVisitAnalytics() })));
-app.get('/api/demo/admin/referrals', wrap(async (_req, res) => ok(res, { referrals: await getReferralLeadStats() })));
+app.get('/api/demo/admin/referrals', wrap(async (_req, res) => {
+  const referrals = await getReferralLeadStats(); // { total, xpPerLead, byCreator: [...] }
+  ok(res, { referrals: { ...referrals, byCreator: referrals.byCreator.map(maskCreatorRow) } });
+}));
 app.get('/api/demo/admin/briefs', wrap(async (_req, res) => ok(res, { briefs: await listBriefs() })));
-app.get('/api/demo/admin/creators', wrap(async (_req, res) => ok(res, { creators: (await listCreators()).map(publicCreator) })));
-app.get('/api/demo/admin/submissions', wrap(async (req, res) => ok(res, { submissions: await listSubmissions(req.query.status) })));
+app.get('/api/demo/admin/creators', wrap(async (_req, res) => ok(res, { creators: (await listCreators()).map(demoCreator) })));
+app.get('/api/demo/admin/submissions', wrap(async (req, res) => ok(res, { submissions: (await listSubmissions(req.query.status)).map(demoSubmission) })));
 app.get('/api/demo/admin/reports/monthly', wrap(async (req, res) => {
   const year = req.query.year ? Number(req.query.year) : undefined;
   const month = req.query.month ? Number(req.query.month) : undefined;
-  ok(res, { report: await getMonthlyReport(year, month) });
+  const report = await getMonthlyReport(year, month); // { year, month, rows: [...] }
+  ok(res, { report: { ...report, rows: report.rows.map(maskCreatorRow) } });
 }));
 
 // ---- TikTok auto-sync: pulls real view_count for a creator's videos instead of
@@ -1298,11 +1365,17 @@ app.get(
   requireAdmin,
   wrap(async (req, res) => {
     if (!geminiEnabled) return ok(res, { enabled: false });
-    const [leads, creators, subs, briefs] = [await readLeads(), await listCreators(), await listSubmissions(), await listBriefs()];
+    const [leads, leadCount, creators, subs, briefs] = await Promise.all([
+      readLeads(),
+      countLeads(), // readLeads() is capped; the headline total must not be
+      listCreators(),
+      listSubmissions(),
+      listBriefs(),
+    ]);
     const byFunnel = leads.reduce((a, l) => ({ ...a, [l.funnel]: (a[l.funnel] || 0) + 1 }), {});
     const subStatus = subs.reduce((a, s) => ({ ...a, [s.status]: (a[s.status] || 0) + 1 }), {});
     const stats = {
-      leads: leads.length,
+      leads: leadCount,
       leadsByFunnel: byFunnel,
       creators: creators.length,
       onboarded: creators.filter((c) => c.onboarding_passed).length,
@@ -1332,9 +1405,13 @@ app.get(
   })
 );
 
-// Upload/multer error handler → JSON instead of HTML.
+// Upload/multer error handler → JSON instead of HTML. Only messages we author
+// (multer's own, and the fileFilter rejection) are echoed back; anything else is
+// an unexpected internal error whose message could leak paths or query text.
 app.use('/api', (err, _req, res, _next) => {
-  res.status(400).json({ ok: false, errors: [err?.message || 'Ошибка запроса'] });
+  const isSafeMessage = err instanceof multer.MulterError || typeof err?.message === 'string' && err.message.startsWith('Разрешены только');
+  if (!isSafeMessage) console.error('[api]', err);
+  res.status(400).json({ ok: false, errors: [isSafeMessage ? err.message : 'Ошибка запроса'] });
 });
 
 // ---- Serve the built React app (single-service deploy) ----
@@ -1359,11 +1436,18 @@ process.on('unhandledRejection', (err) => {
 
 // Wait for the DB schema before accepting any traffic — otherwise requests can
 // race initDb() on a fresh deploy/restart and fail against missing tables.
+// Every route now depends on the DB (leads included), so a failure here is fatal:
+// booting anyway would serve a site that 500s on every write and silently drops
+// leads. Exiting non-zero lets the platform restart us / hold the old revision.
 try {
   await initDb();
   console.log('Database initialized');
+  const { migrated, skipped } = await migrateLegacyLeads();
+  if (migrated) console.log(`Migrated ${migrated} legacy lead(s) from leads.jsonl into Postgres`);
+  else if (skipped === 'table-not-empty') console.log('Legacy leads.jsonl present but leads table is not empty — skipping import');
 } catch (err) {
   console.error('Failed to initialize database', err);
+  process.exit(1);
 }
 
 // Auto-sync TikTok view counts every 3h for every connected creator — the

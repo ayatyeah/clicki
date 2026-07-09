@@ -373,7 +373,7 @@ export default function Admin() {
                         <td data-label="Данные">
                           {Object.entries(l.fields || {})
                             .slice(0, 2)
-                            .map(([k, v]) => `${v}`)
+                            .map(([, v]) => `${v}`)
                             .join(' · ') || '-'}
                         </td>
                         <td className="muted-cell" data-label="Страница">{l.page || '-'}</td>

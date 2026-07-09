@@ -2,12 +2,22 @@
   "name": "clicki",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "CLICKI — performance-платформа органических просмотров (сайт-визитка)",
   "scripts": {
     "install:all": "npm --prefix server install && npm --prefix client install",
     "dev:server": "npm --prefix server run dev",
     "dev:client": "npm --prefix client run dev",
     "build": "npm --prefix client install && npm --prefix client run build && npm --prefix server install",
-    "start": "npm --prefix server start"
+    "start": "npm --prefix server start",
+    "lint": "eslint .",
+    "test": "npm --prefix server test",
+    "check": "npm run lint && npm test"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.4",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^15.15.0"
   }
 }
