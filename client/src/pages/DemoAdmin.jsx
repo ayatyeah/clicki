@@ -1,159 +1,73 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import Icon from '../components/Icon.jsx';
+import { API_BASE } from '../lib/config.js';
 
-const TOKEN_KEY = 'clicki_demo_admin';
-const DEMO_USER = 'admin';
-const DEMO_PASS = 'lsdlisbsdbgkhfds47592ns';
-
-const leads = [
-  { funnel: 'business', name: 'Alem Coffee', contact: '@alemcoffee', page: '/business', createdAt: '2026-07-08T13:20:00Z' },
-  { funnel: 'creator', name: 'Aisulu N.', contact: '@aisuugc', page: '/creators', createdAt: '2026-07-08T11:05:00Z' },
-  { funnel: 'business', name: 'Nomad Fit', contact: '+7 777 080 44 44', page: '/business', createdAt: '2026-07-07T16:42:00Z' },
-  { funnel: 'creator', name: 'Miras shortform', contact: '@miras.video', page: '/creators', createdAt: '2026-07-07T09:12:00Z' },
-];
-
-const briefs = [
-  { id: 1, title: 'Summer coffee launch', platform: 'TikTok', status: 'active', slots: '8/12', views: 284000 },
-  { id: 2, title: '14-day fitness challenge', platform: 'Instagram Reels', status: 'review', slots: '5/6', views: 146500 },
-  { id: 3, title: 'Healthy delivery review', platform: 'YouTube Shorts', status: 'draft', slots: '0/8', views: 0 },
-];
-
-const creators = [
-  { name: 'Aisulu N.', city: 'Astana', status: 'active', trust: 92, videos: 18, views: 912000 },
-  { name: 'Miras shortform', city: 'Almaty', status: 'active', trust: 88, videos: 14, views: 641000 },
-  { name: 'Dana UGC', city: 'Astana', status: 'pending', trust: 74, videos: 6, views: 204000 },
-];
-
-const payouts = [
-  { creator: 'Aisulu N.', amount: 184000, status: 'paid' },
-  { creator: 'Miras shortform', amount: 121000, status: 'pending' },
-  { creator: 'Dana UGC', amount: 43000, status: 'pending' },
-];
-
-const contentItems = [
-  { name: 'Home video', type: '9:16', status: 'published' },
-  { name: 'Creator page video', type: '16:9', status: 'review' },
-  { name: 'iPhone screen', type: 'image', status: 'ready' },
-  { name: 'Laptop screen', type: 'image', status: 'ready' },
-];
-
-const monthly = [
-  { day: '06-26', visits: 420 },
-  { day: '06-27', visits: 610 },
-  { day: '06-28', visits: 530 },
-  { day: '06-29', visits: 780 },
-  { day: '06-30', visits: 690 },
-  { day: '07-01', visits: 940 },
-  { day: '07-02', visits: 880 },
-  { day: '07-03', visits: 1120 },
-  { day: '07-04', visits: 990 },
-  { day: '07-05', visits: 1260 },
-  { day: '07-06', visits: 1310 },
-  { day: '07-07', visits: 1480 },
-  { day: '07-08', visits: 1530 },
-  { day: '07-09', visits: 1610 },
-];
+const DEMO_BUSINESS_EMAIL = 'business@demo.kz';
+const DEMO_CREATOR_LOGIN = 'aruzhan';
+const DEMO_PASS = 'demo1234';
+const BUSINESS_TOKEN_KEY = 'clicki_demo_business_token';
+const CREATOR_TOKEN_KEY = 'clicki_demo_creator_token';
 
 const NAV = [
-  { key: 'dashboard', label: 'Dashboard', icon: 'grid' },
-  { key: 'analytics', label: 'Analytics', icon: 'chart' },
-  { key: 'briefs', label: 'Briefs', icon: 'briefs' },
-  { key: 'review', label: 'Video review', icon: 'check' },
-  { key: 'creators', label: 'Creators', icon: 'users' },
-  { key: 'businesses', label: 'Businesses', icon: 'user' },
-  { key: 'payouts', label: 'Payouts', icon: 'wallet' },
-  { key: 'content', label: 'Site content', icon: 'image' },
-  { key: 'settings', label: 'Settings', icon: 'sparkle' },
+  { key: 'admin', label: 'Админ (урезанный)', icon: 'grid' },
+  { key: 'business', label: 'Тест-кабинет бизнеса', icon: 'briefs' },
+  { key: 'creator', label: 'Тест-кабинет креатора', icon: 'users' },
 ];
 
+const SUB_STATUS = {
+  ai_check: 'AI-проверка',
+  ai_passed: 'на проверке',
+  rework: 'на доработке',
+  sent_to_business: 'готово к приёмке',
+  accepted: 'принято',
+  rejected: 'отклонено',
+  pending: 'ожидает',
+};
+
+async function fetchJson(path, options = {}) {
+  const res = await fetch(`${API_BASE}${path}`, options);
+  let data = {};
+  try {
+    data = await res.json();
+  } catch {
+    data = {};
+  }
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.errors?.[0] || 'Не удалось выполнить запрос');
+  }
+  return data;
+}
+
 export default function DemoAdmin() {
-  const [token, setToken] = useState(() => sessionStorage.getItem(TOKEN_KEY) || '');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [view, setView] = useState('dashboard');
+  const [view, setView] = useState('admin');
   const [navOpen, setNavOpen] = useState(false);
-  const [toast, setToast] = useState('');
 
-  const totals = useMemo(() => ({
-    leads: leads.length,
-    creators: creators.length,
-    views: briefs.reduce((sum, b) => sum + b.views, 0),
-    payouts: payouts.reduce((sum, p) => sum + p.amount, 0),
-  }), []);
-
-  function onLogin(e) {
-    e.preventDefault();
-    setError('');
-    if (username === DEMO_USER && password === DEMO_PASS) {
-      sessionStorage.setItem(TOKEN_KEY, 'demo');
-      setToken('demo');
-      return;
-    }
-    setError('Wrong login or password');
-  }
-
-  function logout() {
-    sessionStorage.removeItem(TOKEN_KEY);
-    setToken('');
-  }
-
-  function demoAction(label = 'Demo action completed') {
-    setToast(label);
-    window.setTimeout(() => setToast(''), 1800);
-  }
-
-  if (!token) {
-    return (
-      <main className="admin page-light app-light ae-skip">
-        <Helmet>
-          <title>CLICKI - demo admin</title>
-          <meta name="robots" content="noindex, nofollow" />
-        </Helmet>
-        <form className="admin-login lead-form" onSubmit={onLogin}>
-          <span className="demo-pill">Investor demo</span>
-          <h1 className="admin-login__title">CLICKI demo admin</h1>
-          <p className="muted-note demo-login-note">Test data only. Real database, uploads and payouts are not available here.</p>
-          <label className="lead-form__field">
-            <span className="lead-form__label">Login</span>
-            <input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" autoFocus />
-          </label>
-          <label className="lead-form__field">
-            <span className="lead-form__label">Password</span>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
-          </label>
-          {error && <p className="lead-form__errors" role="alert">{error}</p>}
-          <button type="submit" className="btn btn--primary btn--block">Log in</button>
-          <Link to="/" className="admin-login__back">Back to site</Link>
-        </form>
-      </main>
-    );
-  }
+  const current = useMemo(() => NAV.find((n) => n.key === view), [view]);
 
   return (
     <main className="admin page-light app-light ae-skip">
       <Helmet>
-        <title>CLICKI - demo admin</title>
+        <title>CLICKI - демо админка</title>
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
       <header className="admin-topbar">
-        <button className="admin-topbar__burger" onClick={() => setNavOpen(true)} aria-label="Open menu" aria-expanded={navOpen}>
+        <button className="admin-topbar__burger" onClick={() => setNavOpen(true)} aria-label="Открыть меню" aria-expanded={navOpen}>
           <span />
           <span />
           <span />
         </button>
-        <span className="admin-topbar__title">{NAV.find((n) => n.key === view)?.label || 'CLICKI demo'}</span>
-        <button className="btn btn--ghost btn--sm" onClick={logout}>Log out</button>
+        <span className="admin-topbar__title">{current?.label || 'CLICKI демо'}</span>
+        <Link to="/" className="btn btn--ghost btn--sm">На сайт</Link>
       </header>
 
       <div className="admin-layout">
         {navOpen && <div className="admin-backdrop" onClick={() => setNavOpen(false)} />}
         <aside className={`admin-sidebar ${navOpen ? 'is-open' : ''}`}>
           <div className="admin-sidebar__head">
-            <div className="admin-sidebar__brand">CLICKI demo</div>
-            <button className="admin-sidebar__close" onClick={() => setNavOpen(false)} aria-label="Close menu">x</button>
+            <div className="admin-sidebar__brand">CLICKI · инвест-демо</div>
+            <button className="admin-sidebar__close" onClick={() => setNavOpen(false)} aria-label="Закрыть меню">x</button>
           </div>
           <nav className="admin-nav">
             {NAV.map((n) => (
@@ -170,122 +84,283 @@ export default function DemoAdmin() {
               </button>
             ))}
           </nav>
-          <button className="btn btn--ghost btn--sm admin-sidebar__logout" onClick={logout}>Log out</button>
         </aside>
 
         <div className="admin-main">
           <div className="demo-banner">
-            <span className="demo-pill">Demo mode</span>
-            <span>All screens are interactive, but they use local test data only.</span>
-            {toast && <b>{toast}</b>}
+            <span className="demo-pill">Реальные данные</span>
+            <span>Это инвесторский режим: разделы урезаны, но аналитика и действия идут через живой API.</span>
           </div>
 
-          {view === 'dashboard' && <Dashboard totals={totals} onAction={demoAction} />}
-          {view === 'analytics' && <Analytics />}
-          {view === 'briefs' && <Briefs onAction={demoAction} />}
-          {view === 'review' && <Review onAction={demoAction} />}
-          {view === 'creators' && <Creators onAction={demoAction} />}
-          {view === 'businesses' && <Businesses onAction={demoAction} />}
-          {view === 'payouts' && <Payouts onAction={demoAction} />}
-          {view === 'content' && <Content onAction={demoAction} />}
-          {view === 'settings' && <Settings onAction={demoAction} />}
+          {view === 'admin' && <AdminMiniSection />}
+          {view === 'business' && <BusinessMiniSection />}
+          {view === 'creator' && <CreatorMiniSection />}
         </div>
       </div>
     </main>
   );
 }
 
-function Dashboard({ totals, onAction }) {
+function AdminMiniSection() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const byDay = data?.analytics?.byDay || [];
+  const maxVisits = Math.max(...byDay.map((d) => d.visits), 1);
+
+  async function load() {
+    setLoading(true);
+    setError('');
+    try {
+      setData(await fetchJson('/api/demo/analytics'));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
   return (
     <section className="admin-block">
       <div className="admin-panel__head">
-        <h2 className="admin-block__title">Platform overview</h2>
-        <button className="btn btn--ghost btn--sm" onClick={() => onAction('Data refreshed')}>Refresh</button>
+        <h2 className="admin-block__title">Админ-раздел (урезанный)</h2>
+        <button className="btn btn--ghost btn--sm" onClick={load} disabled={loading}>{loading ? 'Обновляю…' : 'Обновить'}</button>
       </div>
-      <div className="kpi-grid">
-        <Kpi tone="rose" icon="inbox" value={totals.leads} label="Leads" />
-        <Kpi tone="green" icon="users" value={totals.creators} label="Creators" />
-        <Kpi tone="violet" icon="chart" value={totals.views.toLocaleString('ru-RU')} label="Views" />
-        <Kpi tone="amber" icon="wallet" value={`${Math.round(totals.payouts / 1000)}k KZT`} label="Payouts" />
-      </div>
-      <h3 className="admin-block__title admin-subhead">Recent leads</h3>
-      <LeadTable rows={leads} />
+      <p className="muted-note" style={{ textAlign: 'left' }}>
+        В этом разделе показывается реальная веб-аналитика сайта и агрегаты по платформе.
+      </p>
+      {error && <p className="lead-form__errors" role="alert">{error}</p>}
+      {!data ? (
+        <p className="muted-note">{loading ? 'Загрузка…' : 'Нет данных'}</p>
+      ) : (
+        <>
+          <div className="kpi-grid">
+            <Kpi tone="violet" icon="chart" value={(data.analytics?.totals?.visits || 0).toLocaleString('ru-RU')} label="Визиты (всего)" />
+            <Kpi tone="green" icon="users" value={(data.analytics?.totals?.uniques || 0).toLocaleString('ru-RU')} label="Уникальные" />
+            <Kpi tone="rose" icon="briefs" value={data.platform?.briefs || 0} label="Брифы" />
+            <Kpi tone="amber" icon="check" value={data.platform?.submissions || 0} label="Отправки видео" />
+          </div>
+
+          <h3 className="admin-block__title admin-subhead">Посещаемость за 14 дней</h3>
+          <div className="an-days">
+            {byDay.map((d) => (
+              <div key={d.day} className="an-day" title={`${d.day}: ${d.visits}`}>
+                <span className="an-day__bar" style={{ height: `${Math.round((d.visits / maxVisits) * 100)}%` }} />
+                <span className="an-day__label">{d.day.slice(5)}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="an-cols">
+            <MiniTable
+              title="Топ страниц"
+              rows={(data.analytics?.byPage || []).map((r) => [r.path, Number(r.visits || 0).toLocaleString('ru-RU')])}
+            />
+            <MiniTable
+              title="Источники"
+              rows={(data.analytics?.bySource || []).map((r) => [String(r.source || 'прямой переход'), Number(r.visits || 0).toLocaleString('ru-RU')])}
+            />
+          </div>
+
+          <p className="muted-note" style={{ textAlign: 'left' }}>
+            Последнее обновление: {new Date(data.updatedAt).toLocaleString('ru-RU')}
+          </p>
+        </>
+      )}
     </section>
   );
 }
 
-function Analytics() {
-  const max = Math.max(...monthly.map((d) => d.visits));
+function BusinessMiniSection() {
+  const [token, setToken] = useState(() => sessionStorage.getItem(BUSINESS_TOKEN_KEY) || '');
+  const [data, setData] = useState(null);
+  const [email, setEmail] = useState(DEMO_BUSINESS_EMAIL);
+  const [password, setPassword] = useState(DEMO_PASS);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({ title: '', platform: 'TikTok', key_message: '', slots: 3 });
+
+  async function authFetch(path, options = {}) {
+    return fetchJson(path, {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
+
+  async function loadMe() {
+    if (!token) return;
+    setLoading(true);
+    setError('');
+    try {
+      setData(await authFetch('/api/business/me'));
+    } catch (err) {
+      setError(err.message);
+      if (/войдите|401|403/i.test(err.message)) {
+        sessionStorage.removeItem(BUSINESS_TOKEN_KEY);
+        setToken('');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadMe();
+  }, [token]);
+
+  async function login(e) {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetchJson('/api/business/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      sessionStorage.setItem(BUSINESS_TOKEN_KEY, res.token);
+      setToken(res.token);
+      setData(res);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function logout() {
+    sessionStorage.removeItem(BUSINESS_TOKEN_KEY);
+    setToken('');
+    setData(null);
+  }
+
+  async function createBrief(e) {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      await authFetch('/api/business/briefs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      setForm({ title: '', platform: 'TikTok', key_message: '', slots: 3 });
+      await loadMe();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function acceptSubmission(id) {
+    setLoading(true);
+    setError('');
+    try {
+      await authFetch(`/api/business/submissions/${id}/accept`, { method: 'POST' });
+      await loadMe();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (!token || !data) {
+    return (
+      <section className="admin-block">
+        <h2 className="admin-block__title">Тест-кабинет бизнеса</h2>
+        <p className="muted-note" style={{ textAlign: 'left' }}>
+          Реальный тестовый поток: вход, создание брифа, приёмка видео. Данные пишутся в БД.
+        </p>
+        <form className="lead-form" onSubmit={login}>
+          <label className="lead-form__field">
+            <span className="lead-form__label">Email</span>
+            <input value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+          </label>
+          <label className="lead-form__field">
+            <span className="lead-form__label">Пароль</span>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
+          </label>
+          {error && <p className="lead-form__errors" role="alert">{error}</p>}
+          <button className="btn btn--primary btn--sm" disabled={loading}>{loading ? 'Вход…' : 'Войти в тест-кабинет'}</button>
+        </form>
+      </section>
+    );
+  }
+
+  const briefs = data.briefs || [];
+  const incoming = (data.submissions || []).filter((s) => s.status === 'sent_to_business');
+
   return (
     <section className="admin-block">
-      <h2 className="admin-block__title">Traffic analytics <span className="an-live">demo</span></h2>
+      <div className="admin-panel__head">
+        <h2 className="admin-block__title">Тест-кабинет бизнеса</h2>
+        <button className="btn btn--ghost btn--sm" onClick={logout}>Выйти</button>
+      </div>
+
+      {error && <p className="lead-form__errors" role="alert">{error}</p>}
+
       <div className="admin-stats">
-        <Stat label="Visits" value="12 740" />
-        <Stat label="Unique" value="8 920" />
-        <Stat label="Conversion" value="6.8%" />
+        <Stat label="Брифов" value={briefs.length} />
+        <Stat label="На приёмке" value={incoming.length} />
       </div>
-      <h3 className="admin-block__title admin-subhead">Visits over 14 days</h3>
-      <div className="an-days">
-        {monthly.map((d) => (
-          <div key={d.day} className="an-day" title={`${d.day}: ${d.visits}`}>
-            <span className="an-day__bar" style={{ height: `${Math.round((d.visits / max) * 100)}%` }} />
-            <span className="an-day__label">{d.day}</span>
-          </div>
-        ))}
-      </div>
-      <div className="an-cols">
-        <MiniTable title="Top pages" rows={[['/business', '4 280'], ['/creators', '3 710'], ['/', '2 940']]} />
-        <MiniTable title="Sources" rows={[['TikTok', '3 120'], ['Instagram', '2 860'], ['Direct', '1 980']]} />
-      </div>
-    </section>
-  );
-}
 
-function Briefs({ onAction }) {
-  return (
-    <section className="admin-block">
-      <div className="admin-panel__head">
-        <h2 className="admin-block__title">Briefs</h2>
-        <button className="btn btn--primary btn--sm" onClick={() => onAction('Draft brief created')}>Create brief</button>
-      </div>
-      <div className="bp-cards">
-        {briefs.map((b) => (
-          <div key={b.id} className="bp-card">
-            <div className="bp-card__head">
-              <b>{b.title}</b>
-              <span className={`pf-status pf-status--${b.status === 'active' ? 'accepted' : b.status === 'review' ? 'rework' : 'pending'}`}>{b.status}</span>
-            </div>
-            <p className="creator-portal__muted">{b.platform} · slots {b.slots} · {b.views.toLocaleString('ru-RU')} views</p>
-            <button className="btn btn--ghost btn--sm" onClick={() => onAction('Creator assignment saved')}>Assign creators</button>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
+      <h3 className="admin-block__title admin-subhead">Новый бриф</h3>
+      <form className="pf-form" onSubmit={createBrief}>
+        <input placeholder="Название брифа" value={form.title} onChange={(e) => setForm((s) => ({ ...s, title: e.target.value }))} required />
+        <select value={form.platform} onChange={(e) => setForm((s) => ({ ...s, platform: e.target.value }))}>
+          <option>TikTok</option>
+          <option>Instagram Reels</option>
+          <option>YouTube Shorts</option>
+          <option>Threads</option>
+          <option>X (Twitter)</option>
+        </select>
+        <input placeholder="Ключевое сообщение" value={form.key_message} onChange={(e) => setForm((s) => ({ ...s, key_message: e.target.value }))} />
+        <input type="number" min="1" placeholder="Слотов" value={form.slots} onChange={(e) => setForm((s) => ({ ...s, slots: Number(e.target.value) }))} />
+        <button className="btn btn--primary btn--sm" disabled={loading}>{loading ? 'Сохранение…' : 'Отправить бриф'}</button>
+      </form>
 
-function Review({ onAction }) {
-  const rows = [
-    ['Aisulu N.', 'Summer coffee launch', 'ai_passed', '32 400'],
-    ['Miras shortform', 'Fitness challenge', 'sent_to_business', '18 910'],
-    ['Dana UGC', 'Delivery review', 'rework', '4 220'],
-  ];
-  return (
-    <section className="admin-block">
-      <h2 className="admin-block__title">Video review</h2>
+      <h3 className="admin-block__title admin-subhead">Мои брифы</h3>
       <div className="admin-table-wrap">
         <table className="admin-table">
-          <thead><tr><th>Creator</th><th>Brief</th><th>Status</th><th>Views</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Название</th><th>Платформа</th><th>Статус</th></tr></thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={r.join('-')}>
-                <td data-label="Creator">{r[0]}</td>
-                <td data-label="Brief">{r[1]}</td>
-                <td data-label="Status"><span className={`pf-status pf-status--${r[2]}`}>{r[2]}</span></td>
-                <td data-label="Views">{r[3]}</td>
-                <td data-label="Actions"><button className="btn btn--ghost btn--sm" onClick={() => onAction('Decision logged')}>Approve</button></td>
+            {briefs.map((b) => (
+              <tr key={b.id}>
+                <td data-label="Название">{b.title}</td>
+                <td data-label="Платформа">{b.platform}</td>
+                <td data-label="Статус"><span className={`pf-status pf-status--${b.status === 'active' ? 'accepted' : b.status === 'revision' ? 'rework' : 'pending'}`}>{b.status}</span></td>
               </tr>
             ))}
+          </tbody>
+        </table>
+      </div>
+
+      <h3 className="admin-block__title admin-subhead">Видео на приёмке</h3>
+      <div className="admin-table-wrap">
+        <table className="admin-table">
+          <thead><tr><th>Бриф</th><th>Креатор</th><th>Видео</th><th></th></tr></thead>
+          <tbody>
+            {incoming.map((s) => (
+              <tr key={s.id}>
+                <td data-label="Бриф">{s.brief_title || s.platform}</td>
+                <td data-label="Креатор">{s.creator_name || `#${s.creator_id}`}</td>
+                <td data-label="Видео"><a href={s.video_url} target="_blank" rel="noreferrer">Открыть</a></td>
+                <td data-label=""><button className="btn btn--ghost btn--sm" onClick={() => acceptSubmission(s.id)} disabled={loading}>Принять</button></td>
+              </tr>
+            ))}
+            {!incoming.length && (
+              <tr><td colSpan={4} className="muted-cell">Пока нет видео для приёмки</td></tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -293,109 +368,175 @@ function Review({ onAction }) {
   );
 }
 
-function Creators({ onAction }) {
+function CreatorMiniSection() {
+  const [token, setToken] = useState(() => sessionStorage.getItem(CREATOR_TOKEN_KEY) || '');
+  const [data, setData] = useState(null);
+  const [username, setUsername] = useState(DEMO_CREATOR_LOGIN);
+  const [password, setPassword] = useState(DEMO_PASS);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({ brief_id: '', platform: 'TikTok', video_url: '' });
+
+  async function authFetch(path, options = {}) {
+    return fetchJson(path, {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
+
+  async function loadMe() {
+    if (!token) return;
+    setLoading(true);
+    setError('');
+    try {
+      setData(await authFetch('/api/creator/me'));
+    } catch (err) {
+      setError(err.message);
+      if (/войдите|401|403/i.test(err.message)) {
+        sessionStorage.removeItem(CREATOR_TOKEN_KEY);
+        setToken('');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadMe();
+  }, [token]);
+
+  async function login(e) {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetchJson('/api/creator/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      sessionStorage.setItem(CREATOR_TOKEN_KEY, res.token);
+      setToken(res.token);
+      setData(res);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function logout() {
+    sessionStorage.removeItem(CREATOR_TOKEN_KEY);
+    setToken('');
+    setData(null);
+  }
+
+  async function submitVideo(e) {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      await authFetch('/api/creator/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brief_id: form.brief_id ? Number(form.brief_id) : undefined,
+          platform: form.platform,
+          video_url: form.video_url,
+          rights_confirmed: true,
+        }),
+      });
+      setForm((s) => ({ ...s, video_url: '' }));
+      await loadMe();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (!token || !data) {
+    return (
+      <section className="admin-block">
+        <h2 className="admin-block__title">Тест-кабинет креатора</h2>
+        <p className="muted-note" style={{ textAlign: 'left' }}>
+          Реальный поток креатора: вход, выбор брифа, отправка видео.
+        </p>
+        <form className="lead-form" onSubmit={login}>
+          <label className="lead-form__field">
+            <span className="lead-form__label">Логин</span>
+            <input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" />
+          </label>
+          <label className="lead-form__field">
+            <span className="lead-form__label">Пароль</span>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
+          </label>
+          {error && <p className="lead-form__errors" role="alert">{error}</p>}
+          <button className="btn btn--primary btn--sm" disabled={loading}>{loading ? 'Вход…' : 'Войти в тест-кабинет'}</button>
+        </form>
+      </section>
+    );
+  }
+
+  const openBriefs = data.openBriefs || data.available || [];
+  const submissions = data.submissions || [];
+
   return (
     <section className="admin-block">
       <div className="admin-panel__head">
-        <h2 className="admin-block__title">Creators</h2>
-        <button className="btn btn--primary btn--sm" onClick={() => onAction('Test creator added')}>Add creator</button>
+        <h2 className="admin-block__title">Тест-кабинет креатора</h2>
+        <button className="btn btn--ghost btn--sm" onClick={logout}>Выйти</button>
       </div>
-      <div className="admin-table-wrap">
-        <table className="admin-table">
-          <thead><tr><th>Name</th><th>City</th><th>Trust</th><th>Videos</th><th>Views</th></tr></thead>
-          <tbody>{creators.map((c) => <tr key={c.name}><td data-label="Name"><b>{c.name}</b></td><td data-label="City">{c.city}</td><td data-label="Trust">{c.trust}</td><td data-label="Videos">{c.videos}</td><td data-label="Views">{c.views.toLocaleString('ru-RU')}</td></tr>)}</tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
 
-function Businesses({ onAction }) {
-  return (
-    <section className="admin-block">
-      <div className="admin-panel__head">
-        <h2 className="admin-block__title">Businesses</h2>
-        <button className="btn btn--primary btn--sm" onClick={() => onAction('Test business added')}>Create account</button>
-      </div>
-      <LeadTable rows={leads.filter((l) => l.funnel === 'business')} />
-    </section>
-  );
-}
+      {error && <p className="lead-form__errors" role="alert">{error}</p>}
 
-function Payouts({ onAction }) {
-  return (
-    <section className="admin-block">
-      <h2 className="admin-block__title">Payouts</h2>
-      <div className="admin-table-wrap">
-        <table className="admin-table">
-          <thead><tr><th>Creator</th><th>Amount</th><th>Status</th><th></th></tr></thead>
-          <tbody>
-            {payouts.map((p) => (
-              <tr key={p.creator}>
-                <td data-label="Creator">{p.creator}</td>
-                <td data-label="Amount">{p.amount.toLocaleString('ru-RU')} KZT</td>
-                <td data-label="Status"><span className={`pf-status pf-status--${p.status}`}>{p.status}</span></td>
-                <td data-label=""><button className="btn btn--ghost btn--sm" onClick={() => onAction('Payout marked in demo')}>Mark</button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="admin-stats">
+        <Stat label="Открытые брифы" value={openBriefs.length} />
+        <Stat label="Мои отправки" value={submissions.length} />
       </div>
-    </section>
-  );
-}
 
-function Content({ onAction }) {
-  return (
-    <section className="admin-block">
-      <div className="admin-panel__head">
-        <h2 className="admin-block__title">Site content</h2>
-        <button className="btn btn--primary btn--sm" onClick={() => onAction('Content saved')}>Save</button>
-      </div>
-      <div className="bp-cards">
-        {contentItems.map((item) => (
-          <div key={item.name} className="bp-card">
-            <div className="bp-card__head"><b>{item.name}</b><span className="pf-badge">{item.type}</span></div>
-            <p className="creator-portal__muted">Status: {item.status}</p>
-            <button className="btn btn--ghost btn--sm" onClick={() => onAction('File selected in demo')}>Replace</button>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function Settings({ onAction }) {
-  return (
-    <section className="admin-block">
-      <h2 className="admin-block__title">Platform settings</h2>
-      <div className="pf-form">
-        <input value="Minimum credited views: 1000" readOnly />
-        <input value="Payout threshold: 50 000 KZT" readOnly />
-        <input value="TikTok sync: connected through OAuth" readOnly />
-        <button className="btn btn--primary btn--sm" onClick={() => onAction('Settings saved in demo')}>Save</button>
-      </div>
-    </section>
-  );
-}
-
-function LeadTable({ rows }) {
-  return (
-    <div className="admin-table-wrap">
-      <table className="admin-table">
-        <thead><tr><th>Type</th><th>Data</th><th>Page</th><th>Time</th></tr></thead>
-        <tbody>
-          {rows.map((l) => (
-            <tr key={`${l.name}-${l.createdAt}`}>
-              <td data-label="Type"><span className={`lead-pill lead-pill--${l.funnel === 'business' ? 'biz' : 'creator'}`}>{l.funnel === 'business' ? 'Business' : 'Creator'}</span></td>
-              <td data-label="Data"><b>{l.name}</b><div className="muted-cell">{l.contact}</div></td>
-              <td data-label="Page">{l.page}</td>
-              <td data-label="Time">{new Date(l.createdAt).toLocaleString('ru-RU')}</td>
-            </tr>
+      <h3 className="admin-block__title admin-subhead">Отправить видео</h3>
+      <form className="pf-form" onSubmit={submitVideo}>
+        <select value={form.brief_id} onChange={(e) => setForm((s) => ({ ...s, brief_id: e.target.value }))}>
+          <option value="">Без привязки к брифу</option>
+          {openBriefs.map((b) => (
+            <option key={b.id} value={b.id}>{b.title || `Бриф #${b.id}`}</option>
           ))}
-        </tbody>
-      </table>
-    </div>
+        </select>
+        <select value={form.platform} onChange={(e) => setForm((s) => ({ ...s, platform: e.target.value }))}>
+          <option>TikTok</option>
+          <option>Instagram Reels</option>
+          <option>YouTube Shorts</option>
+          <option>Threads</option>
+          <option>X (Twitter)</option>
+        </select>
+        <input placeholder="Ссылка на видео" value={form.video_url} onChange={(e) => setForm((s) => ({ ...s, video_url: e.target.value }))} required />
+        <button className="btn btn--primary btn--sm" disabled={loading}>{loading ? 'Отправка…' : 'Отправить видео'}</button>
+      </form>
+
+      <h3 className="admin-block__title admin-subhead">Мои видео</h3>
+      <div className="admin-table-wrap">
+        <table className="admin-table">
+          <thead><tr><th>Бриф</th><th>Площадка</th><th>Статус</th><th>Просмотры</th></tr></thead>
+          <tbody>
+            {submissions.map((s) => (
+              <tr key={s.id}>
+                <td data-label="Бриф">{s.brief_title || `#${s.brief_id || '-'}`}</td>
+                <td data-label="Площадка">{s.platform}</td>
+                <td data-label="Статус"><span className={`pf-status pf-status--${s.status}`}>{SUB_STATUS[s.status] || s.status}</span></td>
+                <td data-label="Просмотры">{Number(s.views || 0).toLocaleString('ru-RU')}</td>
+              </tr>
+            ))}
+            {!submissions.length && (
+              <tr><td colSpan={4} className="muted-cell">Пока нет отправленных видео</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 
@@ -405,7 +546,17 @@ function MiniTable({ title, rows }) {
       <h3 className="admin-block__title admin-subhead">{title}</h3>
       <div className="admin-table-wrap">
         <table className="admin-table">
-          <tbody>{rows.map(([name, value]) => <tr key={name}><td data-label={title}>{name}</td><td className="muted-cell" data-label="Value">{value}</td></tr>)}</tbody>
+          <tbody>
+            {rows.map(([name, value]) => (
+              <tr key={`${name}-${value}`}>
+                <td data-label={title}>{name}</td>
+                <td className="muted-cell" data-label="Значение">{value}</td>
+              </tr>
+            ))}
+            {!rows.length && (
+              <tr><td className="muted-cell">Нет данных</td><td /></tr>
+            )}
+          </tbody>
         </table>
       </div>
     </div>

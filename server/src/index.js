@@ -1020,6 +1020,31 @@ app.post(
   })
 );
 
+// Public investor demo snapshot: real site analytics + real platform counters
+// (aggregated only, no sensitive rows/tokens).
+app.get('/api/demo/analytics', wrap(async (_req, res) => {
+  const [analytics, creators, businesses, briefs, submissions] = await Promise.all([
+    getVisitAnalytics(),
+    listCreators(),
+    listBusinesses(),
+    listBriefs(),
+    listSubmissions(),
+  ]);
+
+  ok(res, {
+    analytics,
+    platform: {
+      creators: creators.length,
+      businesses: businesses.length,
+      briefs: briefs.length,
+      activeBriefs: briefs.filter((b) => b.status === 'active').length,
+      submissions: submissions.length,
+      acceptedSubmissions: submissions.filter((s) => s.status === 'accepted').length,
+    },
+    updatedAt: new Date().toISOString(),
+  });
+}));
+
 // ---- TikTok auto-sync: pulls real view_count for a creator's videos instead of
 // an operator typing it in. Reuses recordViews() so history/XP/anti-fraud all
 // still flow through the exact same path as a manual entry would.
