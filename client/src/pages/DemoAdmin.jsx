@@ -84,11 +84,6 @@ export default function DemoAdmin() {
         </aside>
 
         <div className="admin-main">
-          <div className="demo-banner">
-            <span className="demo-pill">Реальные данные · только просмотр</span>
-            <span>Инвесторская витрина админки: цифры настоящие, кнопки изменения отключены. Кабинеты бизнеса и креатора — через обычный вход на сайте.</span>
-          </div>
-
           {view === 'dashboard' && <DemoDashboard />}
           {view === 'analytics' && <DemoAnalytics />}
           {view === 'referrals' && <DemoReferrals />}
