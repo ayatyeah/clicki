@@ -103,6 +103,11 @@ import {
   deleteBusiness,
   resetPlatformData,
   countLeads,
+  touchCreatorSeen,
+  touchBusinessSeen,
+  getSiteHealth,
+  measureDbLatency,
+  getPoolStats,
 } from './db.js';
 import { geminiGenerate, geminiEnabled } from './gemini.js';
 import { uploadToSpaces, spacesEnabled } from './storage.js';
@@ -595,6 +600,9 @@ async function requireCreator(req, res, next) {
     const c = await getCreatorByToken(token);
     if (!c) return res.status(401).json({ ok: false, errors: ['Войдите в кабинет'] });
     req.creator = c;
+    // Presence for the admin health page. Fire-and-forget: a failed bookkeeping
+    // write must never turn a working request into a 500.
+    touchCreatorSeen(c.id).catch((err) => console.error('[presence]', err.message));
     next();
   } catch (err) {
     console.error('[creator-auth]', err);
@@ -941,6 +949,7 @@ async function requireBusiness(req, res, next) {
     const b = await getBusinessByToken(token);
     if (!b) return res.status(401).json({ ok: false, errors: ['Войдите в кабинет'] });
     req.business = b;
+    touchBusinessSeen(b.id).catch((err) => console.error('[presence]', err.message));
     next();
   } catch (err) {
     console.error('[business-auth]', err);
@@ -1159,6 +1168,40 @@ async function syncAllTikTokViews() {
 }
 
 // ---- Admin / operator CRM (ТЗ §13) ----
+
+// Site health: one snapshot of accounts, pipeline, money, traffic and the
+// runtime itself. Separate from /api/health (the load balancer's liveness probe,
+// which must stay cheap and unauthenticated).
+app.get('/api/admin/health', requireAdmin, wrap(async (_req, res) => {
+  const [snapshot, dbLatencyMs] = await Promise.all([getSiteHealth(), measureDbLatency()]);
+  const mem = process.memoryUsage();
+  ok(res, {
+    ...snapshot,
+    system: {
+      uptimeSec: Math.round(process.uptime()),
+      nodeVersion: process.version,
+      env: process.env.NODE_ENV || 'development',
+      rssMb: Math.round(mem.rss / 1048576),
+      heapUsedMb: Math.round(mem.heapUsed / 1048576),
+      dbLatencyMs: Math.round(dbLatencyMs * 10) / 10,
+      pool: getPoolStats(),
+      adminSessions: adminSessions.size,
+      // Which optional integrations are actually wired up in this deployment —
+      // an operator otherwise has no way to tell a disabled feature from a broken one.
+      features: {
+        gemini: geminiEnabled,
+        tiktok: tiktokEnabled,
+        spaces: spacesEnabled,
+        recaptcha: Boolean(process.env.RECAPTCHA_SECRET),
+        telegram: Boolean(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID),
+        email: Boolean(process.env.SMTP_HOST && process.env.MAIL_TO),
+        csp: CSP_MODE,
+      },
+    },
+    at: new Date().toISOString(),
+  });
+}));
+
 app.get('/api/admin/analytics', requireAdmin, wrap(async (_req, res) => ok(res, { analytics: await getVisitAnalytics() })));
 // Leads brought in via a creator's public referral link (bio/profile), per creator.
 app.get('/api/admin/referrals', requireAdmin, wrap(async (_req, res) => ok(res, { referrals: await getReferralLeadStats() })));

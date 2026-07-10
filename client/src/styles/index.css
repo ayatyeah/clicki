@@ -3667,3 +3667,30 @@ canvas {
     font-size: 2.2rem;
   }
 }
+
+/* Route-transition fallback (App.jsx). The label appears only after 300ms, so a
+   chunk that arrives quickly never causes a flash of "Загрузка…". */
+.route-fallback {
+  min-height: 70vh;
+  display: grid;
+  place-items: center;
+}
+.route-fallback__label {
+  color: var(--fog);
+  opacity: 0;
+  animation: routeFallbackIn 200ms ease 300ms forwards;
+}
+@keyframes routeFallbackIn {
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .route-fallback__label { animation: none; opacity: 1; }
+}
+
+/* Diagnostic (non-numeric) stat values — uptime, environment, pool state.
+   The default .admin-stat__value face is 2.4rem, sized for figures. */
+.admin-stat--text .admin-stat__value {
+  font-size: 1.15rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}

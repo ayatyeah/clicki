@@ -322,9 +322,138 @@ export async function initDb() {
     await client.query('CREATE INDEX IF NOT EXISTS briefs_status_idx ON briefs (status)');
     // getVisitAnalytics() filters every aggregate on kind, then groups by day.
     await client.query('CREATE INDEX IF NOT EXISTS visits_kind_created_idx ON visits (kind, created_at)');
+
+    // Presence: last authenticated request per account. Powers "online now" on
+    // the admin health page. Written at most once a minute per account (see
+    // touchSeen), so it costs effectively nothing on the hot path.
+    await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMP');
+    await client.query('ALTER TABLE business_accounts ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMP');
+    await client.query('CREATE INDEX IF NOT EXISTS creators_last_seen_idx ON creators (last_seen_at)');
+    await client.query('CREATE INDEX IF NOT EXISTS business_last_seen_idx ON business_accounts (last_seen_at)');
   } finally {
     client.release();
   }
+}
+
+/* ---------------- Presence ---------------- */
+/** Bump last_seen_at, but only if it's already a minute stale — one UPDATE per
+ *  account per minute instead of one per request. */
+export async function touchCreatorSeen(id) {
+  await pool.query(
+    "UPDATE creators SET last_seen_at = NOW() WHERE id = $1 AND (last_seen_at IS NULL OR last_seen_at < NOW() - INTERVAL '1 minute')",
+    [id]
+  );
+}
+export async function touchBusinessSeen(id) {
+  await pool.query(
+    "UPDATE business_accounts SET last_seen_at = NOW() WHERE id = $1 AND (last_seen_at IS NULL OR last_seen_at < NOW() - INTERVAL '1 minute')",
+    [id]
+  );
+}
+
+/* ---------------- Site health (admin overview) ---------------- */
+/** A creator/business counts as "online" if a request of theirs authenticated
+ *  within this window. Kept generous because the cabinets don't poll. */
+const ONLINE_WINDOW = "5 minutes";
+
+/**
+ * One snapshot of everything worth watching: accounts, pipeline, money, traffic.
+ * Every query is a plain aggregate over an indexed column and they all run
+ * concurrently, so the whole page costs one round-trip's worth of latency.
+ */
+export async function getSiteHealth() {
+  const one = (text, params) => pool.query(text, params).then((r) => r.rows[0]);
+  const many = (text, params) => pool.query(text, params).then((r) => r.rows);
+
+  const [creators, businesses, briefs, submissions, leads, payouts, traffic, referrals] = await Promise.all([
+    one(`
+      SELECT COUNT(*)::int AS total,
+             COUNT(*) FILTER (WHERE status = 'active')::int AS active,
+             COUNT(*) FILTER (WHERE status = 'pending')::int AS pending,
+             COUNT(*) FILTER (WHERE onboarding_passed)::int AS onboarded,
+             COUNT(*) FILTER (WHERE founding)::int AS founding,
+             COUNT(*) FILTER (WHERE username IS NOT NULL)::int AS with_login,
+             COUNT(*) FILTER (WHERE tiktok_access_token IS NOT NULL)::int AS tiktok_connected,
+             COUNT(*) FILTER (WHERE last_seen_at > NOW() - INTERVAL '${ONLINE_WINDOW}')::int AS online,
+             COUNT(*) FILTER (WHERE last_seen_at > NOW() - INTERVAL '24 hours')::int AS active_24h,
+             COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days')::int AS new_7d
+        FROM creators`),
+    one(`
+      SELECT COUNT(*)::int AS total,
+             COUNT(*) FILTER (WHERE last_seen_at > NOW() - INTERVAL '${ONLINE_WINDOW}')::int AS online,
+             COUNT(*) FILTER (WHERE last_seen_at > NOW() - INTERVAL '24 hours')::int AS active_24h,
+             COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days')::int AS new_7d
+        FROM business_accounts`),
+    one(`
+      SELECT COUNT(*)::int AS total,
+             COUNT(*) FILTER (WHERE status = 'new')::int AS moderation,
+             COUNT(*) FILTER (WHERE status = 'active')::int AS active,
+             COUNT(*) FILTER (WHERE status = 'revision')::int AS revision
+        FROM briefs`),
+    one(`
+      SELECT COUNT(*)::int AS total,
+             COUNT(*) FILTER (WHERE status = 'ai_check')::int AS ai_check,
+             COUNT(*) FILTER (WHERE status = 'ai_passed')::int AS awaiting_review,
+             COUNT(*) FILTER (WHERE status = 'rework')::int AS rework,
+             COUNT(*) FILTER (WHERE status = 'sent_to_business')::int AS awaiting_business,
+             COUNT(*) FILTER (WHERE status = 'accepted')::int AS accepted,
+             COUNT(*) FILTER (WHERE status = 'rejected')::int AS rejected,
+             COALESCE(SUM(views) FILTER (WHERE status = 'accepted'), 0)::bigint AS accepted_views,
+             COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days')::int AS new_7d
+        FROM submissions`),
+    one(`
+      SELECT COUNT(*)::int AS total,
+             COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE)::int AS today,
+             COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days')::int AS week,
+             COUNT(*) FILTER (WHERE funnel = 'client')::int AS client,
+             COUNT(*) FILTER (WHERE funnel = 'creator')::int AS creator
+        FROM leads`),
+    one(`
+      SELECT COUNT(*) FILTER (WHERE status = 'pending')::int AS pending_count,
+             COALESCE(SUM(amount) FILTER (WHERE status = 'pending'), 0)::float AS pending_sum,
+             COALESCE(SUM(amount) FILTER (WHERE status = 'paid'), 0)::float AS paid_sum
+        FROM payouts`),
+    one(`
+      SELECT COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE AND (kind='page' OR kind IS NULL))::int AS visits_today,
+             COUNT(DISTINCT visitor) FILTER (WHERE created_at::date = CURRENT_DATE AND (kind='page' OR kind IS NULL))::int AS uniques_today,
+             COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days' AND (kind='page' OR kind IS NULL))::int AS visits_7d
+        FROM visits`),
+    one('SELECT COUNT(*)::int AS total FROM referral_leads'),
+  ]);
+
+  // Newest first, so an operator can see who is actually in the cabinet right now.
+  const onlineNow = await many(`
+    SELECT 'creator' AS role, id, name, last_seen_at FROM creators
+     WHERE last_seen_at > NOW() - INTERVAL '${ONLINE_WINDOW}'
+    UNION ALL
+    SELECT 'business' AS role, id, name, last_seen_at FROM business_accounts
+     WHERE last_seen_at > NOW() - INTERVAL '${ONLINE_WINDOW}'
+    ORDER BY last_seen_at DESC LIMIT 20`);
+
+  return {
+    creators,
+    businesses,
+    briefs,
+    submissions: { ...submissions, accepted_views: Number(submissions.accepted_views) },
+    leads,
+    payouts,
+    traffic,
+    referrals: referrals.total,
+    onlineNow,
+    onlineWindow: ONLINE_WINDOW,
+  };
+}
+
+/** Round-trip latency to Postgres, in milliseconds. */
+export async function measureDbLatency() {
+  const t0 = process.hrtime.bigint();
+  await pool.query('SELECT 1');
+  return Number(process.hrtime.bigint() - t0) / 1e6;
+}
+
+/** Connection-pool saturation — the thing that silently queues requests under load. */
+export function getPoolStats() {
+  return { total: pool.totalCount, idle: pool.idleCount, waiting: pool.waitingCount, max: pool.options.max };
 }
 
 /* ---------------- Leads (lead-capture funnels) ---------------- */

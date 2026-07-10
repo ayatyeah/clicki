@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Seo from '../components/Seo.jsx';
 import { API_BASE, SITE_URL } from '../lib/config.js';
+import { createApiClient } from '../lib/apiClient.js';
 import { safeHref } from '../lib/safeHref.js';
 
 const KEY = 'clicki_creator_token';
@@ -30,24 +31,18 @@ export default function CreatorPortal() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const authFetch = useCallback(
-    (url, opts = {}) =>
-      fetch(`${API_BASE}${url}`, { ...opts, headers: { ...(opts.headers || {}), Authorization: `Bearer ${token}` } }),
-    [token]
+  // Shared client: bearer + "only 401/403 ends the session" policy (lib/apiClient.js).
+  const api = useMemo(
+    () => createApiClient({ tokenKey: KEY, onUnauthorized: () => { setToken(''); setData(null); } }),
+    []
   );
+  const { authFetch } = api;
 
   const loadMe = useCallback(async () => {
     setLoading(true);
     try {
       const res = await authFetch('/api/creator/me');
-      // Only a real auth failure should drop the session; a transient network
-      // error or a 5xx must not log the creator out.
-      if (res.status === 401 || res.status === 403) {
-        sessionStorage.removeItem(KEY);
-        setToken('');
-        setData(null);
-        return;
-      }
+      if (res.status === 401 || res.status === 403) return; // client already cleared the session
       if (!res.ok) throw new Error('load-failed');
       setData(await res.json());
     } catch {
@@ -62,12 +57,12 @@ export default function CreatorPortal() {
   }, [token, data, loadMe]);
 
   const onAuthed = (tok, payload) => {
-    sessionStorage.setItem(KEY, tok);
+    api.setToken(tok);
     setToken(tok);
     setData(payload);
   };
   const logout = () => {
-    sessionStorage.removeItem(KEY);
+    api.clearToken();
     setToken('');
     setData(null);
   };

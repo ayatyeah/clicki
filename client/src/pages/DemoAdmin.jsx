@@ -3,7 +3,10 @@ import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import Icon from '../components/Icon.jsx';
 import { API_BASE } from '../lib/config.js';
-import { BriefsView, ReviewView, BriefViewsView, MonthlyReportView } from './AdminPlatform.jsx';
+import { BriefsView } from './admin/BriefsView.jsx';
+import { ReviewView } from './admin/ReviewView.jsx';
+import { BriefViewsView } from './admin/BriefViewsView.jsx';
+import { MonthlyReportView } from './admin/MonthlyReportView.jsx';
 
 // Investor demo = a trimmed, READ-ONLY copy of the real admin. Only these seven
 // sections are exposed; the business/creator cabinets are reached by logging in

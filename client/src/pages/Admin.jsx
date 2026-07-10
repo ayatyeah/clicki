@@ -1,9 +1,22 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import { API_BASE } from '../lib/config.js';
+import { createApiClient } from '../lib/apiClient.js';
 import Icon from '../components/Icon.jsx';
-import { AiAnalysisView, AutopilotView, BriefsView, ReviewView, CreatorsView, BusinessesView, PayoutsView, DecisionJournalView, BriefViewsView, MonthlyReportView, ResetDataView } from './AdminPlatform.jsx';
+import HealthView from './admin/HealthView.jsx';
+import { Stat, Kpi } from './admin/ui.jsx';
+import { AiAnalysisView } from './admin/AiAnalysisView.jsx';
+import { AutopilotView } from './admin/AutopilotView.jsx';
+import { BriefsView } from './admin/BriefsView.jsx';
+import { ReviewView } from './admin/ReviewView.jsx';
+import { BriefViewsView } from './admin/BriefViewsView.jsx';
+import { MonthlyReportView } from './admin/MonthlyReportView.jsx';
+import { CreatorsView } from './admin/CreatorsView.jsx';
+import { BusinessesView } from './admin/BusinessesView.jsx';
+import { PayoutsView } from './admin/PayoutsView.jsx';
+import { DecisionJournalView } from './admin/DecisionJournalView.jsx';
+import { ResetDataView } from './admin/ResetDataView.jsx';
 
 const TOKEN_KEY = 'clicki_admin_token';
 const EMPTY = { showcase: [], devices: { iphone: { image: '' }, laptop: { image: '' } }, creatorVideo: '', hubVideo: '' };
@@ -22,10 +35,10 @@ export default function Admin() {
   const [view, setView] = useState('dashboard');
   const [navOpen, setNavOpen] = useState(false); // mobile drawer
 
-  const authFetch = useCallback(
-    (url, opts = {}) => fetch(`${API_BASE}${url}`, { ...opts, headers: { ...(opts.headers || {}), Authorization: `Bearer ${token}` } }),
-    [token]
-  );
+  // One implementation of "attach the bearer, and drop the session on 401/403"
+  // lives in lib/apiClient.js — this used to be copy-pasted per portal.
+  const api = useMemo(() => createApiClient({ tokenKey: TOKEN_KEY, onUnauthorized: () => setToken('') }), []);
+  const { authFetch } = api;
 
   const loadLeads = useCallback(async () => {
     setLoading(true);
@@ -88,7 +101,10 @@ export default function Admin() {
   }
 
   function logout() {
-    sessionStorage.removeItem(TOKEN_KEY);
+    // Revoke the session server-side too, otherwise the token stays valid for the
+    // rest of its 12h TTL — which matters on a shared or kiosk browser.
+    api.post('/api/admin/logout').catch(() => {});
+    api.clearToken();
     setToken('');
     setLeads([]);
   }
@@ -101,7 +117,7 @@ export default function Admin() {
       fd.append('file', file);
       const xhr = new XMLHttpRequest();
       xhr.open('POST', `${API_BASE}/api/admin/upload`);
-      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.setRequestHeader('Authorization', `Bearer ${api.getToken()}`);
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100));
       };
@@ -244,6 +260,7 @@ export default function Admin() {
   const creatorLeads = leads.filter((l) => l.funnel === 'creator');
   const NAV = [
     { key: 'dashboard', label: 'Дашборд', icon: 'grid' },
+    { key: 'health', label: 'Состояние сайта', icon: 'flame' },
     { key: 'ai', label: 'ИИ Аналитика', icon: 'sparkle' },
     { key: 'autopilot', label: 'Автопилот кампаний', icon: 'sparkle' },
     { key: 'analytics', label: 'Аналитика', icon: 'chart' },
@@ -391,6 +408,7 @@ export default function Admin() {
             </section>
           )}
 
+          {view === 'health' && <HealthView authFetch={authFetch} />}
           {view === 'ai' && <AiAnalysisView authFetch={authFetch} />}
           {view === 'autopilot' && <AutopilotView authFetch={authFetch} />}
 
@@ -564,26 +582,6 @@ export default function Admin() {
         </div>
       </div>
     </main>
-  );
-}
-
-function Stat({ label, value }) {
-  return (
-    <div className="admin-stat">
-      <div className="admin-stat__value">{value}</div>
-      <div className="admin-stat__label">{label}</div>
-    </div>
-  );
-}
-
-function Kpi({ tone = 'violet', icon, value, label, hint }) {
-  return (
-    <div className={`kpi kpi--${tone}`}>
-      <span className="kpi__icon"><Icon name={icon} /></span>
-      <div className="kpi__value">{value}</div>
-      <div className="kpi__label">{label}</div>
-      {hint && <div className="kpi__hint">{hint}</div>}
-    </div>
   );
 }
 

@@ -2,6 +2,7 @@ import { Routes, Route, useLocation } from 'react-router-dom';
 import { useEffect, lazy, Suspense } from 'react';
 import Hub from './pages/Hub.jsx';
 import Playground from './components/Playground.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { initAnalytics, trackPageview, trackVisit, trackEvent } from './lib/analytics.js';
 import { initAppleEmoji, parseAppleEmoji } from './lib/appleEmoji.js';
 
@@ -53,13 +54,17 @@ export default function App() {
 
   return (
     <>
-      <Suspense fallback={null}>
-        <Aurora colorStops={['#7cff67', '#B497CF', '#5227FF']} blend={0.5} amplitude={0.7} speed={0.8} />
-      </Suspense>
+      {/* Purely decorative: if WebGL is unavailable the backdrop disappears, the site does not. */}
+      <ErrorBoundary fallback={null}>
+        <Suspense fallback={null}>
+          <Aurora colorStops={['#7cff67', '#B497CF', '#5227FF']} blend={0.5} amplitude={0.7} speed={0.8} />
+        </Suspense>
+      </ErrorBoundary>
       <Playground />
       <RouteEffects />
-      <Suspense fallback={null}>
-        <Routes>
+      <ErrorBoundary>
+        <Suspense fallback={<RouteFallback />}>
+          <Routes>
           <Route path="/" element={<Hub />} />
           <Route path="/business" element={<Business />} />
           <Route path="/creators" element={<Creators />} />
@@ -74,11 +79,26 @@ export default function App() {
           <Route path="/demo-admin" element={<DemoAdmin />} />
           <Route path="/creator" element={<CreatorPortal />} />
           <Route path="/business-cabinet" element={<BusinessPortal />} />
-          <Route path="/friend/:login" element={<Referral />} />
-          <Route path="/:login" element={<CreatorMiniPage />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Suspense>
+            <Route path="/friend/:login" element={<Referral />} />
+            <Route path="/:login" element={<CreatorMiniPage />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
+      </ErrorBoundary>
     </>
+  );
+}
+
+/**
+ * Shown while a route chunk downloads. Reserves the viewport height so the page
+ * doesn't jump when the route lands, and announces the wait to screen readers.
+ * The label fades in only after 300ms — on a fast connection the chunk arrives
+ * first and nothing flashes.
+ */
+function RouteFallback() {
+  return (
+    <div className="route-fallback" role="status" aria-busy="true">
+      <span className="route-fallback__label">Загрузка…</span>
+    </div>
   );
 }
