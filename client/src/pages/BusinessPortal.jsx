@@ -97,6 +97,7 @@ function AuthScreen({ onAuthed }) {
           <Link to="/" className="creator-portal__brand">CLICKI</Link>
           <span className="creator-portal__tag">кабинет бизнеса</span>
         </div>
+        <div className="mascot-avatar"><img src="/mascot-star.png" alt="CLICKI" /></div>
         <h1 className="creator-portal__title">Кабинет бизнеса</h1>
         <p className="creator-portal__muted">
           {mode === 'login' ? 'Войдите, чтобы создавать брифы и принимать работы.' : 'Создайте аккаунт бренда за минуту.'}

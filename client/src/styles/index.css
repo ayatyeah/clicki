@@ -3878,3 +3878,34 @@ canvas {
   background: rgba(22, 163, 74, 0.1); border: 1px solid rgba(22, 163, 74, 0.35);
   color: var(--ink); font-size: 0.86rem; line-height: 1.4;
 }
+
+/* In-cabinet guide (components/Guide.jsx) */
+.guide { max-width: 760px; }
+.guide__intro { color: var(--fog); font-size: 0.95rem; line-height: 1.5; margin: 0 0 20px; }
+.guide__steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 18px; }
+.guide__step { display: flex; gap: 14px; }
+.guide__step-num {
+  flex: none; width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center; font-weight: 700; font-size: 0.9rem;
+  background: var(--violet, #8b5cf6); color: #fff;
+}
+.guide__step-body { flex: 1; min-width: 0; }
+.guide__step-title { margin: 3px 0 6px; font-size: 1.02rem; }
+.guide__step-text { margin: 0 0 6px; color: var(--fog); font-size: 0.9rem; line-height: 1.5; }
+.guide__points { margin: 6px 0 0; padding-left: 18px; color: var(--fog); font-size: 0.88rem; }
+.guide__points li { margin: 2px 0; }
+.guide__shot { display: block; margin-top: 10px; padding: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: none; cursor: zoom-in; max-width: 340px; }
+.guide__shot img { display: block; width: 100%; height: auto; }
+.guide__faq { margin-top: 28px; }
+.guide__faq-title { font-size: 1.05rem; margin: 0 0 10px; }
+.guide__faq-item { border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin-bottom: 8px; }
+.guide__faq-item summary { cursor: pointer; font-weight: 600; }
+.guide__faq-item p { margin: 8px 0 0; color: var(--fog); font-size: 0.9rem; line-height: 1.5; }
+
+/* Mascot avatar — transparent PNG on a soft violet halo. */
+.mascot-avatar {
+  width: 104px; height: 104px; border-radius: 50%;
+  background: radial-gradient(circle at 50% 42%, rgba(139, 92, 246, 0.28), rgba(139, 92, 246, 0.08) 70%, transparent);
+  margin: 4px auto 14px; display: grid; place-items: center;
+}
+.mascot-avatar img { width: 92%; height: 92%; object-fit: contain; }

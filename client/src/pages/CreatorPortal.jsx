@@ -7,6 +7,8 @@ import { safeHref } from '../lib/safeHref.js';
 import StatScreenshots from '../components/StatScreenshots.jsx';
 import CopyButton from '../components/CopyButton.jsx';
 import EmptyState from '../components/EmptyState.jsx';
+import Guide from '../components/Guide.jsx';
+import { CREATOR_GUIDE } from '../content/guides.js';
 
 const KEY = 'clicki_creator_token';
 const PLATFORMS = ['TikTok', 'Instagram Reels', 'YouTube Shorts', 'Threads', 'X (Twitter)'];
@@ -103,6 +105,7 @@ function AuthScreen({ onAuthed, refId }) {
   const [applied, setApplied] = useState(false);
   return (
     <Shell>
+      <div className="mascot-avatar"><img src="/mascot-star.png" alt="CLICKI" /></div>
       <h1 className="creator-portal__title">Кабинет креатора</h1>
       <p className="creator-portal__muted">
         {mode === 'login'
@@ -275,6 +278,7 @@ const CREATOR_TABS = [
   { key: 'videos', label: 'Видео' },
   { key: 'referrals', label: 'Рефералы' },
   { key: 'rating', label: 'Рейтинг' },
+  { key: 'guide', label: 'Как это работает' },
 ];
 
 function Dashboard({ data, authFetch, reload, onLogout }) {
@@ -427,6 +431,13 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
         <>
           <h2 className="creator-portal__h2">Лидерборд</h2>
           <Leaderboard meId={c.id} />
+        </>
+      )}
+
+      {view === 'guide' && (
+        <>
+          <h2 className="creator-portal__h2">Как это работает</h2>
+          <Guide content={CREATOR_GUIDE} />
         </>
       )}
     </Shell>
