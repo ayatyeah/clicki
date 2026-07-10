@@ -1105,6 +1105,12 @@ export async function addStatScreenshot(submissionId, creatorId, url) {
   );
   return r.rows[0];
 }
+/** Timestamp (ms) of the most recent screenshot for a submission, or null. */
+export async function getLastScreenshotAt(submissionId) {
+  const r = await pool.query('SELECT created_at FROM stat_screenshots WHERE submission_id = $1 ORDER BY created_at DESC LIMIT 1', [submissionId]);
+  return r.rows[0] ? new Date(r.rows[0].created_at).getTime() : null;
+}
+
 /** All screenshots for a submission, newest first. */
 export async function listStatScreenshots(submissionId) {
   const r = await pool.query(

@@ -286,8 +286,14 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
   const pct = threshold ? Math.min(100, Math.round((wallet.balance / threshold) * 100)) : 0;
   const firstName = (c.name || '').split(' ')[0] || c.name;
   // How many live videos still need today's stats screenshot — surfaced up here
-  // so the creator sees the daily task without opening each video card.
-  const needStatsToday = submissions.filter((s) => s.status !== 'rejected' && !s.screenshot_today).length;
+  // so the creator sees the daily task without opening each video card. A video
+  // still inside its 10h cooldown isn't counted (nothing to do yet).
+  const COOLDOWN_MS = 10 * 60 * 60 * 1000;
+  const needStatsToday = submissions.filter((s) => {
+    if (s.status === 'rejected' || s.screenshot_today) return false;
+    if (s.last_screenshot_at && Date.now() - new Date(s.last_screenshot_at).getTime() < COOLDOWN_MS) return false;
+    return true;
+  }).length;
   return (
     <Shell>
       <div className="creator-portal__top">
@@ -387,6 +393,7 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
                       canUpload
                       today={s.screenshot_today}
                       count={s.screenshots_count}
+                      lastAt={s.last_screenshot_at}
                     />
                   )}
                 </div>

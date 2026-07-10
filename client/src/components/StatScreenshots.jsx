@@ -37,6 +37,20 @@ const GUIDE = {
 const isInstagram = (platform) => /instagram|reels/i.test(platform || '');
 const guideFor = (platform) => (isInstagram(platform) ? GUIDE.Instagram : GUIDE.TikTok);
 
+// Must match SCREENSHOT_COOLDOWN_MS on the server. The server is the source of
+// truth (it rejects an early upload); this only drives the UI hint.
+const COOLDOWN_MS = 10 * 60 * 60 * 1000;
+const cooldownLeft = (lastAt) => {
+  if (!lastAt) return 0;
+  const left = COOLDOWN_MS - (Date.now() - new Date(lastAt).getTime());
+  return left > 0 ? left : 0;
+};
+const fmtLeft = (ms) => {
+  const h = Math.floor(ms / 3_600_000);
+  const m = Math.ceil((ms % 3_600_000) / 60_000);
+  return `${h ? `${h} ч ` : ''}${m} мин`;
+};
+
 export default function StatScreenshots({ submissionId, platform, basePath, authFetch, canUpload = false, today = false, count = 0, lastAt = null }) {
   const toast = useToast();
   const [open, setOpen] = useState(false);
@@ -106,6 +120,8 @@ export default function StatScreenshots({ submissionId, platform, basePath, auth
   const total = shots ? shots.length : count;
   const guide = guideFor(platform);
   const lightboxItems = (shots || []).map((s) => ({ src: mediaSrc(s.url), caption: s.at }));
+  const waitMs = cooldownLeft(lastAt);
+  const onCooldown = canUpload && waitMs > 0 && progress === null;
 
   return (
     <div className="stat-shots">
@@ -132,29 +148,35 @@ export default function StatScreenshots({ submissionId, platform, basePath, auth
                 Раз в сутки прикладывай свежий скриншот статистики этого видео из {isInstagram(platform) ? 'Instagram' : 'TikTok'}. Скрины сохраняются и не удаляются.
               </p>
 
-              <div
-                className={`stat-shots__drop ${dragOver ? 'is-over' : ''}`}
-                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={onDrop}
-                onClick={() => progress === null && fileRef.current?.click()}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => { if (e.key === 'Enter') fileRef.current?.click(); }}
-              >
-                <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; upload(f); }} />
-                {progress === null ? (
-                  <>
-                    <span className="stat-shots__drop-icon" aria-hidden="true">⬆</span>
-                    <span>Перетащи скриншот сюда или <u>выбери файл</u></span>
-                  </>
-                ) : (
-                  <div className="stat-shots__progress">
-                    <div className="stat-shots__progress-bar" style={{ width: `${progress}%` }} />
-                    <span className="stat-shots__progress-label">Загрузка… {progress}%</span>
-                  </div>
-                )}
-              </div>
+              {onCooldown ? (
+                <div className="stat-shots__cooldown">
+                  ⏳ Скриншот за сегодня принят. Следующий можно загрузить через <b>{fmtLeft(waitMs)}</b> — так график роста по дням остаётся ровным.
+                </div>
+              ) : (
+                <div
+                  className={`stat-shots__drop ${dragOver ? 'is-over' : ''}`}
+                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={onDrop}
+                  onClick={() => progress === null && fileRef.current?.click()}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter') fileRef.current?.click(); }}
+                >
+                  <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; upload(f); }} />
+                  {progress === null ? (
+                    <>
+                      <span className="stat-shots__drop-icon" aria-hidden="true">⬆</span>
+                      <span>Перетащи скриншот сюда или <u>выбери файл</u></span>
+                    </>
+                  ) : (
+                    <div className="stat-shots__progress">
+                      <div className="stat-shots__progress-bar" style={{ width: `${progress}%` }} />
+                      <span className="stat-shots__progress-label">Загрузка… {progress}%</span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="stat-shots__actions">
                 <button type="button" className="btn btn--ghost btn--sm" onClick={() => setGuideOpen((v) => !v)}>

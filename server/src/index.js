@@ -111,6 +111,7 @@ import {
   getPoolStats,
   addStatScreenshot,
   listStatScreenshots,
+  getLastScreenshotAt,
   recordRefVisit,
 } from './db.js';
 import { geminiGenerate, geminiEnabled } from './gemini.js';
@@ -963,6 +964,11 @@ async function creatorOwnsSubmission(creatorId, submissionId) {
   return s && s.creator_id === creatorId ? s : null;
 }
 
+// Minimum gap between two stats screenshots for the same video. One clean daily
+// data point per video → the business gets a coherent growth curve instead of a
+// creator dumping five shots in an hour.
+const SCREENSHOT_COOLDOWN_MS = 10 * 60 * 60 * 1000; // 10h
+
 app.post(
   '/api/creator/submissions/:id/screenshots',
   requireCreator,
@@ -971,6 +977,21 @@ app.post(
     const submissionId = Number(req.params.id);
     if (!(await creatorOwnsSubmission(req.creator.id, submissionId))) {
       return res.status(404).json({ ok: false, errors: ['Видео не найдено'] });
+    }
+    // Enforce the cooldown before touching the file, so a too-early upload is
+    // rejected cheaply. 429 + the wait time so the UI can show a countdown.
+    const lastAt = await getLastScreenshotAt(submissionId);
+    if (lastAt) {
+      const waitMs = SCREENSHOT_COOLDOWN_MS - (Date.now() - lastAt);
+      if (waitMs > 0) {
+        const hours = Math.floor(waitMs / 3_600_000);
+        const mins = Math.ceil((waitMs % 3_600_000) / 60_000);
+        return res.status(429).json({
+          ok: false,
+          retryAfterMs: waitMs,
+          errors: [`Следующий скриншот можно загрузить через ${hours ? `${hours} ч ` : ''}${mins} мин — так статистика по дням остаётся ровной.`],
+        });
+      }
     }
     if (!req.file) return res.status(400).json({ ok: false, errors: ['Файл не получен'] });
     let url;

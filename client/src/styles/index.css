@@ -3871,3 +3871,10 @@ canvas {
   .stat-shots__body { animation: none; }
   .stat-shots__thumb { transition: none; }
 }
+
+/* Stat-screenshot cooldown notice (10h between uploads) */
+.stat-shots__cooldown {
+  margin: 4px 0 8px; padding: 12px 14px; border-radius: 12px;
+  background: rgba(22, 163, 74, 0.1); border: 1px solid rgba(22, 163, 74, 0.35);
+  color: var(--ink); font-size: 0.86rem; line-height: 1.4;
+}
