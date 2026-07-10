@@ -457,7 +457,7 @@ export default function Admin() {
             </section>
           )}
 
-          {view === 'briefs' && <BriefsView authFetch={authFetch} />}
+          {view === 'briefs' && <BriefsView authFetch={authFetch} canManage />}
           {view === 'brief-views' && <BriefViewsView authFetch={authFetch} />}
           {view === 'monthly-report' && <MonthlyReportView authFetch={authFetch} />}
           {view === 'review' && <ReviewView authFetch={authFetch} />}

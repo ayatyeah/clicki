@@ -48,6 +48,7 @@ import {
   pingDb,
   createBrief,
   setBriefStatus,
+  deleteBrief,
   setBriefAi,
   setBriefRevision,
   updateBusinessBrief,
@@ -1361,6 +1362,12 @@ app.post('/api/admin/reset-data', requireAdmin, wrap(async (req, res) => {
 app.get('/api/admin/briefs', requireAdmin, wrap(async (_req, res) => ok(res, { briefs: await listBriefs() })));
 app.post('/api/admin/briefs', requireAdmin, wrap(async (req, res) => ok(res, { brief: await createBrief(req.body || {}) })));
 app.post('/api/admin/briefs/:id/status', requireAdmin, wrap(async (req, res) => ok(res, { brief: await setBriefStatus(Number(req.params.id), req.body?.status) })));
+// Delete a brief (e.g. leftover test briefs). Submissions survive (brief_id → NULL).
+app.post('/api/admin/briefs/:id/delete', requireAdmin, wrap(async (req, res) => {
+  const done = await deleteBrief(Number(req.params.id));
+  if (!done) return res.status(404).json({ ok: false, errors: ['Бриф не найден'] });
+  ok(res, {});
+}));
 // AI quality check of a brief (moderation).
 app.post('/api/admin/briefs/:id/ai', requireAdmin, wrap(async (req, res) => {
   const brief = await getBrief(Number(req.params.id));

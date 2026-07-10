@@ -886,6 +886,15 @@ export async function setBriefStatus(id, status) {
   const r = await pool.query('UPDATE briefs SET status = $1 WHERE id = $2 RETURNING *', [status, id]);
   return r.rows[0] || null;
 }
+/**
+ * Delete a brief. Safe by schema: submissions.brief_id is ON DELETE SET NULL
+ * (a creator's already-submitted videos survive, just detached) and assignments
+ * cascade away. Returns true if a row was removed.
+ */
+export async function deleteBrief(id) {
+  const r = await pool.query('DELETE FROM briefs WHERE id = $1', [id]);
+  return r.rowCount > 0;
+}
 export async function setBriefAi(id, { ai_score, ai_feedback }) {
   const r = await pool.query('UPDATE briefs SET ai_score = $1, ai_feedback = $2 WHERE id = $3 RETURNING *', [ai_score, ai_feedback || null, id]);
   return r.rows[0] || null;

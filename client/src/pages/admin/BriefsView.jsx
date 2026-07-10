@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useToast } from '../../components/Toast.jsx';
+import { useConfirm } from '../../components/ConfirmDialog.jsx';
 
 const PLATFORMS = ['TikTok', 'Instagram Reels', 'YouTube Shorts', 'Threads', 'X (Twitter)'];
 
-/* ---------------- Briefs ---------------- */
-export function BriefsView({ authFetch }) {
+/* ---------------- Briefs ----------------
+   canManage=false (investor demo) hides mutating controls like delete. */
+export function BriefsView({ authFetch, canManage = false }) {
   const [briefs, setBriefs] = useState([]);
   const [creators, setCreators] = useState([]);
   const [form, setForm] = useState({ title: '', platform: 'TikTok', duration_min: 15, duration_max: 90, slots: 5 });
@@ -75,7 +78,7 @@ export function BriefsView({ authFetch }) {
       </p>
       <div className="bp-cards" style={{ marginTop: 12 }}>
         {briefs.map((b) => (
-          <BriefModCard key={b.id} b={b} authFetch={authFetch} creators={creators} onChange={load} />
+          <BriefModCard key={b.id} b={b} authFetch={authFetch} creators={creators} onChange={load} canManage={canManage} />
         ))}
         {!briefs.length && <p className="muted-note" style={{ textAlign: 'left' }}>Брифов пока нет</p>}
       </div>
@@ -83,7 +86,9 @@ export function BriefsView({ authFetch }) {
   );
 }
 
-function BriefModCard({ b, authFetch, creators, onChange }) {
+function BriefModCard({ b, authFetch, creators, onChange, canManage }) {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
   const [showNote, setShowNote] = useState(false);
@@ -92,6 +97,23 @@ function BriefModCard({ b, authFetch, creators, onChange }) {
     try {
       await authFetch(url, { method: 'POST', headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
       onChange();
+    } finally {
+      setBusy(false);
+    }
+  };
+  const remove = async () => {
+    const okToDelete = await confirm({
+      title: 'Удалить бриф?',
+      message: `«${b.title}» будет удалён. Уже сданные по нему видео сохранятся, но останутся без привязки к брифу.`,
+      confirmText: 'Удалить',
+      danger: true,
+    });
+    if (!okToDelete) return;
+    setBusy(true);
+    try {
+      const res = await authFetch(`/api/admin/briefs/${b.id}/delete`, { method: 'POST' });
+      if (res.ok) { toast.success('Бриф удалён'); onChange(); }
+      else { const d = await res.json().catch(() => ({})); toast.error(d.errors?.[0] || 'Не удалось удалить'); }
     } finally {
       setBusy(false);
     }
@@ -133,6 +155,9 @@ function BriefModCard({ b, authFetch, creators, onChange }) {
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
+          {canManage && (
+            <button className="btn btn--danger btn--sm" disabled={busy} onClick={remove}>Удалить</button>
+          )}
         </div>
         {showNote && (
           <div className="mod-actions">
