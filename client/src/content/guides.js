@@ -67,3 +67,94 @@ export const CREATOR_GUIDE = {
     { q: 'Обязательно ли слать скрин каждый день?', a: 'Да. Это подтверждает реальные органические просмотры и даёт бренду честную аналитику. Минимальный разрыв между скринами — 10 часов.' },
   ],
 };
+
+/**
+ * Business guide — bilingual from the start ({ ru, en }) so the cabinet's
+ * language switch (added with the business i18n) flips it without a rewrite.
+ */
+export const BUSINESS_GUIDE = {
+  ru: {
+    intro:
+      'CLICKI приводит вам реальные органические просмотры через UGC-креаторов: вы описываете, что рекламируете, — креаторы снимают короткие видео и публикуют у себя, а вы платите за фактические просмотры. Вот как работать в кабинете.',
+    steps: [
+      {
+        title: 'Создайте бриф',
+        body: 'В разделе «Брифы» опишите задачу: платформа, ключевое сообщение, хронометраж, обязательный хэштег и CTA-ссылка, стиль. Чем конкретнее бриф — тем точнее видео и меньше правок.',
+        points: [
+          'Ключевое сообщение — одна мысль, которую должен запомнить зритель.',
+          'Укажите хэштег и ссылку, если они обязательны.',
+          'Выберите стиль (молодёжный / премиальный / корпоративный / развлекательный).',
+        ],
+        img: '/guide/business/01-brief.png',
+      },
+      {
+        title: 'Соберите бриф с помощью AI',
+        body: 'Не знаете, с чего начать? Вставьте ссылку на свой сайт/продукт или пару предложений — AI-конструктор соберёт 3 готовых варианта брифа (хук, дос/донтс, тон) и подскажет, что уточнить.',
+        img: '/guide/business/02-ai.png',
+      },
+      {
+        title: 'Дождитесь модерации',
+        body: 'Оператор проверяет новый бриф (обычно в течение рабочего дня) и публикует его креаторам. Если бриф вернули на доработку — вы увидите замечание и сможете отредактировать бриф, он снова уйдёт на модерацию.',
+      },
+      {
+        title: 'Примите готовые работы',
+        body: 'Когда креатор сдал видео и оно прошло проверку, оно появляется в разделе «Приёмка». Откройте видео по ссылке, проверьте соответствие брифу и нажмите «Принять работу» — после этого креатору начисляется оплата.',
+        img: '/guide/business/03-review.png',
+      },
+      {
+        title: 'Следите за аналитикой',
+        body: 'В разделе «Аналитика» виден рост просмотров по всей кампании по дням, разбивка по платформам и потраченный бюджет. Просмотры подтверждаются ежедневными скриншотами статистики от креаторов — без накруток.',
+        img: '/guide/business/04-analytics.png',
+      },
+    ],
+    faqTitle: 'Частые вопросы',
+    faq: [
+      { q: 'Как быстро проверят мой бриф?', a: 'Обычно в течение рабочего дня. Статус виден в разделе «Брифы».' },
+      { q: 'За что именно я плачу?', a: 'За реальные органические просмотры по действующим тарифам — без предоплаты за показы, которых не было.' },
+      { q: 'Можно исправить бриф после отправки?', a: 'Да, пока он не одобрен — отредактируйте его в разделе «Брифы», он снова уйдёт на модерацию.' },
+      { q: 'Откуда берётся аналитика просмотров?', a: 'Креаторы каждый день присылают скриншот статистики из TikTok/Instagram по своему видео — из них складывается честный график роста.' },
+    ],
+  },
+  en: {
+    intro:
+      'CLICKI brings you real organic views through UGC creators: you describe what you’re promoting, creators film short videos and post them on their own accounts, and you pay for actual views. Here’s how the cabinet works.',
+    steps: [
+      {
+        title: 'Create a brief',
+        body: 'In “Briefs”, describe the task: platform, key message, duration, required hashtag and CTA link, style. The more specific the brief, the more on-point the videos — and the fewer revisions.',
+        points: [
+          'Key message — the one idea a viewer should remember.',
+          'Add a hashtag and link if they’re required.',
+          'Pick a style (youth / premium / corporate / entertainment).',
+        ],
+        img: '/guide/business/01-brief.png',
+      },
+      {
+        title: 'Build a brief with AI',
+        body: 'Not sure where to start? Paste your site/product link or a couple of sentences — the AI constructor returns 3 ready brief drafts (hook, dos/don’ts, tone) and tips on what to clarify.',
+        img: '/guide/business/02-ai.png',
+      },
+      {
+        title: 'Wait for moderation',
+        body: 'An operator reviews the new brief (usually within a business day) and publishes it to creators. If it’s sent back, you’ll see the note and can edit the brief — it returns to moderation.',
+      },
+      {
+        title: 'Accept finished work',
+        body: 'Once a creator submits a video and it passes the check, it appears under “Review”. Open the video, verify it matches the brief and click “Accept” — the creator is then paid.',
+        img: '/guide/business/03-review.png',
+      },
+      {
+        title: 'Track the analytics',
+        body: 'The “Analytics” section shows cumulative campaign views by day, a per-platform breakdown and spend to date. Views are backed by creators’ daily stats screenshots — no fake traffic.',
+        img: '/guide/business/04-analytics.png',
+      },
+    ],
+    faqTitle: 'FAQ',
+    faq: [
+      { q: 'How fast is my brief reviewed?', a: 'Usually within a business day. The status is shown under “Briefs”.' },
+      { q: 'What exactly am I paying for?', a: 'Real organic views at the current rates — no prepaying for impressions that never happened.' },
+      { q: 'Can I edit a brief after submitting?', a: 'Yes, until it’s approved — edit it under “Briefs” and it returns to moderation.' },
+      { q: 'Where does the view analytics come from?', a: 'Creators send a daily stats screenshot from TikTok/Instagram for their video — those build the honest growth chart.' },
+    ],
+  },
+};

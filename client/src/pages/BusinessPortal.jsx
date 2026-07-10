@@ -5,6 +5,8 @@ import Icon from '../components/Icon.jsx';
 import { API_BASE } from '../lib/config.js';
 import { createApiClient } from '../lib/apiClient.js';
 import { safeHref } from '../lib/safeHref.js';
+import Guide from '../components/Guide.jsx';
+import { BUSINESS_GUIDE } from '../content/guides.js';
 
 const KEY = 'clicki_business_token';
 const PLATFORMS = ['TikTok', 'Instagram Reels', 'YouTube Shorts', 'Threads', 'X (Twitter)'];
@@ -178,6 +180,7 @@ const NAV = [
   { key: 'briefs', label: 'Брифы', icon: 'briefs' },
   { key: 'review', label: 'Приёмка', icon: 'check' },
   { key: 'analytics', label: 'Аналитика', icon: 'chart' },
+  { key: 'guide', label: 'Как это работает', icon: 'help' },
   { key: 'profile', label: 'Профиль', icon: 'user' },
 ];
 
@@ -231,6 +234,12 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
           {view === 'briefs' && <BriefsView briefs={briefs} authFetch={authFetch} reload={reload} />}
           {view === 'review' && <ReviewView incoming={incoming} accepted={accepted} authFetch={authFetch} reload={reload} />}
           {view === 'analytics' && <Analytics accepted={accepted} authFetch={authFetch} b={b} />}
+          {view === 'guide' && (
+            <section className="admin-block">
+              <h2 className="admin-block__title">Как это работает</h2>
+              <Guide content={BUSINESS_GUIDE.ru} />
+            </section>
+          )}
           {view === 'profile' && <Profile b={b} onLogout={onLogout} />}
         </div>
       </div>
