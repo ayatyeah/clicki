@@ -108,6 +108,8 @@ import {
   getSiteHealth,
   measureDbLatency,
   getPoolStats,
+  addStatScreenshot,
+  listStatScreenshots,
 } from './db.js';
 import { geminiGenerate, geminiEnabled } from './gemini.js';
 import { uploadToSpaces, spacesEnabled } from './storage.js';
@@ -462,27 +464,32 @@ app.get('/api/admin/leads', requireAdmin, async (_req, res) => {
 
 // Upload a media file (image/video) → Spaces if configured (keeps big video out
 // of Postgres), otherwise fall back to storing the bytes in the DB.
+// Persist an uploaded file → Spaces if configured, otherwise the DB (small
+// images only — heavy media pins the managed DB's CPU). Returns a public URL, or
+// throws an Error whose message is safe to show the user. Shared by the CMS
+// upload and the creator stats-screenshot upload.
+async function storeUpload(file, { imageOnly = false } = {}) {
+  if (imageOnly && !file.mimetype.startsWith('image/')) {
+    throw new Error('Можно загрузить только изображение');
+  }
+  if (spacesEnabled) {
+    return uploadToSpaces(file.buffer, file.mimetype);
+  }
+  const isVideo = file.mimetype.startsWith('video/');
+  if (isVideo || file.size > 4 * 1024 * 1024) {
+    throw new Error('Хранилище Spaces не настроено — видео и крупные файлы загружать нельзя. Задайте переменные SPACES_*.');
+  }
+  const id = await saveMedia(file.mimetype, file.buffer);
+  return `/api/media/${id}`;
+}
+
 app.post('/api/admin/upload', requireAdmin, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ ok: false, errors: ['Файл не получен'] });
   try {
-    if (spacesEnabled) {
-      const url = await uploadToSpaces(req.file.buffer, req.file.mimetype);
-      return res.json({ ok: true, url });
-    }
-    // No object storage configured: never let heavy media into Postgres (it
-    // pins the DB CPU). Only small images may fall back to DB storage.
-    const isVideo = req.file.mimetype.startsWith('video/');
-    if (isVideo || req.file.size > 4 * 1024 * 1024) {
-      return res.status(400).json({
-        ok: false,
-        errors: ['Хранилище Spaces не настроено — видео и крупные файлы загружать нельзя. Задайте переменные SPACES_*.'],
-      });
-    }
-    const id = await saveMedia(req.file.mimetype, req.file.buffer);
-    res.json({ ok: true, url: `/api/media/${id}` });
+    res.json({ ok: true, url: await storeUpload(req.file) });
   } catch (err) {
     console.error('[media] failed to save upload:', err);
-    res.status(500).json({ ok: false, errors: ['Не удалось сохранить файл'] });
+    res.status(400).json({ ok: false, errors: [err.message || 'Не удалось сохранить файл'] });
   }
 });
 
@@ -937,6 +944,47 @@ app.post(
   })
 );
 
+// Daily stats screenshots (гайд): after submitting, the creator uploads a fresh
+// TikTok/Instagram stats screenshot every 24h. Stored forever as growth proof.
+// Ownership is enforced so a creator can only attach to their OWN submission (no IDOR).
+async function creatorOwnsSubmission(creatorId, submissionId) {
+  const s = await getSubmission(submissionId);
+  return s && s.creator_id === creatorId ? s : null;
+}
+
+app.post(
+  '/api/creator/submissions/:id/screenshots',
+  requireCreator,
+  upload.single('file'),
+  wrap(async (req, res) => {
+    const submissionId = Number(req.params.id);
+    if (!(await creatorOwnsSubmission(req.creator.id, submissionId))) {
+      return res.status(404).json({ ok: false, errors: ['Видео не найдено'] });
+    }
+    if (!req.file) return res.status(400).json({ ok: false, errors: ['Файл не получен'] });
+    let url;
+    try {
+      url = await storeUpload(req.file, { imageOnly: true }); // screenshots are images only
+    } catch (err) {
+      return res.status(400).json({ ok: false, errors: [err.message || 'Не удалось сохранить скриншот'] });
+    }
+    await addStatScreenshot(submissionId, req.creator.id, url);
+    ok(res, { screenshots: await listStatScreenshots(submissionId) });
+  })
+);
+
+app.get(
+  '/api/creator/submissions/:id/screenshots',
+  requireCreator,
+  wrap(async (req, res) => {
+    const submissionId = Number(req.params.id);
+    if (!(await creatorOwnsSubmission(req.creator.id, submissionId))) {
+      return res.status(404).json({ ok: false, errors: ['Видео не найдено'] });
+    }
+    ok(res, { screenshots: await listStatScreenshots(submissionId) });
+  })
+);
+
 // ---- Business (client/brand) self-service cabinet ----
 function publicBusiness(b) {
   if (!b) return b;
@@ -1373,6 +1421,8 @@ app.post('/api/admin/submissions/:id/send-to-business', requireAdmin, wrap(async
   ok(res, { submission });
 }));
 app.post('/api/admin/submissions/:id/views', requireAdmin, wrap(async (req, res) => ok(res, { submission: await recordViews(Number(req.params.id), Number(req.body?.views) || 0, !!req.body?.final) })));
+// Operator views a submission's daily stats-screenshot series.
+app.get('/api/admin/submissions/:id/screenshots', requireAdmin, wrap(async (req, res) => ok(res, { screenshots: await listStatScreenshots(Number(req.params.id)) })));
 
 app.get('/api/admin/payouts', requireAdmin, wrap(async (_req, res) => ok(res, { payouts: await listPayouts() })));
 // Manual payout: guarded against the creator's actual unpaid wallet balance —

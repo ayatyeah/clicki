@@ -3694,3 +3694,39 @@ canvas {
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
+
+/* Daily stats screenshots (components/StatScreenshots.jsx) — used in the creator
+   cabinet (upload + guide) and the operator review queue (read-only series).
+   Colours inherit from the surrounding .app-light context via CSS variables. */
+.stat-shots { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+.stat-shots__head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.stat-shots__toggle {
+  background: none; border: none; padding: 0; cursor: pointer;
+  font: inherit; font-weight: 600; color: var(--ink); text-align: left;
+}
+.stat-shots__toggle:hover { text-decoration: underline; }
+.stat-shots__muted { color: var(--fog); font-size: 0.82rem; }
+.stat-shots__body { margin-top: 10px; }
+.stat-shots__hint { color: var(--fog); font-size: 0.85rem; margin: 0 0 8px; }
+.stat-shots__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.stat-shots__guide { margin: 12px 0 0; padding-left: 18px; display: grid; gap: 14px; }
+.stat-shots__guide-step { display: flex; flex-direction: column; gap: 6px; }
+.stat-shots__guide-text { font-size: 0.88rem; }
+.stat-shots__guide-img {
+  max-width: 320px; width: 100%; height: auto; border-radius: 10px;
+  border: 1px solid var(--line);
+}
+.stat-shots__grid {
+  margin-top: 12px; display: grid; gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+}
+.stat-shots__thumb {
+  display: block; position: relative; border-radius: 8px; overflow: hidden;
+  border: 1px solid var(--line); text-decoration: none;
+}
+.stat-shots__thumb img { display: block; width: 100%; height: 130px; object-fit: cover; }
+.stat-shots__date {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.6); color: #fff;
+  font-size: 0.68rem; text-align: center; padding: 2px 0;
+}

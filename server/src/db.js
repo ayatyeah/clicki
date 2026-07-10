@@ -323,6 +323,20 @@ export async function initDb() {
     // getVisitAnalytics() filters every aggregate on kind, then groups by day.
     await client.query('CREATE INDEX IF NOT EXISTS visits_kind_created_idx ON visits (kind, created_at)');
 
+    // Daily stats screenshots: after submitting a video the creator uploads a
+    // fresh TikTok/Instagram stats screenshot every 24h. Kept forever (никогда
+    // не удаляются) as proof of organic growth over the video's life.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS stat_screenshots (
+        id BIGSERIAL PRIMARY KEY,
+        submission_id INTEGER NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
+        creator_id INTEGER NOT NULL REFERENCES creators(id) ON DELETE CASCADE,
+        url TEXT NOT NULL,
+        day_key DATE NOT NULL DEFAULT CURRENT_DATE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+    await client.query('CREATE INDEX IF NOT EXISTS stat_screenshots_submission_idx ON stat_screenshots (submission_id, created_at DESC)');
+
     // Presence: last authenticated request per account. Powers "online now" on
     // the admin health page. Written at most once a minute per account (see
     // touchSeen), so it costs effectively nothing on the hot path.
@@ -1009,10 +1023,15 @@ export async function listSubmissions(status) {
   const params = status ? [status] : [];
   const r = await pool.query(
     `SELECT s.*, c.name AS creator_name, b.title AS brief_title,
-            b.req_hashtag, b.req_mention, b.req_cta_link, b.duration_min, b.duration_max
+            b.req_hashtag, b.req_mention, b.req_cta_link, b.duration_min, b.duration_max,
+            COALESCE(ss.cnt, 0)::int AS screenshots_count, ss.last_at AS last_screenshot_at
        FROM submissions s
        LEFT JOIN creators c ON c.id = s.creator_id
        LEFT JOIN briefs b ON b.id = s.brief_id
+       LEFT JOIN (
+         SELECT submission_id, COUNT(*) AS cnt, MAX(created_at) AS last_at
+           FROM stat_screenshots GROUP BY submission_id
+       ) ss ON ss.submission_id = s.id
        ${where} ORDER BY s.id DESC`,
     params
   );
@@ -1036,8 +1055,16 @@ export async function listSubmissions(status) {
 }
 export async function listCreatorSubmissions(creatorId) {
   const r = await pool.query(
-    `SELECT s.*, b.title AS brief_title FROM submissions s
+    `SELECT s.*, b.title AS brief_title,
+            COALESCE(ss.cnt, 0)::int AS screenshots_count,
+            ss.last_at AS last_screenshot_at,
+            (ss.last_day = CURRENT_DATE) AS screenshot_today
+       FROM submissions s
        LEFT JOIN briefs b ON b.id = s.brief_id
+       LEFT JOIN (
+         SELECT submission_id, COUNT(*) AS cnt, MAX(created_at) AS last_at, MAX(day_key) AS last_day
+           FROM stat_screenshots GROUP BY submission_id
+       ) ss ON ss.submission_id = s.id
       WHERE s.creator_id = $1 ORDER BY s.id DESC`,
     [creatorId]
   );
@@ -1046,6 +1073,23 @@ export async function listCreatorSubmissions(creatorId) {
 export async function getSubmission(id) {
   const r = await pool.query('SELECT * FROM submissions WHERE id = $1', [id]);
   return r.rows[0] || null;
+}
+
+/* ---------------- Daily stats screenshots ---------------- */
+export async function addStatScreenshot(submissionId, creatorId, url) {
+  const r = await pool.query(
+    'INSERT INTO stat_screenshots (submission_id, creator_id, url) VALUES ($1,$2,$3) RETURNING id, url, day_key, created_at',
+    [submissionId, creatorId, url]
+  );
+  return r.rows[0];
+}
+/** All screenshots for a submission, newest first. */
+export async function listStatScreenshots(submissionId) {
+  const r = await pool.query(
+    "SELECT id, url, day_key, to_char(created_at,'YYYY-MM-DD HH24:MI') AS at FROM stat_screenshots WHERE submission_id = $1 ORDER BY created_at DESC",
+    [submissionId]
+  );
+  return r.rows;
 }
 /* Pipeline transitions (steps 7-12) */
 export async function setSubmissionAi(id, { ai_score, ai_feedback, status }) {

@@ -4,6 +4,7 @@ import Seo from '../components/Seo.jsx';
 import { API_BASE, SITE_URL } from '../lib/config.js';
 import { createApiClient } from '../lib/apiClient.js';
 import { safeHref } from '../lib/safeHref.js';
+import StatScreenshots from '../components/StatScreenshots.jsx';
 
 const KEY = 'clicki_creator_token';
 const PLATFORMS = ['TikTok', 'Instagram Reels', 'YouTube Shorts', 'Threads', 'X (Twitter)'];
@@ -363,6 +364,18 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
                   )}
                   {(s.status === 'accepted' || s.status === 'rejected') && s.coach_feedback && (
                     <p className="creator-portal__muted">🎯 AI-коуч: {s.coach_feedback}</p>
+                  )}
+                  {/* Daily stats reporting — only while the video is live (not after a reject). */}
+                  {s.status !== 'rejected' && (
+                    <StatScreenshots
+                      submissionId={s.id}
+                      platform={s.platform}
+                      basePath="/api/creator/submissions"
+                      authFetch={authFetch}
+                      canUpload
+                      today={s.screenshot_today}
+                      count={s.screenshots_count}
+                    />
                   )}
                 </div>
               ))}

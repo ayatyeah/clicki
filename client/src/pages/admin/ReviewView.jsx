@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { safeHref } from '../../lib/safeHref.js';
+import StatScreenshots from '../../components/StatScreenshots.jsx';
 
 const REJECT_CODES = [
   { code: 'no_hashtag', label: 'Нет хэштега' },
@@ -117,6 +118,14 @@ export function ReviewView({ authFetch }) {
                   <a href={safeHref(s.video_url)} target="_blank" rel="noreferrer">ссылка</a>
                   <div style={{ fontSize: '0.8rem', color: 'var(--fog)' }}>{s.platform} · {s.published_at || '—'}</div>
                   {s.rights_confirmed ? <span style={{ color: '#6ee7a8', fontSize: '0.8rem' }}>права ✓</span> : <span style={{ color: '#f59e0b', fontSize: '0.8rem' }}>права ✗</span>}
+                  <StatScreenshots
+                    submissionId={s.id}
+                    platform={s.platform}
+                    basePath="/api/admin/submissions"
+                    authFetch={authFetch}
+                    count={s.screenshots_count}
+                    lastAt={s.last_screenshot_at}
+                  />
                 </td>
                 <td data-label="Чек-лист">
                   <ReviewActions
