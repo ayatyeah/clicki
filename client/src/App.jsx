@@ -80,7 +80,11 @@ export default function App() {
           <Route path="/creator" element={<CreatorPortal />} />
           <Route path="/business-cabinet" element={<BusinessPortal />} />
             <Route path="/friend/:login" element={<Referral />} />
-            <Route path="/:login" element={<CreatorMiniPage />} />
+            {/* Creator bio / lead link. Moved off the bare "/:login" catch-all
+                (which shadowed every top-level route) to an explicit /ref prefix. */}
+            <Route path="/ref/:login" element={<CreatorMiniPage />} />
+            {/* Back-compat: old bare links redirect to the new /ref path. */}
+            <Route path="/:login" element={<CreatorMiniPage legacyRedirect />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

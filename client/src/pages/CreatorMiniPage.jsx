@@ -19,13 +19,17 @@ function toHref(token) {
 }
 
 /**
- * Public "link in bio" mini-page: clicki-platform.com/<login>.
+ * Public "link in bio" mini-page: clicki-platform.com/ref/<login>.
  * A creator puts this in their social profile header. Shows the brands they've
  * worked with (pulled from accepted briefs) and their own social links.
  * Also remembers the visit as a referral so a later business lead credits this
- * creator (server/src/index.js handleLead → recordReferralLead).
+ * creator (server/src/index.js handleLead → recordReferralLead), and the fetch
+ * itself bumps the creator's click counter server-side.
+ *
+ * `legacyRedirect` is set for the old bare "/<login>" route: it forwards to the
+ * canonical /ref/<login> so links shared before the move keep working.
  */
-export default function CreatorMiniPage() {
+export default function CreatorMiniPage({ legacyRedirect = false }) {
   const { login } = useParams();
   const navigate = useNavigate();
   const { lang } = useLang();
@@ -34,6 +38,10 @@ export default function CreatorMiniPage() {
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
+    if (legacyRedirect) {
+      navigate(`/ref/${encodeURIComponent(login)}`, { replace: true });
+      return undefined;
+    }
     let alive = true;
     (async () => {
       try {
@@ -53,7 +61,7 @@ export default function CreatorMiniPage() {
     return () => {
       alive = false;
     };
-  }, [login]);
+  }, [login, legacyRedirect, navigate]);
 
   useEffect(() => {
     if (notFound) navigate('/', { replace: true });
@@ -68,7 +76,7 @@ export default function CreatorMiniPage() {
 
   return (
     <main className="creator-page page-light app-light">
-      <Seo title={`${page.name} — CLICKI`} description={t.desc(page.name)} path={`/${login}`} noindex />
+      <Seo title={`${page.name} — CLICKI`} description={t.desc(page.name)} path={`/ref/${login}`} noindex />
       <div className="creator-page__inner">
         <Logo to="/" />
         <h1 className="creator-page__name">{page.name}</h1>

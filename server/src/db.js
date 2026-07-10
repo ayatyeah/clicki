@@ -337,6 +337,19 @@ export async function initDb() {
       )`);
     await client.query('CREATE INDEX IF NOT EXISTS stat_screenshots_submission_idx ON stat_screenshots (submission_id, created_at DESC)');
 
+    // Clicks on a creator's referral / bio link (clicki-platform.com/ref/<login>).
+    // One row per (creator, visitor, day) so refreshing the page doesn't inflate
+    // the count — "people who opened your link", not raw hits.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS ref_visits (
+        creator_id INTEGER NOT NULL REFERENCES creators(id) ON DELETE CASCADE,
+        visitor VARCHAR(64) NOT NULL,
+        day_key DATE NOT NULL DEFAULT CURRENT_DATE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (creator_id, visitor, day_key)
+      )`);
+    await client.query('CREATE INDEX IF NOT EXISTS ref_visits_creator_idx ON ref_visits (creator_id)');
+
     // Presence: last authenticated request per account. Powers "online now" on
     // the admin health page. Written at most once a minute per account (see
     // touchSeen), so it costs effectively nothing on the hot path.
@@ -1285,12 +1298,33 @@ export async function getReferralLeadStats() {
 }
 /** A creator's own referral performance — leads/clients brought in via their link, with dates. */
 export async function getReferralLeadsForCreator(creatorId) {
-  const r = await pool.query(
-    `SELECT id, funnel, to_char(created_at,'YYYY-MM-DD HH24:MI') AS at
-       FROM referral_leads WHERE creator_id=$1 ORDER BY created_at DESC`,
-    [creatorId]
+  const [leadsQ, clicksQ] = await Promise.all([
+    pool.query(
+      `SELECT id, funnel, to_char(created_at,'YYYY-MM-DD HH24:MI') AS at
+         FROM referral_leads WHERE creator_id=$1 ORDER BY created_at DESC`,
+      [creatorId]
+    ),
+    pool.query('SELECT COUNT(*)::int AS people FROM ref_visits WHERE creator_id=$1', [creatorId]),
+  ]);
+  const clicks = clicksQ.rows[0].people;
+  const leadCount = leadsQ.rowCount;
+  return {
+    total: leadCount,
+    xpPerLead: REFERRAL_LEAD_XP,
+    leads: leadsQ.rows,
+    clicks, // unique people who opened the bio/ref link
+    // Simple funnel read for the cabinet: what share of clicks turned into leads.
+    conversion: clicks ? Math.round((leadCount / clicks) * 100) : null,
+  };
+}
+
+/** Count one click on a creator's ref/bio link, deduped per visitor per day. */
+export async function recordRefVisit(creatorId, visitor) {
+  if (!creatorId || !visitor) return;
+  await pool.query(
+    'INSERT INTO ref_visits (creator_id, visitor) VALUES ($1, $2) ON CONFLICT (creator_id, visitor, day_key) DO NOTHING',
+    [creatorId, visitor]
   );
-  return { total: r.rowCount, xpPerLead: REFERRAL_LEAD_XP, leads: r.rows };
 }
 
 /**

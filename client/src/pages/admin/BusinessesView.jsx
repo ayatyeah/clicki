@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useToast } from '../../components/Toast.jsx';
+import { useConfirm } from '../../components/ConfirmDialog.jsx';
 
 /* ---------------- Businesses (accounts) ---------------- */
 export function BusinessesView({ authFetch }) {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [businesses, setBusinesses] = useState([]);
   const [form, setForm] = useState({ name: '', company: '', email: '', password: '' });
   const [busy, setBusy] = useState(false);
@@ -28,18 +32,28 @@ export function BusinessesView({ authFetch }) {
     setBusy(false);
     if (!res.ok || d.ok === false) return setError((d.errors && d.errors[0]) || 'Ошибка');
     setForm({ name: '', company: '', email: '', password: '' });
+    toast.success('Аккаунт бизнеса создан');
     load();
   };
 
   const remove = async (id, name) => {
-    if (!window.confirm(`Удалить аккаунт бизнеса «${name}»? Это действие необратимо.`)) return;
+    const okToDelete = await confirm({
+      title: 'Удалить аккаунт бизнеса?',
+      message: `«${name}» и все его брифы будут удалены безвозвратно.`,
+      confirmText: 'Удалить',
+      danger: true,
+    });
+    if (!okToDelete) return;
     setError('');
     const res = await authFetch(`/api/admin/businesses/${id}/delete`, { method: 'POST' });
     if (!res.ok) {
       const d = await res.json().catch(() => ({}));
-      setError((d.errors && d.errors[0]) || 'Не удалось удалить');
+      const msg = (d.errors && d.errors[0]) || 'Не удалось удалить';
+      setError(msg);
+      toast.error(msg);
       return;
     }
+    toast.success('Аккаунт удалён');
     load();
   };
 

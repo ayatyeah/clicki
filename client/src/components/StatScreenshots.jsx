@@ -1,21 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { API_BASE } from '../lib/config.js';
+import Lightbox from './Lightbox.jsx';
+import { useToast } from './Toast.jsx';
 
 /**
  * Daily stats screenshots for one submitted video.
  *
  * After a creator submits a video they must upload a fresh TikTok/Instagram
  * stats screenshot every 24h (see the in-app guide). Screenshots accumulate and
- * are never deleted. This component is used two ways:
- *   - creator (canUpload): guide + upload button + the running series
- *   - operator (read-only): just the series, to verify the daily reports
+ * are never deleted. Used two ways:
+ *   - creator (canUpload): guide + drag-and-drop upload with progress + series
+ *   - operator (read-only): the series, to verify the daily reports
  *
- * `basePath` selects the API surface — /api/creator/submissions for the creator,
- * /api/admin/submissions for the operator — so both reuse the exact same UI.
+ * Thumbnails open in an in-page Lightbox (zoom + prev/next) instead of a raw
+ * new tab. `basePath` selects the API surface so both roles reuse this UI.
  */
 
-// Screenshots may be stored in Spaces (absolute URL) or in Postgres (a relative
-// /api/media/:id path that needs the API origin prefixed for <img>).
+// Screenshots may live in Spaces (absolute URL) or Postgres (relative /api/media/:id).
 const mediaSrc = (url) => (/^https?:\/\//i.test(url) ? url : `${API_BASE}${url}`);
 
 const GUIDE = {
@@ -33,15 +34,18 @@ const GUIDE = {
     ],
   },
 };
-// Instagram Reels / любые IG-платформы → инстаграм-гайд; всё остальное → тикток.
-const guideFor = (platform) => (/instagram|reels/i.test(platform || '') ? GUIDE.Instagram : GUIDE.TikTok);
+const isInstagram = (platform) => /instagram|reels/i.test(platform || '');
+const guideFor = (platform) => (isInstagram(platform) ? GUIDE.Instagram : GUIDE.TikTok);
 
 export default function StatScreenshots({ submissionId, platform, basePath, authFetch, canUpload = false, today = false, count = 0, lastAt = null }) {
+  const toast = useToast();
   const [open, setOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const [shots, setShots] = useState(null);
-  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(null); // null idle | 0-100 uploading
+  const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState('');
+  const [lightboxIndex, setLightboxIndex] = useState(null);
   const fileRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -50,7 +54,7 @@ export default function StatScreenshots({ submissionId, platform, basePath, auth
       const d = await res.json();
       if (res.ok && d.ok !== false) setShots(d.screenshots || []);
     } catch {
-      /* leave as null; the toggle can be retried */
+      /* leave as null; reopening retries */
     }
   }, [authFetch, basePath, submissionId]);
 
@@ -58,31 +62,50 @@ export default function StatScreenshots({ submissionId, platform, basePath, auth
     if (open && shots === null) load();
   }, [open, shots, load]);
 
-  const onFile = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = ''; // let the same file be re-picked after an error
-    if (!file) return;
-    if (!file.type.startsWith('image/')) return setError('Нужен скриншот-изображение (JPG или PNG).');
-    if (file.size > 4 * 1024 * 1024) return setError('Слишком большой файл — сделайте обычный скриншот (до 4 МБ).');
-    setBusy(true);
-    setError('');
-    try {
+  // XHR (not fetch) so the creator sees a real progress bar for the upload.
+  const upload = useCallback(
+    (file) => {
+      if (!file) return;
+      if (!file.type.startsWith('image/')) return setError('Нужен скриншот-изображение (JPG или PNG).');
+      if (file.size > 4 * 1024 * 1024) return setError('Слишком большой файл — сделайте обычный скриншот (до 4 МБ).');
+      setError('');
+      setProgress(0);
       const fd = new FormData();
       fd.append('file', file);
-      const res = await authFetch(`${basePath}/${submissionId}/screenshots`, { method: 'POST', body: fd });
-      const d = await res.json();
-      if (!res.ok || d.ok === false) throw new Error(d.errors?.[0] || 'Не удалось загрузить');
-      setShots(d.screenshots || []);
-      setOpen(true);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusy(false);
-    }
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_BASE}${basePath}/${submissionId}/screenshots`);
+      const token = sessionStorage.getItem('clicki_creator_token') || sessionStorage.getItem('clicki_admin_token') || '';
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.upload.onprogress = (e) => { if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100)); };
+      xhr.onload = () => {
+        setProgress(null);
+        let d = {};
+        try { d = JSON.parse(xhr.responseText); } catch { /* ignore */ }
+        if (xhr.status >= 200 && xhr.status < 300 && d.ok !== false) {
+          setShots(d.screenshots || []);
+          setOpen(true);
+          toast.success('Скриншот загружен');
+        } else {
+          const msg = d.errors?.[0] || 'Не удалось загрузить';
+          setError(msg);
+          toast.error(msg);
+        }
+      };
+      xhr.onerror = () => { setProgress(null); setError('Ошибка сети при загрузке'); toast.error('Ошибка сети при загрузке'); };
+      xhr.send(fd);
+    },
+    [basePath, submissionId, toast]
+  );
+
+  const onDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    upload(e.dataTransfer.files?.[0]);
   };
 
   const total = shots ? shots.length : count;
   const guide = guideFor(platform);
+  const lightboxItems = (shots || []).map((s) => ({ src: mediaSrc(s.url), caption: s.at }));
 
   return (
     <div className="stat-shots">
@@ -106,13 +129,34 @@ export default function StatScreenshots({ submissionId, platform, basePath, auth
           {canUpload && (
             <div className="stat-shots__upload">
               <p className="stat-shots__hint">
-                Раз в сутки прикладывай свежий скриншот статистики этого видео из {/instagram|reels/i.test(platform || '') ? 'Instagram' : 'TikTok'}. Скрины сохраняются и не удаляются.
+                Раз в сутки прикладывай свежий скриншот статистики этого видео из {isInstagram(platform) ? 'Instagram' : 'TikTok'}. Скрины сохраняются и не удаляются.
               </p>
+
+              <div
+                className={`stat-shots__drop ${dragOver ? 'is-over' : ''}`}
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={onDrop}
+                onClick={() => progress === null && fileRef.current?.click()}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter') fileRef.current?.click(); }}
+              >
+                <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; upload(f); }} />
+                {progress === null ? (
+                  <>
+                    <span className="stat-shots__drop-icon" aria-hidden="true">⬆</span>
+                    <span>Перетащи скриншот сюда или <u>выбери файл</u></span>
+                  </>
+                ) : (
+                  <div className="stat-shots__progress">
+                    <div className="stat-shots__progress-bar" style={{ width: `${progress}%` }} />
+                    <span className="stat-shots__progress-label">Загрузка… {progress}%</span>
+                  </div>
+                )}
+              </div>
+
               <div className="stat-shots__actions">
-                <input ref={fileRef} type="file" accept="image/*" hidden onChange={onFile} />
-                <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={() => fileRef.current?.click()}>
-                  {busy ? 'Загружаю…' : 'Загрузить скриншот'}
-                </button>
                 <button type="button" className="btn btn--ghost btn--sm" onClick={() => setGuideOpen((v) => !v)}>
                   {guideOpen ? 'Скрыть, как снять' : 'Как снять скриншот?'}
                 </button>
@@ -138,16 +182,18 @@ export default function StatScreenshots({ submissionId, platform, basePath, auth
             <p className="stat-shots__muted">Пока нет ни одного скриншота.</p>
           ) : (
             <div className="stat-shots__grid">
-              {shots.map((s) => (
-                <a key={s.id} className="stat-shots__thumb" href={mediaSrc(s.url)} target="_blank" rel="noreferrer">
+              {shots.map((s, i) => (
+                <button type="button" key={s.id} className="stat-shots__thumb" onClick={() => setLightboxIndex(i)} title="Открыть">
                   <img src={mediaSrc(s.url)} alt={`Скриншот ${s.at}`} loading="lazy" />
                   <span className="stat-shots__date">{s.at}</span>
-                </a>
+                </button>
               ))}
             </div>
           )}
         </div>
       )}
+
+      <Lightbox items={lightboxItems} index={lightboxIndex} onClose={() => setLightboxIndex(null)} onIndexChange={setLightboxIndex} />
     </div>
   );
 }

@@ -110,6 +110,7 @@ import {
   getPoolStats,
   addStatScreenshot,
   listStatScreenshots,
+  recordRefVisit,
 } from './db.js';
 import { geminiGenerate, geminiEnabled } from './gemini.js';
 import { uploadToSpaces, spacesEnabled } from './storage.js';
@@ -306,6 +307,15 @@ app.get('/api/creator-page/:login', async (req, res) => {
     // into an <a href> on this public page. Drop anything that isn't http(s) —
     // filtering on read (not just on write) also cleans rows already in the DB.
     const brandLinks = page.brandLinks.map((l) => ({ ...l, url: safeHttpUrl(l.url) })).filter((l) => l.url);
+    // Count the click on the creator's ref link (deduped per visitor per day).
+    // Best-effort — a bookkeeping failure must not break the public page.
+    const dayKey = new Date().toISOString().slice(0, 10);
+    const visitor = crypto
+      .createHash('sha256')
+      .update((req.ip || '') + (req.headers['user-agent'] || '') + dayKey)
+      .digest('hex')
+      .slice(0, 32);
+    recordRefVisit(page.id, visitor).catch((err) => console.error('[ref-visit]', err.message));
     res.json({ ok: true, ...page, brandLinks });
   } catch (err) {
     console.error('[creator-page]', err.message);

@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useToast } from '../../components/Toast.jsx';
+import { useConfirm } from '../../components/ConfirmDialog.jsx';
 
 /* ---------------- Payouts ---------------- */
 export function PayoutsView({ authFetch }) {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [payouts, setPayouts] = useState([]);
   const [creators, setCreators] = useState([]);
   const [form, setForm] = useState({ creator_id: '', amount: '' });
@@ -30,17 +34,26 @@ export function PayoutsView({ authFetch }) {
       return;
     }
     setForm({ creator_id: '', amount: '' });
+    toast.success('Выплата создана');
     load();
   };
   const markPaid = async (id) => {
-    if (!window.confirm('Отметить выплату оплаченной? Это необратимо.')) return;
+    const okToPay = await confirm({
+      title: 'Отметить выплату оплаченной?',
+      message: 'Статус изменится на «оплачено» — отменить нельзя.',
+      confirmText: 'Отметить оплаченной',
+    });
+    if (!okToPay) return;
     setError('');
     const res = await authFetch(`/api/admin/payouts/${id}/paid`, { method: 'POST' });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setError((data.errors && data.errors[0]) || 'Не удалось отметить оплату');
+      const msg = (data.errors && data.errors[0]) || 'Не удалось отметить оплату';
+      setError(msg);
+      toast.error(msg);
       return;
     }
+    toast.success('Выплата отмечена оплаченной');
     load();
   };
 

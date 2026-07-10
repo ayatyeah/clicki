@@ -5,6 +5,8 @@ import { API_BASE, SITE_URL } from '../lib/config.js';
 import { createApiClient } from '../lib/apiClient.js';
 import { safeHref } from '../lib/safeHref.js';
 import StatScreenshots from '../components/StatScreenshots.jsx';
+import CopyButton from '../components/CopyButton.jsx';
+import EmptyState from '../components/EmptyState.jsx';
 
 const KEY = 'clicki_creator_token';
 const PLATFORMS = ['TikTok', 'Instagram Reels', 'YouTube Shorts', 'Threads', 'X (Twitter)'];
@@ -283,6 +285,9 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
   const threshold = wallet.payout_threshold || 0;
   const pct = threshold ? Math.min(100, Math.round((wallet.balance / threshold) * 100)) : 0;
   const firstName = (c.name || '').split(' ')[0] || c.name;
+  // How many live videos still need today's stats screenshot — surfaced up here
+  // so the creator sees the daily task without opening each video card.
+  const needStatsToday = submissions.filter((s) => s.status !== 'rejected' && !s.screenshot_today).length;
   return (
     <Shell>
       <div className="creator-portal__top">
@@ -292,6 +297,13 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
         </div>
         <button className="btn btn--ghost btn--sm" onClick={onLogout}>Выйти</button>
       </div>
+
+      {needStatsToday > 0 && (
+        <button type="button" className="cp-reminder" onClick={() => setView('videos')}>
+          📊 {needStatsToday === 1 ? '1 видео ждёт скриншот статистики за сегодня' : `${needStatsToday} видео ждут скриншот статистики за сегодня`}
+          <span className="cp-reminder__cta">Загрузить →</span>
+        </button>
+      )}
 
       <nav className="cp-tabs" role="tablist" aria-label="Разделы кабинета">
         {CREATOR_TABS.map((tab) => (
@@ -381,47 +393,27 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
               ))}
             </div>
           ) : (
-            <p className="creator-portal__muted">Пока ничего не сдано.</p>
+            <EmptyState
+              icon="🎬"
+              title="Пока ничего не сдано"
+              hint="Возьми открытый заказ во вкладке «Заказы», сними видео по брифу и загрузи ссылку здесь."
+            />
           )}
         </>
       )}
 
       {view === 'referrals' && (
-        <>
+        c.username ? (
+          <ReferralsView authFetch={authFetch} username={c.username} />
+        ) : (
           <div className="creator-portal__card">
-            <div className="creator-portal__wallet-row"><span>Пригласи друга</span></div>
-            <p className="creator-portal__muted">
-              {c.username
-                ? 'Отправь эту ссылку другу. +500 XP, когда у него засчитают первое видео.'
-                : 'Ссылка появится, когда оператор выдаст тебе логин.'}
-            </p>
-            {c.username && (
-              <input
-                readOnly
-                value={`${SITE_URL}/friend/${c.username}`}
-                onFocus={(e) => e.target.select()}
-              />
-            )}
+            <EmptyState
+              icon="🔗"
+              title="Ссылки появятся, когда выдадут логин"
+              hint="Оператор создаёт тебе логин после подтверждения заявки — тогда здесь появятся твоя реф-ссылка и ссылка для профиля."
+            />
           </div>
-
-          <div className="creator-portal__card">
-            <div className="creator-portal__wallet-row"><span>Ссылка в шапку профиля</span></div>
-            <p className="creator-portal__muted">
-              {c.username
-                ? 'Помести её в шапку своего профиля в соцсетях — по ней открывается твоя мини-страница на CLICKI с брендами, с которыми ты работал, и твоими соцсетями. +30 XP за каждую заявку от бизнеса, пришедшего по этой ссылке.'
-                : 'Ссылка появится, когда оператор выдаст тебе логин.'}
-            </p>
-            {c.username && (
-              <input
-                readOnly
-                value={`${SITE_URL}/${c.username}`}
-                onFocus={(e) => e.target.select()}
-              />
-            )}
-          </div>
-
-          {c.username && <ReferralLeadsCard authFetch={authFetch} />}
-        </>
+        )
       )}
 
       {view === 'rating' && (
@@ -477,8 +469,14 @@ function EarningsForecastCard({ forecast }) {
   );
 }
 
-/** Leads/clients the creator's own bio-page link has brought in. */
-function ReferralLeadsCard({ authFetch }) {
+/**
+ * Referrals tab, reworked into one coherent screen:
+ *  - the two links a creator shares (bio/lead link + invite-a-friend link), each
+ *    with one-click copy, a preview and a plain-language "what it does";
+ *  - a funnel readout: link opens → business leads → conversion %, plus the
+ *    friend-referral XP — so the creator sees the payoff, not just raw links.
+ */
+function ReferralsView({ authFetch, username }) {
   const [data, setData] = useState(null);
   const [open, setOpen] = useState(false);
   useEffect(() => {
@@ -488,36 +486,71 @@ function ReferralLeadsCard({ authFetch }) {
         const r = await (await authFetch('/api/creator/referrals')).json();
         if (alive) setData(r.referrals || null);
       } catch {
-        /* leave the card hidden on failure rather than crashing the dashboard */
+        /* keep the links usable even if stats fail to load */
       }
     })();
     return () => { alive = false; };
   }, [authFetch]);
 
-  if (!data) return null;
-  const leads = data.leads || [];
+  const bioLink = `${SITE_URL}/ref/${username}`;
+  const friendLink = `${SITE_URL}/friend/${username}`;
+  const leads = data?.leads || [];
+
   return (
-    <div className="creator-portal__card">
-      <div className="creator-portal__wallet-row">
-        <span>Лиды и клиенты по твоей ссылке</span>
-        <b>{data.total}</b>
+    <>
+      {/* Funnel: opens → leads → conversion. Numbers show once stats arrive. */}
+      <div className="ref-stats">
+        <div className="ref-stat">
+          <div className="ref-stat__value">{data ? data.clicks.toLocaleString('ru-RU') : '—'}</div>
+          <div className="ref-stat__label">Открыли ссылку</div>
+        </div>
+        <div className="ref-stat__arrow" aria-hidden="true">→</div>
+        <div className="ref-stat">
+          <div className="ref-stat__value">{data ? data.total.toLocaleString('ru-RU') : '—'}</div>
+          <div className="ref-stat__label">Заявок от бизнеса</div>
+        </div>
+        <div className="ref-stat__arrow" aria-hidden="true">→</div>
+        <div className="ref-stat">
+          <div className="ref-stat__value">{data?.conversion != null ? `${data.conversion}%` : '—'}</div>
+          <div className="ref-stat__label">Конверсия</div>
+        </div>
       </div>
-      <p className="creator-portal__muted">
-        Заявки от бизнеса, пришедшие по ссылке в шапку профиля. +{data.xpPerLead} XP за каждую.
-      </p>
-      {data.total > 0 && (
-        <button type="button" className="creator-portal__link" onClick={() => setOpen((o) => !o)}>
-          {open ? 'Скрыть список' : 'Показать список'}
-        </button>
-      )}
-      {open && (
-        <ul style={{ margin: 0, paddingLeft: 18 }}>
-          {leads.map((l) => (
-            <li key={l.id} className="creator-portal__muted">{l.at}</li>
-          ))}
-        </ul>
-      )}
-    </div>
+
+      <div className="creator-portal__card ref-link">
+        <div className="creator-portal__wallet-row"><span>🔗 Ссылка для профиля (приводит клиентов)</span></div>
+        <p className="creator-portal__muted">
+          Помести её в шапку профиля в соцсетях. По ней открывается твоя страница на CLICKI с брендами, с которыми ты работал.
+          <b> +{data?.xpPerLead ?? 30} XP</b> за каждую заявку бизнеса по этой ссылке.
+        </p>
+        <div className="ref-link__row">
+          <input className="ref-link__input" readOnly value={bioLink} onFocus={(e) => e.target.select()} />
+          <CopyButton value={bioLink} />
+        </div>
+        {data && data.total > 0 && (
+          <button type="button" className="creator-portal__link" onClick={() => setOpen((o) => !o)}>
+            {open ? 'Скрыть заявки' : `Показать заявки (${data.total})`}
+          </button>
+        )}
+        {open && (
+          <ul className="ref-link__leads">
+            {leads.map((l) => (
+              <li key={l.id} className="creator-portal__muted">Заявка · {l.at}</li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="creator-portal__card ref-link">
+        <div className="creator-portal__wallet-row"><span>👥 Пригласить друга-креатора</span></div>
+        <p className="creator-portal__muted">
+          Отправь эту ссылку другу. <b>+500 XP</b>, когда у него засчитают первое видео.
+        </p>
+        <div className="ref-link__row">
+          <input className="ref-link__input" readOnly value={friendLink} onFocus={(e) => e.target.select()} />
+          <CopyButton value={friendLink} />
+        </div>
+      </div>
+    </>
   );
 }
 
