@@ -3909,3 +3909,11 @@ canvas {
   margin: 4px auto 14px; display: grid; place-items: center;
 }
 .mascot-avatar img { width: 92%; height: 92%; object-fit: contain; }
+
+/* Bulk creator registration (admin CreatorsView) */
+.bulk-reg { margin: 12px 0 16px; }
+.bulk-reg__body { margin-top: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
+.bulk-reg__input { width: 100%; box-sizing: border-box; font-family: inherit; resize: vertical; }
+.bulk-reg__result { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
+.bulk-reg__result code { font-size: 0.9rem; background: rgba(139,92,246,0.1); padding: 2px 6px; border-radius: 6px; }
+.bulk-reg__errors { margin: 10px 0 0; padding-left: 18px; }

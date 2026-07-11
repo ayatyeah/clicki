@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react';
+import { SITE_URL } from '../../lib/config.js';
+import { useToast } from '../../components/Toast.jsx';
+import CopyButton from '../../components/CopyButton.jsx';
 
 const STAR_D = 'M12 2.6l2.85 5.77 6.37.93-4.61 4.49 1.09 6.35L12 17.77l-5.7 3l1.09-6.35-4.61-4.49 6.37-.93z';
 
@@ -73,6 +76,9 @@ export function CreatorsView({ authFetch }) {
         Создай аккаунт креатору (выдай логин и пароль) — под этими данными он войдёт в кабинет.
         Заявки с сайта приходят со статусом <b>pending</b>: выдай им доступ кнопкой «Выдать».
       </p>
+
+      <BulkRegister authFetch={authFetch} onDone={load} />
+
       <div className="pf-form">
         <input placeholder="Имя" value={form.name} onChange={(e) => setF('name', e.target.value)} />
         <input placeholder="Телефон / Telegram" value={form.contact} onChange={(e) => setF('contact', e.target.value)} />
@@ -126,6 +132,132 @@ export function CreatorsView({ authFetch }) {
         </table>
       </div>
     </section>
+  );
+}
+
+/**
+ * Bulk creator registration — paste a list, get accounts with auto-generated
+ * logins/passwords back in one table to hand out. Built because onboarding 50+
+ * people one form at a time is painful.
+ *
+ * Input: one creator per line, "Имя" or "Имя, контакт". Login and password are
+ * generated server-side (login can't collide; password is short & readable).
+ */
+function BulkRegister({ authFetch, onDone }) {
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState(null); // { created: [...], errors: [...] }
+
+  // "Имя, контакт" | "Имя; контакт" | "Имя\tконтакт" | "Имя" → { name, contact }
+  const parse = (raw) =>
+    raw
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const parts = line.split(/[,;\t]/).map((s) => s.trim());
+        return { name: parts[0], contact: parts[1] || undefined };
+      })
+      .filter((r) => r.name);
+
+  const parsed = parse(text);
+
+  const submit = async () => {
+    if (!parsed.length) return;
+    setBusy(true);
+    setResult(null);
+    try {
+      const res = await authFetch('/api/admin/creators/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ creators: parsed }),
+      });
+      const d = await res.json();
+      if (!res.ok || d.ok === false) throw new Error(d.errors?.[0] || 'Ошибка');
+      setResult(d);
+      setText('');
+      toast.success(`Создано ${d.created.length} креаторов`);
+      onDone?.();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Ready-to-send handout text: one block per creator with login/password + link.
+  const handout = (result?.created || [])
+    .map((c) => `${c.name}\nВход в кабинет CLICKI: ${SITE_URL}/creator\nЛогин: ${c.username}\nПароль: ${c.password}`)
+    .join('\n\n');
+
+  return (
+    <div className="bulk-reg">
+      <button type="button" className="btn btn--ghost btn--sm" onClick={() => setOpen((v) => !v)}>
+        {open ? 'Скрыть массовую регистрацию' : '👥 Массовая регистрация'}
+      </button>
+
+      {open && (
+        <div className="bulk-reg__body">
+          <p className="muted-note" style={{ textAlign: 'left' }}>
+            Вставь список — по одному креатору на строку. Формат: <b>Имя</b> или <b>Имя, контакт</b> (телефон/Telegram).
+            Логин и пароль сгенерируются автоматически.
+          </p>
+          <textarea
+            className="bulk-reg__input"
+            rows={6}
+            placeholder={'Аружан, @aruzhan\nДана Ким, +7 701 234 56 78\nАлибек'}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+          />
+          <div className="pf-actions">
+            <button className="btn btn--primary btn--sm" onClick={submit} disabled={busy || !parsed.length}>
+              {busy ? 'Создаю…' : parsed.length ? `Создать ${parsed.length}` : 'Создать'}
+            </button>
+            {parsed.length > 0 && <span className="muted-note">распознано строк: {parsed.length}</span>}
+          </div>
+
+          {result && (
+            <div className="bulk-reg__result">
+              <div className="admin-panel__head">
+                <h3 className="admin-block__title" style={{ fontSize: '1rem' }}>
+                  Готово: {result.created.length} создано{result.errors.length ? `, ${result.errors.length} с ошибкой` : ''}
+                </h3>
+                {result.created.length > 0 && <CopyButton value={handout} label="Скопировать всё для рассылки" />}
+              </div>
+              <p className="muted-note" style={{ textAlign: 'left' }}>
+                ⚠️ Пароли показаны один раз — скопируй и раздай креаторам сейчас.
+              </p>
+              {result.created.length > 0 && (
+                <div className="admin-table-wrap">
+                  <table className="admin-table">
+                    <thead><tr><th>Имя</th><th>Логин</th><th>Пароль</th><th>Контакт</th></tr></thead>
+                    <tbody>
+                      {result.created.map((c) => (
+                        <tr key={c.id}>
+                          <td data-label="Имя">{c.name}</td>
+                          <td data-label="Логин"><code>{c.username}</code></td>
+                          <td data-label="Пароль"><code>{c.password}</code></td>
+                          <td data-label="Контакт">{c.contact || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {result.errors.length > 0 && (
+                <ul className="bulk-reg__errors">
+                  {result.errors.map((e, i) => (
+                    <li key={i} className="creator-portal__err">Строка {e.line}{e.name ? ` (${e.name})` : ''}: {e.error}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

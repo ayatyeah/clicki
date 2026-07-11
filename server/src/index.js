@@ -1329,6 +1329,87 @@ app.post('/api/admin/creators', requireAdmin, wrap(async (req, res) => {
   });
   ok(res, { creator: publicCreator(creator) });
 }));
+// ---- Bulk creator registration (operator onboards many creators at once) ----
+// Transliterate a name to a latin username base, e.g. "Аружан Ким" -> "aruzhan-kim".
+const TRANSLIT = {
+  а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'e', ж: 'zh', з: 'z', и: 'i', й: 'y',
+  к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f',
+  х: 'h', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'sch', ъ: '', ы: 'y', ь: '', э: 'e', ю: 'yu', я: 'ya',
+};
+function usernameBase(name) {
+  const slug = String(name || '')
+    .toLowerCase()
+    .split('')
+    .map((ch) => (TRANSLIT[ch] !== undefined ? TRANSLIT[ch] : ch))
+    .join('')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 20);
+  return slug || 'creator';
+}
+// A short, readable, unambiguous password (no 0/O/1/l/I) — easy to dictate/copy.
+function genPassword(len = 8) {
+  const alphabet = 'abcdefghjkmnpqrstuvwxyz23456789';
+  const bytes = crypto.randomBytes(len);
+  let out = '';
+  for (let i = 0; i < len; i += 1) out += alphabet[bytes[i] % alphabet.length];
+  return out;
+}
+// Pick a username not already taken (in the DB or earlier in this same batch).
+async function uniqueUsername(base, taken) {
+  let candidate = base;
+  let n = 1;
+  // eslint-disable-next-line no-await-in-loop
+  while (taken.has(candidate) || (await getCreatorByUsername(candidate))) {
+    n += 1;
+    candidate = `${base}${n}`;
+  }
+  taken.add(candidate);
+  return candidate;
+}
+
+app.post('/api/admin/creators/bulk', requireAdmin, wrap(async (req, res) => {
+  const rows = Array.isArray(req.body?.creators) ? req.body.creators : [];
+  if (!rows.length) return res.status(400).json({ ok: false, errors: ['Список пуст'] });
+  if (rows.length > 200) return res.status(400).json({ ok: false, errors: ['За один раз не больше 200 креаторов'] });
+
+  const created = [];
+  const errors = [];
+  const takenThisBatch = new Set();
+  for (let i = 0; i < rows.length; i += 1) {
+    const row = rows[i] || {};
+    const name = String(row.name || '').trim();
+    if (!name) { errors.push({ line: i + 1, error: 'Пустое имя' }); continue; }
+    try {
+      // Use the operator's username if provided (and free), else auto-generate.
+      let username = String(row.username || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+      if (username && (takenThisBatch.has(username) || (await getCreatorByUsername(username)))) {
+        errors.push({ line: i + 1, name, error: `Логин «${username}» занят` });
+        continue;
+      }
+      if (!username) username = await uniqueUsername(usernameBase(name), takenThisBatch);
+      else takenThisBatch.add(username);
+      const password = String(row.password || '').trim() || genPassword();
+      const creator = await createCreator({
+        name,
+        contact: row.contact ? String(row.contact).trim() : null,
+        socials: row.socials ? String(row.socials).trim() : null,
+        city: row.city ? String(row.city).trim() : null,
+        username,
+        password_hash: hashPassword(password),
+        status: 'active',
+      });
+      // Plaintext password returned ONCE so the operator can hand it to the creator.
+      created.push({ id: creator.id, name, username, password, contact: creator.contact || null });
+    } catch (err) {
+      console.error('[bulk-creator]', err.message);
+      errors.push({ line: i + 1, name, error: 'Не удалось создать' });
+    }
+  }
+  notifyOps(`👥 Массовая регистрация: создано ${created.length} креаторов${errors.length ? `, ошибок ${errors.length}` : ''}`);
+  ok(res, { created, errors });
+}));
+
 // Operator issues / resets login credentials for an existing creator.
 app.post('/api/admin/creators/:id/credentials', requireAdmin, wrap(async (req, res) => {
   const { username, password } = req.body || {};
