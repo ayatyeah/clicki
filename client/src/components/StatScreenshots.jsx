@@ -88,7 +88,13 @@ export default function StatScreenshots({ submissionId, platform, basePath, auth
       fd.append('file', file);
       const xhr = new XMLHttpRequest();
       xhr.open('POST', `${API_BASE}${basePath}/${submissionId}/screenshots`);
-      const token = sessionStorage.getItem('clicki_creator_token') || sessionStorage.getItem('clicki_admin_token') || '';
+      // Creator token now lives in localStorage (persistent PWA login); admin
+      // stays in sessionStorage. Check both so the raw XHR upload always auths.
+      const token =
+        localStorage.getItem('clicki_creator_token') ||
+        sessionStorage.getItem('clicki_admin_token') ||
+        localStorage.getItem('clicki_business_token') ||
+        '';
       if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
       xhr.upload.onprogress = (e) => { if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100)); };
       xhr.onload = () => {

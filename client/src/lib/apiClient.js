@@ -26,10 +26,14 @@ export class ApiError extends Error {
   }
 }
 
-export function createApiClient({ tokenKey, onUnauthorized }) {
-  const getToken = () => sessionStorage.getItem(tokenKey) || '';
-  const setToken = (token) => sessionStorage.setItem(tokenKey, token);
-  const clearToken = () => sessionStorage.removeItem(tokenKey);
+export function createApiClient({ tokenKey, onUnauthorized, persistent = false }) {
+  // persistent=true → localStorage: the login survives closing the app, so an
+  // installed PWA reopens straight into the cabinet (creator/business). The
+  // matching server session already lasts 30 days. Admin stays sessionStorage.
+  const store = persistent ? window.localStorage : window.sessionStorage;
+  const getToken = () => store.getItem(tokenKey) || '';
+  const setToken = (token) => store.setItem(tokenKey, token);
+  const clearToken = () => store.removeItem(tokenKey);
 
   /** Raw fetch with the bearer attached. Returns the Response, like `fetch`. */
   async function authFetch(path, options = {}) {

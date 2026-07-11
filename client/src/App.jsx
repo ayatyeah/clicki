@@ -23,6 +23,7 @@ const CreatorPortal = lazy(() => import('./pages/CreatorPortal.jsx'));
 const BusinessPortal = lazy(() => import('./pages/BusinessPortal.jsx'));
 const Referral = lazy(() => import('./pages/Referral.jsx'));
 const CreatorMiniPage = lazy(() => import('./pages/CreatorMiniPage.jsx'));
+const AppLauncher = lazy(() => import('./pages/AppLauncher.jsx'));
 // WebGL aurora backdrop - lazy so it never blocks first paint.
 const Aurora = lazy(() => import('./components/Aurora.jsx'));
 
@@ -75,6 +76,7 @@ export default function App() {
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/thanks/:type" element={<ThankYou />} />
+          <Route path="/app" element={<AppLauncher />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/demo-admin" element={<DemoAdmin />} />
           <Route path="/creator" element={<CreatorPortal />} />

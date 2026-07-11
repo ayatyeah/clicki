@@ -3917,3 +3917,10 @@ canvas {
 .bulk-reg__result { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
 .bulk-reg__result code { font-size: 0.9rem; background: rgba(139,92,246,0.1); padding: 2px 6px; border-radius: 6px; }
 .bulk-reg__errors { margin: 10px 0 0; padding-left: 18px; }
+
+/* PWA launcher splash (pages/AppLauncher.jsx) */
+.app-launcher { min-height: 80vh; display: grid; place-content: center; justify-items: center; gap: 12px; }
+.app-launcher__mascot { width: 120px; height: 120px; animation: launcherPulse 1.4s ease-in-out infinite; }
+.app-launcher__label { font-family: var(--font-display); font-weight: 800; letter-spacing: 0.12em; color: var(--ink); }
+@keyframes launcherPulse { 0%,100% { transform: scale(1); opacity: 0.9; } 50% { transform: scale(1.06); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .app-launcher__mascot { animation: none; } }

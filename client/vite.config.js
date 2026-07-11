@@ -23,7 +23,9 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'portrait',
         scope: '/',
-        start_url: '/',
+        // Launcher route: sends a signed-in creator/business straight to their
+        // cabinet, everyone else to the login choice. See client AppLauncher.
+        start_url: '/app',
         categories: ['business', 'marketing', 'productivity'],
         icons: [
           { src: '/pwa-192.png', sizes: '192x192', type: 'image/png' },
@@ -38,6 +40,10 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
+        // Activate a freshly-deployed SW immediately instead of waiting for all
+        // tabs to close — with autoUpdate this stops the app serving stale
+        // assets after a deploy (the "залипание" seen during testing).
+        skipWaiting: true,
       },
       // Allow testing the installable app on `vite preview` / local prod.
       devOptions: { enabled: false },

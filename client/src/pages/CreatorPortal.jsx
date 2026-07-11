@@ -32,13 +32,19 @@ const QUIZ = [
 ];
 
 export default function CreatorPortal() {
-  const [token, setToken] = useState(() => sessionStorage.getItem(KEY) || '');
+  // Persistent login (localStorage): the installed PWA reopens into the cabinet.
+  // Migrate a token left in sessionStorage by the previous (session-only) build.
+  const [token, setToken] = useState(() => {
+    const legacy = sessionStorage.getItem(KEY);
+    if (legacy && !localStorage.getItem(KEY)) { localStorage.setItem(KEY, legacy); sessionStorage.removeItem(KEY); }
+    return localStorage.getItem(KEY) || '';
+  });
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
 
   // Shared client: bearer + "only 401/403 ends the session" policy (lib/apiClient.js).
   const api = useMemo(
-    () => createApiClient({ tokenKey: KEY, onUnauthorized: () => { setToken(''); setData(null); } }),
+    () => createApiClient({ tokenKey: KEY, persistent: true, onUnauthorized: () => { setToken(''); setData(null); } }),
     []
   );
   const { authFetch } = api;
