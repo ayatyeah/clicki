@@ -20,6 +20,7 @@ const NotFound = lazy(() => import('./pages/NotFound.jsx'));
 const Admin = lazy(() => import('./pages/Admin.jsx'));
 const DemoAdmin = lazy(() => import('./pages/DemoAdmin.jsx'));
 const CreatorPortal = lazy(() => import('./pages/CreatorPortal.jsx'));
+const RegisterCreator = lazy(() => import('./pages/RegisterCreator.jsx'));
 const BusinessPortal = lazy(() => import('./pages/BusinessPortal.jsx'));
 const Referral = lazy(() => import('./pages/Referral.jsx'));
 const CreatorMiniPage = lazy(() => import('./pages/CreatorMiniPage.jsx'));
@@ -80,6 +81,7 @@ export default function App() {
           <Route path="/admin" element={<Admin />} />
           <Route path="/demo-admin" element={<DemoAdmin />} />
           <Route path="/creator" element={<CreatorPortal />} />
+          <Route path="/registration_creators" element={<RegisterCreator />} />
           <Route path="/business-cabinet" element={<BusinessPortal />} />
             <Route path="/friend/:login" element={<Referral />} />
             {/* Creator bio / lead link. Moved off the bare "/:login" catch-all

@@ -858,6 +858,36 @@ app.post(
   })
 );
 
+// Public self-service registration (shareable link → /registration_creators).
+// Creates an active account with a self-chosen login/password and logs them in;
+// onboarding_passed stays false, so the cabinet opens into the test → niche → guide.
+app.post(
+  '/api/creator/register',
+  loginLimiter,
+  wrap(async (req, res) => {
+    const { name, contact, username, password } = req.body || {};
+    if (!name || !String(name).trim()) return res.status(400).json({ ok: false, errors: ['Укажите имя'] });
+    if (!username || String(username).trim().length < 3) return res.status(400).json({ ok: false, errors: ['Логин не короче 3 символов'] });
+    if (!password || String(password).length < 6) return res.status(400).json({ ok: false, errors: ['Пароль не короче 6 символов'] });
+    if (await getCreatorByUsername(username)) return res.status(409).json({ ok: false, errors: ['Такой логин уже занят'] });
+    // referred_by (from a friend link) only if it points to a real creator.
+    const refId = Number(req.body?.referred_by) || null;
+    const referred_by = refId && (await getCreator(refId)) ? refId : null;
+    const creator = await createCreator({
+      name: String(name).trim(),
+      contact: contact ? String(contact).trim() : null,
+      username: String(username).trim(),
+      password_hash: hashPassword(password),
+      referred_by,
+      status: 'active',
+    });
+    const token = newToken();
+    await setCreatorToken(creator.id, token);
+    notifyOps(`🆕 Саморегистрация креатора: ${creator.name} (@${creator.username})`);
+    ok(res, { token, ...(await creatorPayload({ ...creator, session_token: token })) });
+  })
+);
+
 // Current creator (by token).
 app.get(
   '/api/creator/me',
