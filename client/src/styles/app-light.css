@@ -119,16 +119,17 @@
   padding-right: 34px;
 }
 
-/* Sidebar nav — strict, serious active state: small radius, restrained tint and
-   a left accent bar instead of a big rounded pill. */
+/* Sidebar nav — soft violet pill for the active item, matching the cabinet
+   sidebars (.cp-side__link). */
 .app-light .admin-nav__btn {
-  border-radius: 8px;
+  border-radius: 10px;
+  font-weight: 500;
 }
 .app-light .admin-nav__btn.is-active {
-  background: rgba(124, 58, 237, 0.08);
+  background: rgba(124, 58, 237, 0.1);
   color: #6d28d9;
   font-weight: 600;
-  box-shadow: inset 2px 0 0 #7c3aed;
+  box-shadow: none;
 }
 .app-light .admin-nav__btn:hover {
   background: rgba(124, 58, 237, 0.06);
@@ -704,6 +705,29 @@
 }
 .app-light .admin-nav__icon { color: rgba(124, 58, 237, 0.6); }
 .app-light .admin-nav__btn.is-active .admin-nav__icon { color: #6d28d9; }
+/* Content surfaces get the cabinet card language: hairline border, gentle
+   rounding, soft shadow (overrides the earlier flat "calmer surfaces" reset). */
+.app-light .admin-table-wrap {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+}
+.app-light .admin-stat {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow-soft);
+}
+.app-light .admin-sidebar__logout {
+  border-radius: 10px;
+  margin-top: 14px;
+}
+.app-light .admin-topbar {
+  background: rgba(255, 255, 255, 0.9);
+  border-bottom: 1px solid var(--line);
+}
+.app-light .admin-topbar__title { font-weight: 600; letter-spacing: -0.01em; }
 .app-light .admin-login {
   max-width: 380px;
   margin: 9vh auto;
