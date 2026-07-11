@@ -836,7 +836,19 @@ app.post(
     const { name, contact, socials, city, referred_by } = req.body || {};
     if (!name || !contact) return res.status(400).json({ ok: false, errors: ['Имя и контакт обязательны'] });
     await createCreator({ name, contact, socials, city, referred_by, status: 'pending' });
-    notifyOps(`🆕 Заявка креатора: ${name} (${contact})`);
+    // Full, fielded notification with Astana time (same format as site leads),
+    // instead of a bare one-liner.
+    dispatchLead({
+      funnel: 'creator',
+      fields: {
+        Имя: name,
+        'Телефон/Telegram': contact,
+        ...(city ? { Город: city } : {}),
+        ...(socials ? { Соцсети: socials } : {}),
+      },
+      page: '/creator',
+      createdAt: new Date().toISOString(),
+    });
     ok(res, {});
   })
 );
@@ -886,7 +898,17 @@ app.post(
     });
     const token = newToken();
     await setCreatorToken(creator.id, token);
-    notifyOps(`🆕 Саморегистрация креатора: ${creator.name} (@${creator.username})`);
+    dispatchLead({
+      funnel: 'creator',
+      fields: {
+        ФИО: creator.name,
+        Телефон: creator.contact,
+        ...(creator.city ? { Город: creator.city } : {}),
+        Логин: creator.username,
+      },
+      page: '/registration_creators',
+      createdAt: new Date().toISOString(),
+    });
     ok(res, { token, ...(await creatorPayload({ ...creator, session_token: token })) });
   })
 );
