@@ -333,7 +333,14 @@
 }
 .bp-logo img { width: 100%; height: 100%; object-fit: cover; }
 .bp-logo--sm { width: 52px; height: 52px; border-radius: 14px; font-size: 1.3rem; }
+.bp-logo--xs { width: 40px; height: 40px; border-radius: 11px; font-size: 1rem; }
 .bp-hello { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+.bp-topactions { display: flex; gap: 8px; align-items: center; flex: 0 0 auto; }
+
+/* Business cabinet now uses the creator shell (.cp-shell): keep its admin-block
+   content sections flush at the top of the main column. */
+.cp-shell__main > .admin-block:first-of-type { margin-top: 0; }
+.cp-shell__main > .admin-block { margin-bottom: 18px; }
 
 /* KPI mini-cards (dashboard summary) */
 .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 8px; }

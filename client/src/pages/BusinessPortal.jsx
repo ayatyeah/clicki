@@ -202,76 +202,93 @@ function AuthForm({ endpoint, onAuthed, register, toRegister }) {
 
 /* ---------------- Dashboard shell ---------------- */
 const NAV = [
-  { key: 'home', label: 'Главная', icon: 'home' },
-  { key: 'briefs', label: 'Брифы', icon: 'briefs' },
-  { key: 'review', label: 'Приёмка', icon: 'check' },
-  { key: 'analytics', label: 'Аналитика', icon: 'chart' },
-  { key: 'guide', label: 'Как это работает', icon: 'help' },
-  { key: 'profile', label: 'Профиль', icon: 'user' },
+  { key: 'home', label: 'Главная', short: 'Главная', icon: 'home' },
+  { key: 'briefs', label: 'Брифы', short: 'Брифы', icon: 'briefs' },
+  { key: 'review', label: 'Приёмка', short: 'Приёмка', icon: 'check' },
+  { key: 'analytics', label: 'Аналитика', short: 'Стата', icon: 'chart' },
+  { key: 'guide', label: 'Как это работает', short: 'Гайд', icon: 'help' },
+  { key: 'profile', label: 'Профиль', short: 'Профиль', icon: 'user' },
 ];
 
 function Dashboard({ data, authFetch, reload, onLogout }) {
   const { lang } = useLang();
   const t = (s) => bt(lang, s);
   const [view, setView] = useState('home');
-  const [navOpen, setNavOpen] = useState(false);
   const b = data.business;
   const briefs = data.briefs || [];
   const submissions = data.submissions || [];
   const incoming = submissions.filter((s) => s.status === 'sent_to_business');
   const accepted = submissions.filter((s) => s.status === 'accepted');
+  const go = (key) => setView(key);
 
-  const go = (key) => {
-    setView(key);
-    setNavOpen(false);
-  };
+  const logoNode = b.logo_url
+    ? <img src={mediaUrl(b.logo_url)} alt="" />
+    : <span>{(b.company || b.name || '?').charAt(0).toUpperCase()}</span>;
 
   return (
-    <main className="admin page-light app-light ae-skip">
+    <main className="creator-portal page-light app-light ae-skip">
       <Seo title="CLICKI — кабинет бизнеса" path="/business-cabinet" description="Личный кабинет бренда CLICKI." noindex />
-      <header className="admin-topbar">
-        <button className="admin-topbar__burger" onClick={() => setNavOpen(true)} aria-label={t('Меню')} aria-expanded={navOpen}>
-          <span /><span /><span />
-        </button>
-        <span className="admin-topbar__title">{t(NAV.find((n) => n.key === view)?.label)}</span>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <LangToggle />
-          <button className="btn btn--ghost btn--sm" onClick={onLogout}>{t('Выйти')}</button>
-        </div>
-      </header>
+      <div className="container creator-portal__inner creator-portal__inner--wide">
+        <div className="cp-shell">
+          {/* Desktop sidebar (hidden on mobile — the bottom nav takes over there) */}
+          <aside className="cp-side">
+            <Link to="/" className="cp-side__brand">CLICKI</Link>
+            <nav className="cp-side__nav" aria-label={t('Меню')}>
+              {NAV.map((n) => (
+                <button key={n.key} type="button" className={`cp-side__link ${view === n.key ? 'is-active' : ''}`} onClick={() => go(n.key)}>
+                  <span className="cp-side__icon" aria-hidden="true"><Icon name={n.icon} size={20} /></span>
+                  {t(n.label)}
+                </button>
+              ))}
+            </nav>
+            <button type="button" className="cp-side__user" onClick={() => go('profile')}>
+              <span className="bp-logo bp-logo--xs">{logoNode}</span>
+              <span className="cp-side__user-text">
+                <b>{b.company || b.name}</b>
+                <span className="creator-portal__muted">{t('Профиль')}</span>
+              </span>
+            </button>
+          </aside>
 
-      <div className="admin-layout">
-        {navOpen && <div className="admin-backdrop" onClick={() => setNavOpen(false)} />}
-        <aside className={`admin-sidebar ${navOpen ? 'is-open' : ''}`}>
-          <div className="admin-sidebar__head">
-            <div className="admin-sidebar__brand">{t('CLICKI · бизнес')}</div>
-            <button className="admin-sidebar__close" onClick={() => setNavOpen(false)} aria-label={t('Закрыть')}>✕</button>
-          </div>
-          <nav className="admin-nav">
-            {NAV.map((n) => (
-              <button key={n.key} className={`admin-nav__btn ${view === n.key ? 'is-active' : ''}`} onClick={() => go(n.key)}>
-                <span className="admin-nav__icon" aria-hidden="true"><Icon name={n.icon} /></span>
-                {t(n.label)}
+          <div className="cp-shell__main">
+            <div className="creator-portal__top">
+              <button type="button" className="cp-greeting" onClick={() => go('profile')} title={t('Профиль')}>
+                <span className="bp-logo bp-logo--sm">{logoNode}</span>
+                <span className="cp-greeting__text">
+                  <span className="creator-portal__title cp-greeting__title">{t('Привет')}, {b.name}</span>
+                  <span className="creator-portal__muted">{b.company || t('Бренд')}</span>
+                </span>
               </button>
-            ))}
-          </nav>
-          <button className="btn btn--ghost btn--sm admin-sidebar__logout" onClick={onLogout}>{t('Выйти')}</button>
-        </aside>
+              <div className="bp-topactions">
+                <LangToggle />
+                <button className="btn btn--ghost btn--sm" onClick={onLogout}>{t('Выйти')}</button>
+              </div>
+            </div>
 
-        <div className="admin-main">
-          {view === 'home' && (
-            <Home b={b} briefs={briefs} submissions={submissions} incoming={incoming} accepted={accepted} go={go} />
-          )}
-          {view === 'briefs' && <BriefsView briefs={briefs} authFetch={authFetch} reload={reload} />}
-          {view === 'review' && <ReviewView incoming={incoming} accepted={accepted} authFetch={authFetch} reload={reload} />}
-          {view === 'analytics' && <Analytics accepted={accepted} authFetch={authFetch} b={b} />}
-          {view === 'guide' && (
-            <section className="admin-block">
-              <h2 className="admin-block__title">{t('Как это работает')}</h2>
-              <Guide content={BUSINESS_GUIDE[lang] || BUSINESS_GUIDE.ru} />
-            </section>
-          )}
-          {view === 'profile' && <Profile b={b} authFetch={authFetch} reload={reload} onLogout={onLogout} />}
+            {/* Mobile bottom navigation */}
+            <nav className="cp-bottomnav" aria-label={t('Меню')}>
+              {NAV.map((n) => (
+                <button key={n.key} type="button" aria-current={view === n.key ? 'page' : undefined} className={`cp-bottomnav__btn ${view === n.key ? 'is-active' : ''}`} onClick={() => go(n.key)}>
+                  <span className="cp-bottomnav__icon" aria-hidden="true"><Icon name={n.icon} size={22} /></span>
+                  <span className="cp-bottomnav__label">{t(n.short || n.label)}</span>
+                </button>
+              ))}
+            </nav>
+
+            {view === 'home' && (
+              <Home b={b} briefs={briefs} submissions={submissions} incoming={incoming} accepted={accepted} go={go} />
+            )}
+            {view === 'briefs' && <BriefsView briefs={briefs} authFetch={authFetch} reload={reload} />}
+            {view === 'review' && <ReviewView incoming={incoming} accepted={accepted} authFetch={authFetch} reload={reload} />}
+            {view === 'analytics' && <Analytics accepted={accepted} authFetch={authFetch} b={b} />}
+            {view === 'guide' && (
+              <section className="admin-block">
+                <h2 className="admin-block__title">{t('Как это работает')}</h2>
+                <Guide content={BUSINESS_GUIDE[lang] || BUSINESS_GUIDE.ru} />
+              </section>
+            )}
+            {view === 'profile' && <Profile b={b} authFetch={authFetch} reload={reload} onLogout={onLogout} />}
+          </div>
         </div>
       </div>
     </main>
@@ -298,17 +315,9 @@ function Home({ b, briefs, submissions, incoming, accepted, go }) {
   const recent = submissions.slice(0, 6);
   return (
     <section className="admin-block">
-      <div className="bp-hello">
-        <div className="bp-logo bp-logo--sm">
-          {b.logo_url ? <img src={mediaUrl(b.logo_url)} alt="" /> : <span>{(b.company || b.name || '?').charAt(0).toUpperCase()}</span>}
-        </div>
-        <div>
-          <h2 className="admin-block__title" style={{ margin: 0 }}>{t('Привет')}, {b.name}</h2>
-          <p className="muted-note" style={{ textAlign: 'left', margin: '4px 0 0' }}>
-            {b.company || t('Бренд')} — {t('запускайте брифы и принимайте готовые работы.')}
-          </p>
-        </div>
-      </div>
+      <p className="muted-note" style={{ textAlign: 'left', marginTop: 0 }}>
+        {t('запускайте брифы и принимайте готовые работы.')}
+      </p>
 
       <div className="cp-kpis">
         <div className="cp-kpi">

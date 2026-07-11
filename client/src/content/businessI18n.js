@@ -34,6 +34,8 @@ const EN = {
   Брифы: 'Briefs',
   Приёмка: 'Review',
   Аналитика: 'Analytics',
+  Стата: 'Stats',
+  Гайд: 'Guide',
   'Как это работает': 'How it works',
   Профиль: 'Profile',
   Меню: 'Menu',
