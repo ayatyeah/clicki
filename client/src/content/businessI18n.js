@@ -210,6 +210,7 @@ const EN = {
   'Сохраняю…': 'Saving…',
   'Нужно изображение (JPG или PNG).': 'An image is required (JPG or PNG).',
   'Слишком большой файл — до 4 МБ.': 'File too large — up to 4 MB.',
+  'Слишком большой файл — до 20 МБ.': 'File too large — up to 20 MB.',
   'Не удалось загрузить': 'Upload failed',
 
   // Home

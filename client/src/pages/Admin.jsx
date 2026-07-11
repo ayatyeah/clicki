@@ -311,7 +311,7 @@ export default function Admin() {
         {navOpen && <div className="admin-backdrop" onClick={() => setNavOpen(false)} />}
         <aside className={`admin-sidebar ${navOpen ? 'is-open' : ''}`}>
           <div className="admin-sidebar__head">
-            <div className="admin-sidebar__brand">CLICKI · админка</div>
+            <div className="admin-sidebar__brand"><img className="brand-mark" src="/logo-mark.png" alt="" />CLICKI · админка</div>
             <button
               className="admin-sidebar__close"
               onClick={() => setNavOpen(false)}

@@ -6,6 +6,7 @@ import { API_BASE } from '../lib/config.js';
 import { createApiClient } from '../lib/apiClient.js';
 import { safeHref } from '../lib/safeHref.js';
 import Guide from '../components/Guide.jsx';
+import AvatarCropper from '../components/AvatarCropper.jsx';
 import { BUSINESS_GUIDE } from '../content/guides.js';
 import { useLang } from '../i18n.jsx';
 import { bt } from '../content/businessI18n.js';
@@ -119,7 +120,7 @@ function AuthScreen({ onAuthed }) {
       <Seo title="CLICKI — кабинет бизнеса" path="/business-cabinet" description="Личный кабинет бренда CLICKI." noindex />
       <div className="container creator-portal__inner">
         <div className="creator-portal__head">
-          <Link to="/" className="creator-portal__brand">CLICKI</Link>
+          <Link to="/" className="creator-portal__brand"><img className="brand-mark" src="/logo-mark.png" alt="" />CLICKI</Link>
           <span className="creator-portal__tag">{t('кабинет бизнеса')}</span>
           <LangToggle />
         </div>
@@ -232,7 +233,7 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
         <div className="cp-shell">
           {/* Desktop sidebar (hidden on mobile — the bottom nav takes over there) */}
           <aside className="cp-side">
-            <Link to="/" className="cp-side__brand">CLICKI</Link>
+            <Link to="/" className="cp-side__brand"><img className="brand-mark" src="/logo-mark.png" alt="" />CLICKI</Link>
             <nav className="cp-side__nav" aria-label={t('Меню')}>
               {NAV.map((n) => (
                 <button key={n.key} type="button" className={`cp-side__link ${view === n.key ? 'is-active' : ''}`} onClick={() => go(n.key)}>
@@ -999,19 +1000,26 @@ function Profile({ b, authFetch, reload, onLogout }) {
   const [name, setName] = useState(b.name || '');
   const [company, setCompany] = useState(b.company || '');
   const [uploading, setUploading] = useState(false);
+  const [cropFile, setCropFile] = useState(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
 
-  const uploadLogo = async (file) => {
+  const pickLogo = (file) => {
     if (!file) return;
     setErr('');
     if (!file.type.startsWith('image/')) return setErr(t('Нужно изображение (JPG или PNG).'));
-    if (file.size > 4 * 1024 * 1024) return setErr(t('Слишком большой файл — до 4 МБ.'));
+    if (file.size > 20 * 1024 * 1024) return setErr(t('Слишком большой файл — до 20 МБ.'));
+    setCropFile(file);
+  };
+
+  const uploadLogo = async (blob) => {
+    setCropFile(null);
+    setErr('');
     setUploading(true);
     try {
       const fd = new FormData();
-      fd.append('file', file);
+      fd.append('file', blob, 'logo.jpg');
       const res = await authFetch('/api/business/logo', { method: 'POST', body: fd });
       const d = await res.json();
       if (!res.ok || d.ok === false) throw new Error(d.errors?.[0] || t('Не удалось загрузить'));
@@ -1052,6 +1060,8 @@ function Profile({ b, authFetch, reload, onLogout }) {
     <section className="admin-block">
       <h2 className="admin-block__title">{t('Профиль компании')}</h2>
 
+      {cropFile && <AvatarCropper file={cropFile} round={false} onCancel={() => setCropFile(null)} onConfirm={uploadLogo} />}
+
       <div className="bp-card" style={{ maxWidth: 520 }}>
         <div className="bp-account__head">
           <div className="bp-logo">
@@ -1060,7 +1070,7 @@ function Profile({ b, authFetch, reload, onLogout }) {
           <div className="bp-account__id">
             <b>{company || name}</b>
             <span className="creator-portal__muted" style={{ margin: 0 }}>{t('Логотип видят креаторы в заказах и профиле бренда.')}</span>
-            <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; uploadLogo(f); }} />
+            <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; pickLogo(f); }} />
             <button type="button" className="btn btn--ghost btn--sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
               {uploading ? t('Загрузка…') : logo ? t('Сменить логотип') : t('Загрузить логотип')}
             </button>

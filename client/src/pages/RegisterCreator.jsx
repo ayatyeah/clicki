@@ -56,7 +56,7 @@ export default function RegisterCreator() {
       />
       <div className="container creator-portal__inner">
         <div className="creator-portal__head">
-          <Link to="/" className="creator-portal__brand">CLICKI</Link>
+          <Link to="/" className="creator-portal__brand"><img className="brand-mark" src="/logo-mark.png" alt="" />CLICKI</Link>
           <span className="creator-portal__tag">кабинет креатора</span>
         </div>
         <div className="mascot-avatar"><img src="/mascot-hood.jpg" alt="CLICKI" /></div>

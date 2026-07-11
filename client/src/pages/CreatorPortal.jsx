@@ -6,6 +6,7 @@ import { createApiClient } from '../lib/apiClient.js';
 import { safeHref } from '../lib/safeHref.js';
 import StatScreenshots, { guideFor } from '../components/StatScreenshots.jsx';
 import Icon from '../components/Icon.jsx';
+import AvatarCropper from '../components/AvatarCropper.jsx';
 import CopyButton from '../components/CopyButton.jsx';
 import EmptyState from '../components/EmptyState.jsx';
 import Guide from '../components/Guide.jsx';
@@ -122,7 +123,7 @@ function Shell({ children, wide = false }) {
       <div className={`container creator-portal__inner${wide ? ' creator-portal__inner--wide' : ''}`}>
         {!wide && (
           <div className="creator-portal__head">
-            <Link to="/" className="creator-portal__brand">CLICKI</Link>
+            <Link to="/" className="creator-portal__brand"><img className="brand-mark" src="/logo-mark.png" alt="" />CLICKI</Link>
             <span className="creator-portal__tag">кабинет креатора</span>
           </div>
         )}
@@ -385,7 +386,7 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
       <div className="cp-shell">
         {/* Desktop sidebar (hidden on mobile — the tab strip takes over there) */}
         <aside className="cp-side">
-          <Link to="/" className="cp-side__brand">CLICKI</Link>
+          <Link to="/" className="cp-side__brand"><img className="brand-mark" src="/logo-mark.png" alt="" />CLICKI</Link>
           <nav className="cp-side__nav" aria-label="Разделы кабинета">
             {CREATOR_TABS.map((tab) => (
               <button
@@ -533,19 +534,27 @@ function AccountView({ c, authFetch, reload }) {
   const [bio, setBio] = useState(c.bio || '');
   const [topics, setTopics] = useState(() => (c.topics ? c.topics.split(',').filter(Boolean) : []));
   const [uploading, setUploading] = useState(false);
+  const [cropFile, setCropFile] = useState(null); // raw file being cropped
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
 
   const toggleTopic = (key) => setTopics((ts) => (ts.includes(key) ? ts.filter((x) => x !== key) : [...ts, key]));
 
-  const uploadAvatar = async (file) => {
+  // A user picked a file → open the cropper (validation of the raw file only).
+  const pickFile = (file) => {
     if (!file) return;
     if (!file.type.startsWith('image/')) return toast.error('Нужно изображение (JPG или PNG).');
-    if (file.size > 4 * 1024 * 1024) return toast.error('Слишком большой файл — до 4 МБ.');
+    if (file.size > 20 * 1024 * 1024) return toast.error('Слишком большой файл — до 20 МБ.');
+    setCropFile(file);
+  };
+
+  // Upload the cropped 512×512 JPEG blob produced by AvatarCropper.
+  const uploadAvatar = async (blob) => {
+    setCropFile(null);
     setUploading(true);
     try {
       const fd = new FormData();
-      fd.append('file', file);
+      fd.append('file', blob, 'avatar.jpg');
       const res = await authFetch('/api/creator/avatar', { method: 'POST', body: fd });
       const d = await res.json();
       if (!res.ok || d.ok === false) throw new Error(d.errors?.[0] || 'Не удалось загрузить');
@@ -585,6 +594,8 @@ function AccountView({ c, authFetch, reload }) {
       <h2 className="creator-portal__h2">Мой аккаунт</h2>
       <p className="creator-portal__muted cp-section-sub">Аватар и профиль видят бренды и другие креаторы.</p>
 
+      {cropFile && <AvatarCropper file={cropFile} onCancel={() => setCropFile(null)} onConfirm={uploadAvatar} />}
+
       <div className="creator-portal__card cp-account">
         <div className="cp-account__head">
           <div className="cp-avatar cp-avatar--lg">
@@ -593,7 +604,7 @@ function AccountView({ c, authFetch, reload }) {
           <div className="cp-account__id">
             <b>{c.name}</b>
             {c.username && <span className="creator-portal__muted">@{c.username}</span>}
-            <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; uploadAvatar(f); }} />
+            <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; pickFile(f); }} />
             <button type="button" className="btn btn--ghost btn--sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
               {uploading ? 'Загрузка…' : avatar ? 'Сменить фото' : 'Загрузить фото'}
             </button>
