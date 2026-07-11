@@ -96,6 +96,8 @@ import {
   createBusiness,
   getBusinessByEmail,
   getBusinessByToken,
+  getBusiness,
+  updateBusiness,
   setBusinessToken,
   listBusinessBriefs,
   createBusinessBrief,
@@ -913,6 +915,48 @@ app.post(
   })
 );
 
+// Creator "My account" — self-service profile: bio, topics (niche picker), city,
+// socials. Whitelisted at the DB layer; strings are length-capped here.
+app.post(
+  '/api/creator/profile',
+  requireCreator,
+  wrap(async (req, res) => {
+    const b = req.body || {};
+    const fields = {};
+    if (typeof b.bio === 'string') fields.bio = b.bio.slice(0, 500);
+    if (typeof b.city === 'string') fields.city = b.city.slice(0, 120);
+    if (typeof b.socials === 'string') fields.socials = b.socials.slice(0, 300);
+    if (Array.isArray(b.topics)) fields.topics = b.topics.filter((t) => typeof t === 'string').slice(0, 12).join(',');
+    else if (typeof b.topics === 'string') fields.topics = b.topics.slice(0, 300);
+    ok(res, { creator: publicCreator(await updateCreator(req.creator.id, fields)) });
+  })
+);
+
+// Creator avatar upload (image only). Reuses storeUpload (Spaces or Postgres blob).
+app.post('/api/creator/avatar', requireCreator, upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ ok: false, errors: ['Файл не получен'] });
+  try {
+    const url = await storeUpload(req.file, { imageOnly: true });
+    res.json({ ok: true, creator: publicCreator(await updateCreator(req.creator.id, { avatar_url: url })) });
+  } catch (err) {
+    console.error('[creator-avatar]', err.message);
+    res.status(400).json({ ok: false, errors: [err.message || 'Не удалось сохранить файл'] });
+  }
+});
+
+// Generic creator image upload → returns a URL. Used to attach a stats screenshot
+// at submit time (before the submission row exists), which also confirms the
+// creator actually has access to the video's statistics.
+app.post('/api/creator/upload', requireCreator, upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ ok: false, errors: ['Файл не получен'] });
+  try {
+    res.json({ ok: true, url: await storeUpload(req.file, { imageOnly: true }) });
+  } catch (err) {
+    console.error('[creator-upload]', err.message);
+    res.status(400).json({ ok: false, errors: [err.message || 'Не удалось сохранить файл'] });
+  }
+});
+
 // Take a published order (pipeline step 4): creator self-assigns to an active brief.
 app.post(
   '/api/creator/take',
@@ -967,7 +1011,7 @@ async function creatorOwnsSubmission(creatorId, submissionId) {
 // Minimum gap between two stats screenshots for the same video. One clean daily
 // data point per video → the business gets a coherent growth curve instead of a
 // creator dumping five shots in an hour.
-const SCREENSHOT_COOLDOWN_MS = 10 * 60 * 60 * 1000; // 10h
+const SCREENSHOT_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24h — one clean data point per day
 
 app.post(
   '/api/creator/submissions/:id/screenshots',
@@ -1074,6 +1118,27 @@ app.post(
 );
 
 app.get('/api/business/me', requireBusiness, wrap(async (req, res) => ok(res, await businessPayload(req.business))));
+
+// Business "My account" — edit company/name; logo has its own multipart endpoint.
+app.post('/api/business/profile', requireBusiness, wrap(async (req, res) => {
+  const b = req.body || {};
+  const fields = {};
+  if (typeof b.name === 'string' && b.name.trim()) fields.name = b.name.trim().slice(0, 160);
+  if (typeof b.company === 'string') fields.company = b.company.slice(0, 200);
+  ok(res, { business: publicBusiness(await updateBusiness(req.business.id, fields)) });
+}));
+
+// Business logo upload (image only). Reuses storeUpload (Spaces or Postgres blob).
+app.post('/api/business/logo', requireBusiness, upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ ok: false, errors: ['Файл не получен'] });
+  try {
+    const url = await storeUpload(req.file, { imageOnly: true });
+    res.json({ ok: true, business: publicBusiness(await updateBusiness(req.business.id, { logo_url: url })) });
+  } catch (err) {
+    console.error('[business-logo]', err.message);
+    res.status(400).json({ ok: false, errors: [err.message || 'Не удалось сохранить файл'] });
+  }
+});
 
 // Live growth dashboard: cumulative views across the business's whole campaign, by day.
 app.get('/api/business/growth', requireBusiness, wrap(async (req, res) => ok(res, { growth: await getBusinessGrowth(req.business.id) })));

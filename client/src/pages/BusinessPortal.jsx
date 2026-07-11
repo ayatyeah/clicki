@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Seo from '../components/Seo.jsx';
 import Icon from '../components/Icon.jsx';
@@ -7,9 +7,25 @@ import { createApiClient } from '../lib/apiClient.js';
 import { safeHref } from '../lib/safeHref.js';
 import Guide from '../components/Guide.jsx';
 import { BUSINESS_GUIDE } from '../content/guides.js';
+import { useLang } from '../i18n.jsx';
+import { bt } from '../content/businessI18n.js';
+
+/** Compact RU/EN switch for the business cabinet. */
+function LangToggle() {
+  const { lang, setLang } = useLang();
+  return (
+    <div className="bz-lang" role="group" aria-label="Язык / Language">
+      <button type="button" className={`bz-lang__btn ${lang === 'ru' ? 'is-active' : ''}`} onClick={() => setLang('ru')}>RU</button>
+      <button type="button" className={`bz-lang__btn ${lang === 'en' ? 'is-active' : ''}`} onClick={() => setLang('en')}>EN</button>
+    </div>
+  );
+}
 
 const KEY = 'clicki_business_token';
 const PLATFORMS = ['TikTok', 'Instagram Reels', 'YouTube Shorts', 'Threads', 'X (Twitter)'];
+
+// Logos may live in Spaces (absolute URL) or Postgres (relative /api/media/:id).
+const mediaUrl = (u) => (u && /^https?:\/\//i.test(u) ? u : `${API_BASE}${u}`);
 // TODO: written but never rendered — no component consumes this FAQ. Either wire
 // it into the cabinet or delete it. Kept so the copy isn't lost silently.
 // eslint-disable-next-line no-unused-vars
@@ -95,6 +111,8 @@ export default function BusinessPortal() {
 
 /* ---------------- Auth ---------------- */
 function AuthScreen({ onAuthed }) {
+  const { lang } = useLang();
+  const t = (s) => bt(lang, s);
   const [mode, setMode] = useState('login');
   return (
     <main className="creator-portal page-light app-light ae-skip">
@@ -102,16 +120,17 @@ function AuthScreen({ onAuthed }) {
       <div className="container creator-portal__inner">
         <div className="creator-portal__head">
           <Link to="/" className="creator-portal__brand">CLICKI</Link>
-          <span className="creator-portal__tag">кабинет бизнеса</span>
+          <span className="creator-portal__tag">{t('кабинет бизнеса')}</span>
+          <LangToggle />
         </div>
         <div className="mascot-avatar"><img src="/mascot-star.png" alt="CLICKI" /></div>
-        <h1 className="creator-portal__title">Кабинет бизнеса</h1>
+        <h1 className="creator-portal__title">{t('Кабинет бизнеса')}</h1>
         <p className="creator-portal__muted">
-          {mode === 'login' ? 'Войдите, чтобы создавать брифы и принимать работы.' : 'Создайте аккаунт бренда за минуту.'}
+          {mode === 'login' ? t('Войдите, чтобы создавать брифы и принимать работы.') : t('Создайте аккаунт бренда за минуту.')}
         </p>
         <div className="creator-portal__tabs">
-          <button className={`creator-portal__tab ${mode === 'login' ? 'is-active' : ''}`} onClick={() => setMode('login')}>Вход</button>
-          <button className={`creator-portal__tab ${mode === 'register' ? 'is-active' : ''}`} onClick={() => setMode('register')}>Регистрация</button>
+          <button className={`creator-portal__tab ${mode === 'login' ? 'is-active' : ''}`} onClick={() => setMode('login')}>{t('Вход')}</button>
+          <button className={`creator-portal__tab ${mode === 'register' ? 'is-active' : ''}`} onClick={() => setMode('register')}>{t('Регистрация')}</button>
         </div>
         {mode === 'login' ? (
           <AuthForm endpoint="/api/business/login" onAuthed={onAuthed} register={false} toRegister={() => setMode('register')} />
@@ -126,6 +145,8 @@ function AuthScreen({ onAuthed }) {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function AuthForm({ endpoint, onAuthed, register, toRegister }) {
+  const { lang } = useLang();
+  const t = (s) => bt(lang, s);
   const [f, setF] = useState({ name: '', company: '', email: '', password: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -138,10 +159,10 @@ function AuthForm({ endpoint, onAuthed, register, toRegister }) {
     // browser autofilled, e.g. a saved login that isn't actually an email — always
     // produces a visible message instead of the browser silently blocking submit
     // with a native tooltip that's easy to miss.
-    if (register && !f.name.trim()) return setError('Укажите имя');
-    if (!EMAIL_RE.test(f.email)) return setError('Введите настоящий email (проверьте, не подставил ли браузер что-то другое)');
-    if (register && f.password.length < 6) return setError('Пароль не короче 6 символов');
-    else if (!register && !f.password) return setError('Введите пароль');
+    if (register && !f.name.trim()) return setError(t('Укажите имя'));
+    if (!EMAIL_RE.test(f.email)) return setError(t('Введите настоящий email (проверьте, не подставил ли браузер что-то другое)'));
+    if (register && f.password.length < 6) return setError(t('Пароль не короче 6 символов'));
+    else if (!register && !f.password) return setError(t('Введите пароль'));
     setBusy(true);
     try {
       const res = await fetch(`${API_BASE}${endpoint}`, {
@@ -150,7 +171,7 @@ function AuthForm({ endpoint, onAuthed, register, toRegister }) {
         body: JSON.stringify(f),
       });
       const d = await res.json();
-      if (!res.ok) throw new Error((d.errors && d.errors[0]) || 'Ошибка');
+      if (!res.ok) throw new Error((d.errors && d.errors[0]) || t('Ошибка'));
       onAuthed(d.token, d);
     } catch (err) {
       setError(err.message);
@@ -163,17 +184,17 @@ function AuthForm({ endpoint, onAuthed, register, toRegister }) {
     <form className="creator-portal__card" onSubmit={submit} noValidate>
       {register && (
         <>
-          <input name="name" placeholder="Имя" autoComplete="name" value={f.name} onChange={(e) => set('name', e.target.value)} />
-          <input name="organization" placeholder="Компания / бренд" autoComplete="organization" value={f.company} onChange={(e) => set('company', e.target.value)} />
+          <input name="name" placeholder={t('Имя')} autoComplete="name" value={f.name} onChange={(e) => set('name', e.target.value)} />
+          <input name="organization" placeholder={t('Компания / бренд')} autoComplete="organization" value={f.company} onChange={(e) => set('company', e.target.value)} />
         </>
       )}
-      <input name="email" type="email" placeholder="Email" autoComplete="email" value={f.email} onChange={(e) => set('email', e.target.value)} />
-      <input name="password" type="password" placeholder="Пароль" autoComplete={register ? 'new-password' : 'current-password'} value={f.password} onChange={(e) => set('password', e.target.value)} />
+      <input name="email" type="email" placeholder={t('Email')} autoComplete="email" value={f.email} onChange={(e) => set('email', e.target.value)} />
+      <input name="password" type="password" placeholder={t('Пароль')} autoComplete={register ? 'new-password' : 'current-password'} value={f.password} onChange={(e) => set('password', e.target.value)} />
       {error && <p className="creator-portal__err">{error}</p>}
-      <button className="btn btn--primary btn--block" disabled={busy}>{busy ? '…' : register ? 'Создать аккаунт' : 'Войти'}</button>
+      <button className="btn btn--primary btn--block" disabled={busy}>{busy ? '…' : register ? t('Создать аккаунт') : t('Войти')}</button>
       <p className="creator-portal__muted creator-portal__switch">
-        {register ? 'Уже есть аккаунт? ' : 'Нет аккаунта? '}
-        <button type="button" className="creator-portal__link" onClick={toRegister}>{register ? 'Войти' : 'Создать'}</button>
+        {register ? t('Уже есть аккаунт? ') : t('Нет аккаунта? ')}
+        <button type="button" className="creator-portal__link" onClick={toRegister}>{register ? t('Войти') : t('Создать')}</button>
       </p>
     </form>
   );
@@ -190,6 +211,8 @@ const NAV = [
 ];
 
 function Dashboard({ data, authFetch, reload, onLogout }) {
+  const { lang } = useLang();
+  const t = (s) => bt(lang, s);
   const [view, setView] = useState('home');
   const [navOpen, setNavOpen] = useState(false);
   const b = data.business;
@@ -207,29 +230,32 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
     <main className="admin page-light app-light ae-skip">
       <Seo title="CLICKI — кабинет бизнеса" path="/business-cabinet" description="Личный кабинет бренда CLICKI." noindex />
       <header className="admin-topbar">
-        <button className="admin-topbar__burger" onClick={() => setNavOpen(true)} aria-label="Меню" aria-expanded={navOpen}>
+        <button className="admin-topbar__burger" onClick={() => setNavOpen(true)} aria-label={t('Меню')} aria-expanded={navOpen}>
           <span /><span /><span />
         </button>
-        <span className="admin-topbar__title">{NAV.find((n) => n.key === view)?.label}</span>
-        <button className="btn btn--ghost btn--sm" onClick={onLogout}>Выйти</button>
+        <span className="admin-topbar__title">{t(NAV.find((n) => n.key === view)?.label)}</span>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <LangToggle />
+          <button className="btn btn--ghost btn--sm" onClick={onLogout}>{t('Выйти')}</button>
+        </div>
       </header>
 
       <div className="admin-layout">
         {navOpen && <div className="admin-backdrop" onClick={() => setNavOpen(false)} />}
         <aside className={`admin-sidebar ${navOpen ? 'is-open' : ''}`}>
           <div className="admin-sidebar__head">
-            <div className="admin-sidebar__brand">CLICKI · бизнес</div>
-            <button className="admin-sidebar__close" onClick={() => setNavOpen(false)} aria-label="Закрыть">✕</button>
+            <div className="admin-sidebar__brand">{t('CLICKI · бизнес')}</div>
+            <button className="admin-sidebar__close" onClick={() => setNavOpen(false)} aria-label={t('Закрыть')}>✕</button>
           </div>
           <nav className="admin-nav">
             {NAV.map((n) => (
               <button key={n.key} className={`admin-nav__btn ${view === n.key ? 'is-active' : ''}`} onClick={() => go(n.key)}>
                 <span className="admin-nav__icon" aria-hidden="true"><Icon name={n.icon} /></span>
-                {n.label}
+                {t(n.label)}
               </button>
             ))}
           </nav>
-          <button className="btn btn--ghost btn--sm admin-sidebar__logout" onClick={onLogout}>Выйти</button>
+          <button className="btn btn--ghost btn--sm admin-sidebar__logout" onClick={onLogout}>{t('Выйти')}</button>
         </aside>
 
         <div className="admin-main">
@@ -241,11 +267,11 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
           {view === 'analytics' && <Analytics accepted={accepted} authFetch={authFetch} b={b} />}
           {view === 'guide' && (
             <section className="admin-block">
-              <h2 className="admin-block__title">Как это работает</h2>
-              <Guide content={BUSINESS_GUIDE.ru} />
+              <h2 className="admin-block__title">{t('Как это работает')}</h2>
+              <Guide content={BUSINESS_GUIDE[lang] || BUSINESS_GUIDE.ru} />
             </section>
           )}
-          {view === 'profile' && <Profile b={b} onLogout={onLogout} />}
+          {view === 'profile' && <Profile b={b} authFetch={authFetch} reload={reload} onLogout={onLogout} />}
         </div>
       </div>
     </main>
@@ -266,57 +292,81 @@ const sumViews = (subs) => subs.reduce((a, s) => a + (s.views || 0), 0);
 
 /* ---------------- Home ---------------- */
 function Home({ b, briefs, submissions, incoming, accepted, go }) {
+  const { lang } = useLang();
+  const t = (s) => bt(lang, s);
   const activeBriefs = briefs.filter((x) => x.status === 'active').length;
   const recent = submissions.slice(0, 6);
   return (
     <section className="admin-block">
-      <h2 className="admin-block__title">Привет, {b.name}</h2>
-      <p className="muted-note" style={{ textAlign: 'left', marginTop: 0 }}>
-        {b.company || 'Бренд'} — запускайте брифы и принимайте готовые работы.
-      </p>
-
-      <div className="admin-stats">
-        <Stat label="Активные брифы" value={activeBriefs} hint={`всего ${briefs.length}`} />
-        <Stat label="На приёмке" value={incoming.length} />
-        <Stat label="Принято работ" value={accepted.length} />
-        <Stat label="Суммарный охват" value={sumViews(accepted).toLocaleString('ru-RU')} hint="просмотров" />
+      <div className="bp-hello">
+        <div className="bp-logo bp-logo--sm">
+          {b.logo_url ? <img src={mediaUrl(b.logo_url)} alt="" /> : <span>{(b.company || b.name || '?').charAt(0).toUpperCase()}</span>}
+        </div>
+        <div>
+          <h2 className="admin-block__title" style={{ margin: 0 }}>{t('Привет')}, {b.name}</h2>
+          <p className="muted-note" style={{ textAlign: 'left', margin: '4px 0 0' }}>
+            {b.company || t('Бренд')} — {t('запускайте брифы и принимайте готовые работы.')}
+          </p>
+        </div>
       </div>
 
-      <h3 className="admin-block__title admin-subhead">Быстрый доступ</h3>
+      <div className="cp-kpis">
+        <div className="cp-kpi">
+          <div className="cp-kpi__label">{t('Активные брифы')}</div>
+          <div className="cp-kpi__value">{activeBriefs}</div>
+          <div className="cp-kpi__sub">{t('всего')} {briefs.length}</div>
+        </div>
+        <div className="cp-kpi">
+          <div className="cp-kpi__label">{t('На приёмке')}</div>
+          <div className="cp-kpi__value">{incoming.length}</div>
+          {incoming.length > 0 && <button className="btn btn--primary btn--sm cp-kpi__btn" onClick={() => go('review')}>{t('Открыть приёмку')}</button>}
+        </div>
+        <div className="cp-kpi">
+          <div className="cp-kpi__label">{t('Принято работ')}</div>
+          <div className="cp-kpi__value">{accepted.length}</div>
+        </div>
+        <div className="cp-kpi">
+          <div className="cp-kpi__label">{t('Суммарный охват')}</div>
+          <div className="cp-kpi__value">{sumViews(accepted).toLocaleString('ru-RU')}</div>
+          <div className="cp-kpi__sub">{t('просмотров')}</div>
+        </div>
+      </div>
+
+      <h3 className="admin-block__title admin-subhead">{t('Быстрый доступ')}</h3>
       <div className="bp-quick">
         <button className="bp-quick__tile" onClick={() => go('briefs')}>
           <span className="bp-quick__icon" aria-hidden="true"><Icon name="briefs" /></span>
-          <span><b>Создать бриф</b><span className="bp-quick__sub">структурированное ТЗ</span></span>
+          <span><b>{t('Создать бриф')}</b><span className="bp-quick__sub">{t('структурированное ТЗ')}</span></span>
         </button>
         <button className="bp-quick__tile" onClick={() => go('review')}>
           <span className="bp-quick__icon" aria-hidden="true"><Icon name="check" /></span>
-          <span><b>Приёмка</b><span className="bp-quick__sub">{incoming.length} на проверке</span></span>
+          <span><b>{t('Приёмка')}</b><span className="bp-quick__sub">{incoming.length} {t('на проверке')}</span></span>
         </button>
         <button className="bp-quick__tile" onClick={() => go('analytics')}>
           <span className="bp-quick__icon" aria-hidden="true"><Icon name="chart" /></span>
-          <span><b>Аналитика</b><span className="bp-quick__sub">охваты и площадки</span></span>
+          <span><b>{t('Аналитика')}</b><span className="bp-quick__sub">{t('охваты и площадки')}</span></span>
         </button>
       </div>
 
-      <h3 className="admin-block__title admin-subhead">Последние работы</h3>
+      <h3 className="admin-block__title admin-subhead">{t('Последние работы')}</h3>
       {recent.length ? (
         <div className="admin-table-wrap">
           <table className="admin-table">
-            <thead><tr><th>Бриф</th><th>Креатор</th><th>Статус</th><th>Просмотры</th></tr></thead>
+            <thead><tr><th>{t('Бриф')}</th><th>{t('Креатор')}</th><th>{t('Статус')}</th><th>{t('Просмотры')}</th></tr></thead>
             <tbody>
               {recent.map((s) => (
                 <tr key={s.id}>
-                  <td data-label="Бриф">{s.brief_title || s.platform}</td>
-                  <td className="muted-cell" data-label="Креатор">{s.creator_name || `#${s.creator_id}`}</td>
-                  <td data-label="Статус"><span className={`pf-status pf-status--${s.status}`}>{SUB_STATUS[s.status] || s.status}</span></td>
-                  <td className="muted-cell" data-label="Просмотры">{(s.views || 0).toLocaleString('ru-RU')}</td>
+                  <td data-label={t('Бриф')}>{s.brief_title || s.platform}</td>
+                  <td className="muted-cell" data-label={t('Креатор')}>{s.creator_name || `#${s.creator_id}`}</td>
+                  <td data-label={t('Статус')}><span className={`pf-status pf-status--${s.status}`}>{t(SUB_STATUS[s.status] || s.status)}</span></td>
+                  <td className="muted-cell" data-label={t('Просмотры')}>{(s.views || 0).toLocaleString('ru-RU')}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       ) : (
-        <p className="muted-note" style={{ textAlign: 'left' }}>Работ пока нет — создайте бриф, и они появятся здесь.</p>
+        <p className="muted-note" style={{ textAlign: 'left' }}>{t('Работ пока нет — создайте бриф, и они появятся здесь.')}</p>
       )}
     </section>
   );
@@ -330,6 +380,8 @@ const BRIEF_STATUS = {
 };
 
 function BriefsView({ briefs, authFetch, reload }) {
+  const { lang } = useLang();
+  const t = (s) => bt(lang, s);
   const [editing, setEditing] = useState(null);
   const [draft, setDraft] = useState(null);
   const applyDraft = (d) => {
@@ -341,18 +393,18 @@ function BriefsView({ briefs, authFetch, reload }) {
       {!editing && <BriefConstructor authFetch={authFetch} onUseDraft={applyDraft} />}
 
       <section className="admin-block">
-        <h2 className="admin-block__title">{editing ? 'Редактировать бриф' : 'Создать бриф'}</h2>
+        <h2 className="admin-block__title">{editing ? t('Редактировать бриф') : t('Создать бриф')}</h2>
         {editing && (
           <p className="muted-note" style={{ textAlign: 'left', marginTop: 0 }}>
-            После сохранения бриф снова уйдёт к нам на модерацию.{' '}
-            <button className="creator-portal__link" onClick={() => setEditing(null)}>Отмена</button>
+            {t('После сохранения бриф снова уйдёт к нам на модерацию.')}{' '}
+            <button className="creator-portal__link" onClick={() => setEditing(null)}>{t('Отмена')}</button>
           </p>
         )}
         <BriefForm key={editing?.id || draft?.title || 'new'} authFetch={authFetch} reload={reload} brief={editing} draft={draft} onDone={() => { setEditing(null); setDraft(null); }} />
       </section>
 
       <section className="admin-block">
-        <h2 className="admin-block__title">Мои брифы ({briefs.length})</h2>
+        <h2 className="admin-block__title">{t('Мои брифы')} ({briefs.length})</h2>
         {briefs.length ? (
           <div className="bp-cards">
             {briefs.map((br) => {
@@ -361,17 +413,17 @@ function BriefsView({ briefs, authFetch, reload }) {
                 <div key={br.id} className="bp-card">
                   <div className="bp-card__head">
                     <b>{br.title}</b>
-                    <span className={`pf-status pf-status--${cls}`}>{label}</span>
+                    <span className={`pf-status pf-status--${cls}`}>{t(label)}</span>
                   </div>
                   <p className="creator-portal__muted" style={{ margin: 0 }}>
-                    {br.platform} · {br.spec?.orientation === 'horizontal' ? 'горизонтальное' : 'вертикальное'} · до {br.duration_max}с
-                    {br.spec?.style ? ` · ${STYLES.find((s) => s[0] === br.spec.style)?.[1] || br.spec.style}` : ''}
+                    {br.platform} · {br.spec?.orientation === 'horizontal' ? t('горизонтальное') : t('вертикальное')} · {t('до')} {br.duration_max}{lang === 'en' ? 's' : 'с'}
+                    {br.spec?.style ? ` · ${t(STYLES.find((s) => s[0] === br.spec.style)?.[1] || br.spec.style)}` : ''}
                   </p>
                   {br.status === 'revision' && (
                     <>
-                      {br.revision_note && <div className="mod-note" style={{ marginTop: 10 }}>На доработку: {br.revision_note}</div>}
+                      {br.revision_note && <div className="mod-note" style={{ marginTop: 10 }}>{t('На доработку: ')}{br.revision_note}</div>}
                       <button className="btn btn--primary btn--sm" style={{ marginTop: 10 }} onClick={() => setEditing(br)}>
-                        Исправить и отправить снова
+                        {t('Исправить и отправить снова')}
                       </button>
                     </>
                   )}
@@ -380,7 +432,7 @@ function BriefsView({ briefs, authFetch, reload }) {
             })}
           </div>
         ) : (
-          <p className="muted-note" style={{ textAlign: 'left' }}>Брифов пока нет — создайте первый выше.</p>
+          <p className="muted-note" style={{ textAlign: 'left' }}>{t('Брифов пока нет — создайте первый выше.')}</p>
         )}
       </section>
     </>
@@ -389,6 +441,8 @@ function BriefsView({ briefs, authFetch, reload }) {
 
 /* ---------------- AI Brief Constructor 2.0 ---------------- */
 function BriefConstructor({ authFetch, onUseDraft }) {
+  const { lang } = useLang();
+  const t = (s) => bt(lang, s);
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState('');
   const [description, setDescription] = useState('');
@@ -398,7 +452,7 @@ function BriefConstructor({ authFetch, onUseDraft }) {
   const [result, setResult] = useState(null);
 
   const generate = async () => {
-    if (!url.trim() && !description.trim()) return setError('Укажите ссылку на сайт/соцсеть или опишите продукт');
+    if (!url.trim() && !description.trim()) return setError(t('Укажите ссылку на сайт/соцсеть или опишите продукт'));
     setError('');
     setBusy(true);
     setResult(null);
@@ -409,10 +463,10 @@ function BriefConstructor({ authFetch, onUseDraft }) {
         body: JSON.stringify({ url: url.trim() || undefined, description: description.trim() || undefined, platform }),
       });
       const j = await res.json();
-      if (!j.ok) return setError(j.errors?.[0] || 'Не удалось сгенерировать брифы');
+      if (!j.ok) return setError(j.errors?.[0] || t('Не удалось сгенерировать брифы'));
       setResult(j);
     } catch {
-      setError('Не удалось сгенерировать — попробуйте позже');
+      setError(t('Не удалось сгенерировать — попробуйте позже'));
     } finally {
       setBusy(false);
     }
@@ -431,28 +485,28 @@ function BriefConstructor({ authFetch, onUseDraft }) {
   return (
     <section className="admin-block">
       <div className="admin-panel__head">
-        <h2 className="admin-block__title">AI-конструктор брифа</h2>
-        <button className="btn btn--ghost btn--sm" onClick={() => setOpen((v) => !v)}>{open ? 'Свернуть' : 'Открыть'}</button>
+        <h2 className="admin-block__title">{t('AI-конструктор брифа')}</h2>
+        <button className="btn btn--ghost btn--sm" onClick={() => setOpen((v) => !v)}>{open ? t('Свернуть') : t('Открыть')}</button>
       </div>
       {open && (
         <>
           <p className="muted-note" style={{ textAlign: 'left' }}>
-            Укажите ссылку на сайт/соцсеть продукта и/или опишите его словами — AI предложит 3 готовых варианта брифа.
+            {t('Укажите ссылку на сайт/соцсеть продукта и/или опишите его словами — AI предложит 3 готовых варианта брифа.')}
           </p>
           <div className="bp-calc" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-            <input placeholder="https://ваш-сайт.kz или ссылка на профиль" value={url} onChange={(e) => setUrl(e.target.value)} />
-            <textarea rows={3} placeholder="Опишите продукт/акцию своими словами (необязательно, если указана ссылка)" value={description} onChange={(e) => setDescription(e.target.value)} />
+            <input placeholder={t('https://ваш-сайт.kz или ссылка на профиль')} value={url} onChange={(e) => setUrl(e.target.value)} />
+            <textarea rows={3} placeholder={t('Опишите продукт/акцию своими словами (необязательно, если указана ссылка)')} value={description} onChange={(e) => setDescription(e.target.value)} />
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
               <select value={platform} onChange={(e) => setPlatform(e.target.value)}>
                 {PLATFORMS.map((p) => <option key={p}>{p}</option>)}
               </select>
-              <button className="btn btn--primary btn--sm" onClick={generate} disabled={busy}>{busy ? 'Генерирую…' : 'Сгенерировать 3 варианта'}</button>
+              <button className="btn btn--primary btn--sm" onClick={generate} disabled={busy}>{busy ? t('Генерирую…') : t('Сгенерировать 3 варианта')}</button>
             </div>
           </div>
           {error && (
             <div className="creator-portal__err" style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-start' }}>
               <span>{error}</span>
-              <button className="btn btn--ghost btn--sm" onClick={generate}>↻ Попробовать снова</button>
+              <button className="btn btn--ghost btn--sm" onClick={generate}>{t('↻ Попробовать снова')}</button>
             </div>
           )}
           {busy && (
@@ -463,19 +517,19 @@ function BriefConstructor({ authFetch, onUseDraft }) {
           {result && (
             <>
               <p className="creator-portal__muted" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                Понятность входных данных: <ScorePill score={result.score} />
+                {t('Понятность входных данных')}: <ScorePill score={result.score} />
                 {result.tips && <span>{result.tips}</span>}
               </p>
               <div className="bp-cards">
                 {result.drafts.map((d, i) => (
                   <div key={i} className="bp-card">
-                    <div className="bp-card__head"><b>{d.title || `Вариант ${i + 1}`}</b></div>
+                    <div className="bp-card__head"><b>{d.title || `${t('Вариант')} ${i + 1}`}</b></div>
                     {d.hook && <p className="creator-portal__muted"><i>«{d.hook}»</i></p>}
                     {d.key_message && <p className="creator-portal__muted">{d.key_message}</p>}
-                    {d.tone && <p className="creator-portal__muted">Тон: {d.tone}</p>}
+                    {d.tone && <p className="creator-portal__muted">{t('Тон:')} {d.tone}</p>}
                     {d.dos && <p className="creator-portal__muted">✓ {d.dos}</p>}
                     {d.donts && <p className="creator-portal__muted">✗ {d.donts}</p>}
-                    <button className="btn btn--ghost btn--sm" style={{ marginTop: 8 }} onClick={() => applyDraft(d)}>Использовать этот вариант</button>
+                    <button className="btn btn--ghost btn--sm" style={{ marginTop: 8 }} onClick={() => applyDraft(d)}>{t('Использовать этот вариант')}</button>
                   </div>
                 ))}
               </div>
@@ -489,6 +543,8 @@ function BriefConstructor({ authFetch, onUseDraft }) {
 
 /* ---------------- Acceptance ---------------- */
 function ReviewView({ incoming, accepted, authFetch, reload }) {
+  const { lang } = useLang();
+  const t = (s) => bt(lang, s);
   const [acceptingId, setAcceptingId] = useState(null);
   const [error, setError] = useState('');
   const accept = async (id) => {
@@ -499,7 +555,7 @@ function ReviewView({ incoming, accepted, authFetch, reload }) {
       const res = await authFetch(`/api/business/submissions/${id}/accept`, { method: 'POST' });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError((data.errors && data.errors[0]) || 'Не удалось принять работу');
+        setError((data.errors && data.errors[0]) || t('Не удалось принять работу'));
         return;
       }
       reload();
@@ -510,7 +566,7 @@ function ReviewView({ incoming, accepted, authFetch, reload }) {
   return (
     <>
       <section className="admin-block">
-        <h2 className="admin-block__title">На приёмку ({incoming.length})</h2>
+        <h2 className="admin-block__title">{t('На приёмку')} ({incoming.length})</h2>
         {error && <p className="creator-portal__err">{error}</p>}
         {incoming.length ? (
           <div className="bp-cards">
@@ -518,46 +574,46 @@ function ReviewView({ incoming, accepted, authFetch, reload }) {
               <div key={s.id} className="bp-card">
                 <div className="bp-card__head">
                   <b>{s.brief_title || s.platform}</b>
-                  <span className="pf-status pf-status--sent_to_business">готово к приёмке</span>
+                  <span className="pf-status pf-status--sent_to_business">{t('готово к приёмке')}</span>
                 </div>
                 <p className="creator-portal__muted" style={{ margin: '0 0 12px' }}>
-                  Креатор: {s.creator_name || `#${s.creator_id}`} · {s.platform}
+                  {t('Креатор')}: {s.creator_name || `#${s.creator_id}`} · {s.platform}
                   {s.ai_score != null ? ` · AI ${s.ai_score}/100` : ''}
                 </p>
                 <div className="creator-portal__row-actions">
-                  <a className="btn btn--ghost btn--sm" href={safeHref(s.video_url)} target="_blank" rel="noreferrer">Смотреть видео</a>
+                  <a className="btn btn--ghost btn--sm" href={safeHref(s.video_url)} target="_blank" rel="noreferrer">{t('Смотреть видео')}</a>
                   <button className="btn btn--primary btn--sm" onClick={() => accept(s.id)} disabled={acceptingId === s.id}>
-                    {acceptingId === s.id ? 'Принимаю…' : 'Принять работу'}
+                    {acceptingId === s.id ? t('Принимаю…') : t('Принять работу')}
                   </button>
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <p className="muted-note" style={{ textAlign: 'left' }}>Работ на приёмке пока нет.</p>
+          <p className="muted-note" style={{ textAlign: 'left' }}>{t('Работ на приёмке пока нет.')}</p>
         )}
       </section>
 
       <section className="admin-block">
-        <h2 className="admin-block__title">Принятые ({accepted.length})</h2>
+        <h2 className="admin-block__title">{t('Принятые')} ({accepted.length})</h2>
         {accepted.length ? (
           <div className="admin-table-wrap">
             <table className="admin-table">
-              <thead><tr><th>Бриф</th><th>Креатор</th><th>Видео</th><th>Просмотры</th></tr></thead>
+              <thead><tr><th>{t('Бриф')}</th><th>{t('Креатор')}</th><th>{t('Видео')}</th><th>{t('Просмотры')}</th></tr></thead>
               <tbody>
                 {accepted.map((s) => (
                   <tr key={s.id}>
-                    <td data-label="Бриф">{s.brief_title || s.platform}</td>
-                    <td className="muted-cell" data-label="Креатор">{s.creator_name || `#${s.creator_id}`}</td>
-                    <td data-label="Видео"><a href={safeHref(s.video_url)} target="_blank" rel="noreferrer">ссылка</a></td>
-                    <td className="muted-cell" data-label="Просмотры">{(s.views || 0).toLocaleString('ru-RU')}</td>
+                    <td data-label={t('Бриф')}>{s.brief_title || s.platform}</td>
+                    <td className="muted-cell" data-label={t('Креатор')}>{s.creator_name || `#${s.creator_id}`}</td>
+                    <td data-label={t('Видео')}><a href={safeHref(s.video_url)} target="_blank" rel="noreferrer">{t('ссылка')}</a></td>
+                    <td className="muted-cell" data-label={t('Просмотры')}>{(s.views || 0).toLocaleString('ru-RU')}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <p className="muted-note" style={{ textAlign: 'left' }}>Принятых работ пока нет.</p>
+          <p className="muted-note" style={{ textAlign: 'left' }}>{t('Принятых работ пока нет.')}</p>
         )}
       </section>
     </>
@@ -566,6 +622,8 @@ function ReviewView({ incoming, accepted, authFetch, reload }) {
 
 /* ---------------- Analytics ---------------- */
 function Analytics({ accepted, authFetch, b }) {
+  const { lang } = useLang();
+  const t = (s) => bt(lang, s);
   const total = sumViews(accepted);
   const byPlatform = {};
   for (const s of accepted) byPlatform[s.platform] = (byPlatform[s.platform] || 0) + (s.views || 0);
@@ -575,7 +633,7 @@ function Analytics({ accepted, authFetch, b }) {
   return (
     <section className="admin-block">
       <div className="admin-panel__head">
-        <h2 className="admin-block__title">Аналитика <span className="an-live">● live</span></h2>
+        <h2 className="admin-block__title">{t('Аналитика')} <span className="an-live">● live</span></h2>
       </div>
       <GrowthChart authFetch={authFetch} />
 
@@ -583,14 +641,14 @@ function Analytics({ accepted, authFetch, b }) {
 
       <PrintableReport authFetch={authFetch} business={b} />
 
-      <h3 className="admin-block__title admin-subhead">Сводка</h3>
+      <h3 className="admin-block__title admin-subhead">{t('Сводка')}</h3>
       <div className="admin-stats">
-        <Stat label="Принято работ" value={accepted.length} />
-        <Stat label="Суммарный охват" value={total.toLocaleString('ru-RU')} hint="просмотров" />
-        <Stat label="Площадок" value={rows.length} />
+        <Stat label={t('Принято работ')} value={accepted.length} />
+        <Stat label={t('Суммарный охват')} value={total.toLocaleString('ru-RU')} hint={t('просмотров')} />
+        <Stat label={t('Площадок')} value={rows.length} />
       </div>
 
-      <h3 className="admin-block__title admin-subhead">Просмотры по платформам</h3>
+      <h3 className="admin-block__title admin-subhead">{t('Просмотры по платформам')}</h3>
       {rows.length ? (
         <div className="bp-bars">
           {rows.map(([p, v]) => (
@@ -602,27 +660,27 @@ function Analytics({ accepted, authFetch, b }) {
           ))}
         </div>
       ) : (
-        <p className="muted-note" style={{ textAlign: 'left' }}>Данных пока нет — появятся после принятых работ.</p>
+        <p className="muted-note" style={{ textAlign: 'left' }}>{t('Данных пока нет — появятся после принятых работ.')}</p>
       )}
 
-      <h3 className="admin-block__title admin-subhead">Топ видео</h3>
+      <h3 className="admin-block__title admin-subhead">{t('Топ видео')}</h3>
       {top.length ? (
         <div className="admin-table-wrap">
           <table className="admin-table">
-            <thead><tr><th>Бриф</th><th>Платформа</th><th>Просмотры</th></tr></thead>
+            <thead><tr><th>{t('Бриф')}</th><th>{t('Платформа')}</th><th>{t('Просмотры')}</th></tr></thead>
             <tbody>
               {top.map((s) => (
                 <tr key={s.id}>
-                  <td data-label="Бриф"><a href={safeHref(s.video_url)} target="_blank" rel="noreferrer">{s.brief_title || 'видео'}</a></td>
-                  <td className="muted-cell" data-label="Платформа">{s.platform}</td>
-                  <td className="muted-cell" data-label="Просмотры">{(s.views || 0).toLocaleString('ru-RU')}</td>
+                  <td data-label={t('Бриф')}><a href={safeHref(s.video_url)} target="_blank" rel="noreferrer">{s.brief_title || t('видео')}</a></td>
+                  <td className="muted-cell" data-label={t('Платформа')}>{s.platform}</td>
+                  <td className="muted-cell" data-label={t('Просмотры')}>{(s.views || 0).toLocaleString('ru-RU')}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       ) : (
-        <p className="muted-note" style={{ textAlign: 'left' }}>Пока нет данных.</p>
+        <p className="muted-note" style={{ textAlign: 'left' }}>{t('Пока нет данных.')}</p>
       )}
     </section>
   );
@@ -630,6 +688,8 @@ function Analytics({ accepted, authFetch, b }) {
 
 /* ---------------- Printable campaign performance report ---------------- */
 function PrintableReport({ authFetch, business }) {
+  const { lang } = useLang();
+  const t = (s) => bt(lang, s);
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -646,10 +706,10 @@ function PrintableReport({ authFetch, business }) {
 
   return (
     <>
-      <h3 className="admin-block__title admin-subhead">Отчёт по кампании</h3>
-      <p className="muted-note" style={{ textAlign: 'left' }}>Сводка по всем принятым работам — просмотры, расходы и стоимость охвата по платформам.</p>
+      <h3 className="admin-block__title admin-subhead">{t('Отчёт по кампании')}</h3>
+      <p className="muted-note" style={{ textAlign: 'left' }}>{t('Сводка по всем принятым работам — просмотры, расходы и стоимость охвата по платформам.')}</p>
       <button className="btn btn--ghost btn--sm" onClick={() => window.print()} disabled={loading || !report}>
-        🖨 Печать / сохранить PDF
+        🖨 {t('Печать / сохранить PDF')}
       </button>
 
       {report && (
@@ -657,44 +717,44 @@ function PrintableReport({ authFetch, business }) {
           <div className="report-print__head">
             <div className="report-print__brand">CLICKI</div>
             <div>
-              <h2>Отчёт по кампании — {business?.company || business?.name}</h2>
-              <p className="creator-portal__muted">Сформирован {new Date(report.generated_at).toLocaleString('ru-RU')}</p>
+              <h2>{t('Отчёт по кампании')} — {business?.company || business?.name}</h2>
+              <p className="creator-portal__muted">{t('Сформирован')} {new Date(report.generated_at).toLocaleString(lang === 'en' ? 'en-US' : 'ru-RU')}</p>
             </div>
           </div>
 
           <div className="admin-stats">
-            <Stat label="Принято видео" value={report.totals.videos} />
-            <Stat label="Суммарный охват" value={report.totals.views.toLocaleString('ru-RU')} />
-            <Stat label="Потрачено" value={`${report.totals.spend.toLocaleString('ru-RU')} ₸`} />
+            <Stat label={t('Принято видео')} value={report.totals.videos} />
+            <Stat label={t('Суммарный охват')} value={report.totals.views.toLocaleString('ru-RU')} />
+            <Stat label={t('Потрачено')} value={`${report.totals.spend.toLocaleString('ru-RU')} ₸`} />
           </div>
 
           <table className="admin-table" style={{ marginTop: 16 }}>
-            <thead><tr><th>Платформа</th><th>Видео</th><th>Просмотры</th><th>Расход</th><th>Цена за 1000 просм.</th></tr></thead>
+            <thead><tr><th>{t('Платформа')}</th><th>{t('Видео')}</th><th>{t('Просмотры')}</th><th>{t('Расход')}</th><th>{t('Цена за 1000 просм.')}</th></tr></thead>
             <tbody>
               {report.byPlatform.map((p) => (
                 <tr key={p.platform}>
-                  <td data-label="Платформа">{p.platform}</td>
-                  <td data-label="Видео">{p.videos}</td>
-                  <td data-label="Просмотры">{p.views.toLocaleString('ru-RU')}</td>
-                  <td data-label="Расход">{p.spend.toLocaleString('ru-RU')} ₸</td>
-                  <td data-label="Цена за 1000 просм.">{p.cost_per_1k_views.toLocaleString('ru-RU')} ₸</td>
+                  <td data-label={t('Платформа')}>{p.platform}</td>
+                  <td data-label={t('Видео')}>{p.videos}</td>
+                  <td data-label={t('Просмотры')}>{p.views.toLocaleString('ru-RU')}</td>
+                  <td data-label={t('Расход')}>{p.spend.toLocaleString('ru-RU')} ₸</td>
+                  <td data-label={t('Цена за 1000 просм.')}>{p.cost_per_1k_views.toLocaleString('ru-RU')} ₸</td>
                 </tr>
               ))}
-              {!report.byPlatform.length && <tr><td colSpan={5} className="admin-table__empty">Пока нет принятых работ</td></tr>}
+              {!report.byPlatform.length && <tr><td colSpan={5} className="admin-table__empty">{t('Пока нет принятых работ')}</td></tr>}
             </tbody>
           </table>
 
           {report.topVideos.length > 0 && (
             <>
-              <h3 className="admin-block__title admin-subhead">Топ видео</h3>
+              <h3 className="admin-block__title admin-subhead">{t('Топ видео')}</h3>
               <table className="admin-table">
-                <thead><tr><th>Бриф</th><th>Платформа</th><th>Просмотры</th></tr></thead>
+                <thead><tr><th>{t('Бриф')}</th><th>{t('Платформа')}</th><th>{t('Просмотры')}</th></tr></thead>
                 <tbody>
                   {report.topVideos.map((v) => (
                     <tr key={v.id}>
-                      <td data-label="Бриф">{v.brief_title || 'видео'}</td>
-                      <td data-label="Платформа">{v.platform}</td>
-                      <td data-label="Просмотры">{v.views.toLocaleString('ru-RU')}</td>
+                      <td data-label={t('Бриф')}>{v.brief_title || t('видео')}</td>
+                      <td data-label={t('Платформа')}>{v.platform}</td>
+                      <td data-label={t('Просмотры')}>{v.views.toLocaleString('ru-RU')}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -709,6 +769,8 @@ function PrintableReport({ authFetch, business }) {
 
 /* ---------------- Predictive View Calculator ---------------- */
 function ViewCalculator({ authFetch }) {
+  const { lang } = useLang();
+  const t = (s) => bt(lang, s);
   const [budget, setBudget] = useState('');
   const [platform, setPlatform] = useState('');
   const [estimate, setEstimate] = useState(null);
@@ -717,7 +779,7 @@ function ViewCalculator({ authFetch }) {
 
   const calc = async () => {
     const b = Number(budget);
-    if (!b || b <= 0) return setError('Введите бюджет');
+    if (!b || b <= 0) return setError(t('Введите бюджет'));
     setError('');
     setBusy(true);
     try {
@@ -725,10 +787,10 @@ function ViewCalculator({ authFetch }) {
       if (platform) params.set('platform', platform);
       const res = await authFetch(`/api/business/view-calculator?${params}`);
       const j = await res.json();
-      if (!j.ok) return setError(j.errors?.[0] || 'Не удалось посчитать');
+      if (!j.ok) return setError(j.errors?.[0] || t('Не удалось посчитать'));
       setEstimate(j.estimate || []);
     } catch {
-      setError('Не удалось посчитать — попробуйте позже');
+      setError(t('Не удалось посчитать — попробуйте позже'));
     } finally {
       setBusy(false);
     }
@@ -736,42 +798,42 @@ function ViewCalculator({ authFetch }) {
 
   return (
     <>
-      <h3 className="admin-block__title admin-subhead">Калькулятор охвата</h3>
-      <p className="muted-note" style={{ textAlign: 'left' }}>Введите бюджет — получите оценку охвата и числа видео на основе реальной статистики CLICKI.</p>
+      <h3 className="admin-block__title admin-subhead">{t('Калькулятор охвата')}</h3>
+      <p className="muted-note" style={{ textAlign: 'left' }}>{t('Введите бюджет — получите оценку охвата и числа видео на основе реальной статистики CLICKI.')}</p>
       <div className="bp-calc">
         <input
           type="number"
-          placeholder="Бюджет, ₸"
+          placeholder={t('Бюджет, ₸')}
           value={budget}
           onChange={(e) => setBudget(e.target.value)}
         />
         <select value={platform} onChange={(e) => setPlatform(e.target.value)}>
-          <option value="">Все платформы</option>
+          <option value="">{t('Все платформы')}</option>
           {PLATFORMS.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
-        <button className="btn btn--primary btn--sm" onClick={calc} disabled={busy}>{busy ? 'Считаю…' : 'Рассчитать'}</button>
+        <button className="btn btn--primary btn--sm" onClick={calc} disabled={busy}>{busy ? t('Считаю…') : t('Рассчитать')}</button>
       </div>
       {error && <p className="creator-portal__err">{error}</p>}
       {estimate && (
         estimate.length ? (
           <div className="admin-table-wrap">
             <table className="admin-table">
-              <thead><tr><th>Платформа</th><th>Охват</th><th>Видео</th><th>Ср. охват/видео</th><th>Достоверность</th></tr></thead>
+              <thead><tr><th>{t('Платформа')}</th><th>{t('Охват')}</th><th>{t('Видео')}</th><th>{t('Ср. охват/видео')}</th><th>{t('Достоверность')}</th></tr></thead>
               <tbody>
                 {estimate.map((e) => (
                   <tr key={e.platform}>
-                    <td data-label="Платформа">{e.platform}</td>
-                    <td data-label="Охват">{e.total_views.toLocaleString('ru-RU')}</td>
-                    <td data-label="Видео">~{e.est_videos}</td>
-                    <td className="muted-cell" data-label="Ср. охват/видео">{e.avg_views_per_video.toLocaleString('ru-RU')}</td>
-                    <td data-label="Достоверность"><BasisPill basis={e.basis} sampleSize={e.sample_size} /></td>
+                    <td data-label={t('Платформа')}>{e.platform}</td>
+                    <td data-label={t('Охват')}>{e.total_views.toLocaleString('ru-RU')}</td>
+                    <td data-label={t('Видео')}>~{e.est_videos}</td>
+                    <td className="muted-cell" data-label={t('Ср. охват/видео')}>{e.avg_views_per_video.toLocaleString('ru-RU')}</td>
+                    <td data-label={t('Достоверность')}><BasisPill basis={e.basis} sampleSize={e.sample_size} /></td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <p className="muted-note" style={{ textAlign: 'left' }}>Нет тарифа для расчёта.</p>
+          <p className="muted-note" style={{ textAlign: 'left' }}>{t('Нет тарифа для расчёта.')}</p>
         )
       )}
     </>
@@ -783,9 +845,11 @@ function ViewCalculator({ authFetch }) {
  * with a grain of salt", and "no data at all, this is a flat guess" — so a
  * business doesn't mistake a 1-video average for a reliable number. */
 function BasisPill({ basis, sampleSize }) {
-  if (basis === 'own') return <span className="pf-status pf-status--accepted">по {sampleSize} видео</span>;
-  if (basis === 'limited') return <span className="pf-status pf-status--rework">мало данных ({sampleSize})</span>;
-  return <span className="pf-status pf-status--pending">ориентир, данных нет</span>;
+  const { lang } = useLang();
+  const t = (s) => bt(lang, s);
+  if (basis === 'own') return <span className="pf-status pf-status--accepted">{t('по')} {sampleSize} {t('видео')}</span>;
+  if (basis === 'limited') return <span className="pf-status pf-status--rework">{t('мало данных')} ({sampleSize})</span>;
+  return <span className="pf-status pf-status--pending">{t('ориентир, данных нет')}</span>;
 }
 
 /** 0-100 quality/clarity score → color pill, so a number carries its own
@@ -802,6 +866,8 @@ const fmtDay = (d) => `${d.slice(8, 10)}.${d.slice(5, 7)}`;
 /** Cumulative campaign views over time — real, not self-reported: it's built
  * from the same view-count entries the operator records for payouts. */
 function GrowthChart({ authFetch }) {
+  const { lang } = useLang();
+  const t = (s) => bt(lang, s);
   const [series, setSeries] = useState(null);
   const [hover, setHover] = useState(null); // index into series, or null
   const [showTable, setShowTable] = useState(false);
@@ -821,12 +887,12 @@ function GrowthChart({ authFetch }) {
     return () => clearInterval(id);
   }, [load]);
 
-  if (series === null) return <p className="muted-note" style={{ textAlign: 'left' }}>Загрузка…</p>;
+  if (series === null) return <p className="muted-note" style={{ textAlign: 'left' }}>{t('Загрузка…')}</p>;
   if (series.length < 2) {
     return (
       <div className="growth-chart">
         <p className="muted-note" style={{ textAlign: 'left' }}>
-          Пока недостаточно данных для графика роста — он появится, как только по вашим работам зафиксируют просмотры хотя бы дважды.
+          {t('Пока недостаточно данных для графика роста — он появится, как только по вашим работам зафиксируют просмотры хотя бы дважды.')}
         </p>
       </div>
     );
@@ -849,7 +915,7 @@ function GrowthChart({ authFetch }) {
     <div className="growth-chart">
       <div className="growth-chart__hero">
         <div className="growth-chart__hero-value">{fmtN(last.views)}</div>
-        <div className="growth-chart__hero-label">просмотров всего · по данным на {fmtDay(last.day)}</div>
+        <div className="growth-chart__hero-label">{t('просмотров всего')} · {t('по данным на')} {fmtDay(last.day)}</div>
       </div>
 
       <svg
@@ -893,19 +959,19 @@ function GrowthChart({ authFetch }) {
       </svg>
 
       <div className="growth-chart__tooltip">
-        <b>{fmtN(active.views)}</b> просмотров на {fmtDay(active.day)}
+        <b>{fmtN(active.views)}</b> {t('просмотров на')} {fmtDay(active.day)}
       </div>
 
       <button className="creator-portal__link" onClick={() => setShowTable((s) => !s)} style={{ fontSize: '0.85rem' }}>
-        {showTable ? 'Скрыть таблицу' : 'Показать таблицей'}
+        {showTable ? t('Скрыть таблицу') : t('Показать таблицей')}
       </button>
       {showTable && (
         <div className="admin-table-wrap" style={{ marginTop: 8 }}>
           <table className="admin-table">
-            <thead><tr><th>Дата</th><th>Просмотров всего</th></tr></thead>
+            <thead><tr><th>{t('Дата')}</th><th>{t('Просмотров всего')}</th></tr></thead>
             <tbody>
               {series.map((p) => (
-                <tr key={p.day}><td data-label="Дата">{p.day}</td><td className="muted-cell" data-label="Просмотров всего">{fmtN(p.views)}</td></tr>
+                <tr key={p.day}><td data-label={t('Дата')}>{p.day}</td><td className="muted-cell" data-label={t('Просмотров всего')}>{fmtN(p.views)}</td></tr>
               ))}
             </tbody>
           </table>
@@ -916,15 +982,94 @@ function GrowthChart({ authFetch }) {
 }
 
 /* ---------------- Profile ---------------- */
-function Profile({ b, onLogout }) {
+function Profile({ b, authFetch, reload, onLogout }) {
+  const { lang } = useLang();
+  const t = (s) => bt(lang, s);
+  const fileRef = useRef(null);
+  const [logo, setLogo] = useState(b.logo_url || '');
+  const [name, setName] = useState(b.name || '');
+  const [company, setCompany] = useState(b.company || '');
+  const [uploading, setUploading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
+
+  const uploadLogo = async (file) => {
+    if (!file) return;
+    setErr('');
+    if (!file.type.startsWith('image/')) return setErr(t('Нужно изображение (JPG или PNG).'));
+    if (file.size > 4 * 1024 * 1024) return setErr(t('Слишком большой файл — до 4 МБ.'));
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await authFetch('/api/business/logo', { method: 'POST', body: fd });
+      const d = await res.json();
+      if (!res.ok || d.ok === false) throw new Error(d.errors?.[0] || t('Не удалось загрузить'));
+      setLogo(d.business.logo_url);
+      reload();
+      setMsg(`${t('Логотип обновлён')} ✓`);
+      setTimeout(() => setMsg(''), 2500);
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const save = async () => {
+    setBusy(true);
+    setMsg('');
+    setErr('');
+    try {
+      const res = await authFetch('/api/business/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, company }),
+      });
+      const d = await res.json();
+      if (!res.ok || d.ok === false) throw new Error(d.errors?.[0] || t('Ошибка'));
+      reload();
+      setMsg(`${t('Сохранено')} ✓`);
+      setTimeout(() => setMsg(''), 2500);
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <section className="admin-block">
-      <h2 className="admin-block__title">Профиль</h2>
-      <div className="bp-card" style={{ maxWidth: 460 }}>
-        <div className="bp-profile__row"><span className="bp-profile__k">Имя</span><span>{b.name}</span></div>
-        <div className="bp-profile__row"><span className="bp-profile__k">Компания</span><span>{b.company || '—'}</span></div>
-        <div className="bp-profile__row"><span className="bp-profile__k">Email</span><span>{b.email}</span></div>
-        <button className="btn btn--ghost btn--sm" style={{ marginTop: 14 }} onClick={onLogout}>Выйти</button>
+      <h2 className="admin-block__title">{t('Профиль компании')}</h2>
+
+      <div className="bp-card" style={{ maxWidth: 520 }}>
+        <div className="bp-account__head">
+          <div className="bp-logo">
+            {logo ? <img src={mediaUrl(logo)} alt="" /> : <span>{(company || name || '?').charAt(0).toUpperCase()}</span>}
+          </div>
+          <div className="bp-account__id">
+            <b>{company || name}</b>
+            <span className="creator-portal__muted" style={{ margin: 0 }}>{t('Логотип видят креаторы в заказах и профиле бренда.')}</span>
+            <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; uploadLogo(f); }} />
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
+              {uploading ? t('Загрузка…') : logo ? t('Сменить логотип') : t('Загрузить логотип')}
+            </button>
+          </div>
+        </div>
+
+        <label className="cp-field-label">{t('Имя')}
+          <input value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <label className="cp-field-label">{t('Компания')}
+          <input value={company} onChange={(e) => setCompany(e.target.value)} />
+        </label>
+        <div className="bp-profile__row"><span className="bp-profile__k">{t('Email')}</span><span>{b.email}</span></div>
+
+        {err && <p className="creator-portal__err">{err}</p>}
+        <button className="btn btn--primary btn--block" onClick={save} disabled={busy}>{busy ? t('Сохраняю…') : t('Сохранить')}</button>
+        {msg && <p className="creator-portal__muted" style={{ textAlign: 'center', color: '#15803d' }}>{msg}</p>}
+        <button className="btn btn--ghost btn--sm" style={{ marginTop: 6 }} onClick={onLogout}>{t('Выйти')}</button>
       </div>
     </section>
   );
@@ -949,6 +1094,8 @@ const EMPTY_BRIEF = {
 };
 
 function BriefForm({ authFetch, reload, brief = null, draft = null, onDone }) {
+  const { lang } = useLang();
+  const t = (s) => bt(lang, s);
   const src = brief || draft;
   const initial = src
     ? {
@@ -978,7 +1125,7 @@ function BriefForm({ authFetch, reload, brief = null, draft = null, onDone }) {
     e.preventDefault();
     setError('');
     setMsg('');
-    if (!f.title.trim()) return setError('Укажите название брифа');
+    if (!f.title.trim()) return setError(t('Укажите название брифа'));
     setBusy(true);
     try {
       const payload = {
@@ -1007,9 +1154,9 @@ function BriefForm({ authFetch, reload, brief = null, draft = null, onDone }) {
         body: JSON.stringify(payload),
       });
       const d = await res.json();
-      if (!res.ok) throw new Error((d.errors && d.errors[0]) || 'Ошибка');
+      if (!res.ok) throw new Error((d.errors && d.errors[0]) || t('Ошибка'));
       setF(EMPTY_BRIEF);
-      setMsg(brief ? 'Отправлено на модерацию ✓' : 'Бриф создан ✓');
+      setMsg(brief ? `${t('Отправлено на модерацию')} ✓` : `${t('Бриф создан')} ✓`);
       reload();
       onDone?.();
       setTimeout(() => setMsg(''), 2500);
@@ -1023,84 +1170,84 @@ function BriefForm({ authFetch, reload, brief = null, draft = null, onDone }) {
   return (
     <form className="creator-portal__card bp-form" onSubmit={submit}>
       <div className="creator-portal__q">
-        <div className="creator-portal__q-title">Название брифа *</div>
-        <input placeholder="Например: Запуск нового аромата" value={f.title} onChange={(e) => set('title', e.target.value)} />
+        <div className="creator-portal__q-title">{t('Название брифа')} *</div>
+        <input placeholder={t('Например: Запуск нового аромата')} value={f.title} onChange={(e) => set('title', e.target.value)} />
       </div>
 
       <div className="creator-portal__q">
-        <div className="creator-portal__q-title">Платформа</div>
+        <div className="creator-portal__q-title">{t('Платформа')}</div>
         <select value={f.platform} onChange={(e) => set('platform', e.target.value)}>
           {PLATFORMS.map((p) => <option key={p}>{p}</option>)}
         </select>
       </div>
 
       <div className="bp-block">
-        <div className="bp-block__title">Видео</div>
+        <div className="bp-block__title">{t('Видео')}</div>
         <div className="creator-portal__q">
-          <div className="creator-portal__q-title">Ориентация</div>
-          <label className="creator-portal__opt"><input type="radio" name="orientation" checked={f.orientation === 'vertical'} onChange={() => set('orientation', 'vertical')} /> Вертикальное</label>
-          <label className="creator-portal__opt"><input type="radio" name="orientation" checked={f.orientation === 'horizontal'} onChange={() => set('orientation', 'horizontal')} /> Горизонтальное</label>
+          <div className="creator-portal__q-title">{t('Ориентация')}</div>
+          <label className="creator-portal__opt"><input type="radio" name="orientation" checked={f.orientation === 'vertical'} onChange={() => set('orientation', 'vertical')} /> {t('Вертикальное')}</label>
+          <label className="creator-portal__opt"><input type="radio" name="orientation" checked={f.orientation === 'horizontal'} onChange={() => set('orientation', 'horizontal')} /> {t('Горизонтальное')}</label>
         </div>
         <div className="creator-portal__q">
-          <div className="creator-portal__q-title">Максимальная длительность, сек</div>
+          <div className="creator-portal__q-title">{t('Максимальная длительность, сек')}</div>
           <input type="number" min="5" max="180" value={f.max_duration} onChange={(e) => set('max_duration', e.target.value)} />
         </div>
         <div className="creator-portal__q">
           <div className="creator-portal__q-title">CTA</div>
-          <label className="pf-check"><input type="checkbox" checked={f.cta_required} onChange={(e) => set('cta_required', e.target.checked)} /> Обязательно</label>
+          <label className="pf-check"><input type="checkbox" checked={f.cta_required} onChange={(e) => set('cta_required', e.target.checked)} /> {t('Обязательно')}</label>
         </div>
         <div className="creator-portal__q">
-          <div className="creator-portal__q-title">Ссылка для CTA (по желанию)</div>
-          <input placeholder="https://ваш-сайт.kz/акция" value={f.req_cta_link} onChange={(e) => set('req_cta_link', e.target.value)} />
+          <div className="creator-portal__q-title">{t('Ссылка для CTA (по желанию)')}</div>
+          <input placeholder={t('https://ваш-сайт.kz/акция')} value={f.req_cta_link} onChange={(e) => set('req_cta_link', e.target.value)} />
         </div>
         <div className="creator-portal__q">
-          <div className="creator-portal__q-title">Логотип</div>
-          <label className="pf-check"><input type="checkbox" checked={f.logo_first5} onChange={(e) => set('logo_first5', e.target.checked)} /> Первые 5 секунд</label>
+          <div className="creator-portal__q-title">{t('Логотип')}</div>
+          <label className="pf-check"><input type="checkbox" checked={f.logo_first5} onChange={(e) => set('logo_first5', e.target.checked)} /> {t('Первые 5 секунд')}</label>
         </div>
         <div className="creator-portal__q">
-          <div className="creator-portal__q-title">Название бренда</div>
-          <label className="pf-check"><input type="checkbox" checked={f.brand_spoken} onChange={(e) => set('brand_spoken', e.target.checked)} /> Обязательно произнести</label>
+          <div className="creator-portal__q-title">{t('Название бренда')}</div>
+          <label className="pf-check"><input type="checkbox" checked={f.brand_spoken} onChange={(e) => set('brand_spoken', e.target.checked)} /> {t('Обязательно произнести')}</label>
         </div>
         <div className="creator-portal__q">
-          <div className="creator-portal__q-title">Продукт в кадре</div>
-          <label className="pf-check"><input type="checkbox" checked={f.product_in_frame} onChange={(e) => set('product_in_frame', e.target.checked)} /> Да</label>
+          <div className="creator-portal__q-title">{t('Продукт в кадре')}</div>
+          <label className="pf-check"><input type="checkbox" checked={f.product_in_frame} onChange={(e) => set('product_in_frame', e.target.checked)} /> {t('Да')}</label>
         </div>
       </div>
 
       <div className="bp-block">
-        <div className="bp-block__title">Стиль</div>
+        <div className="bp-block__title">{t('Стиль')}</div>
         <div className="creator-portal__q">
           {STYLES.map(([val, label]) => (
             <label key={val} className="creator-portal__opt">
-              <input type="radio" name="style" checked={f.style === val} onChange={() => set('style', val)} /> {label}
+              <input type="radio" name="style" checked={f.style === val} onChange={() => set('style', val)} /> {t(label)}
             </label>
           ))}
         </div>
       </div>
 
       <div className="creator-portal__q">
-        <div className="creator-portal__q-title">Ключевое сообщение</div>
-        <input placeholder="Что должен донести ролик" value={f.key_message} onChange={(e) => set('key_message', e.target.value)} />
+        <div className="creator-portal__q-title">{t('Ключевое сообщение')}</div>
+        <input placeholder={t('Что должен донести ролик')} value={f.key_message} onChange={(e) => set('key_message', e.target.value)} />
       </div>
 
       <div className="creator-portal__q">
-        <div className="creator-portal__q-title">Хэштег (по желанию)</div>
-        <input placeholder="#бренд" value={f.req_hashtag} onChange={(e) => set('req_hashtag', e.target.value)} />
+        <div className="creator-portal__q-title">{t('Хэштег (по желанию)')}</div>
+        <input placeholder={t('#бренд')} value={f.req_hashtag} onChange={(e) => set('req_hashtag', e.target.value)} />
       </div>
 
       <div className="creator-portal__q">
-        <div className="creator-portal__q-title">Что делать (по желанию)</div>
-        <textarea rows={2} placeholder="Например: показать продукт крупным планом" value={f.dos} onChange={(e) => set('dos', e.target.value)} />
+        <div className="creator-portal__q-title">{t('Что делать (по желанию)')}</div>
+        <textarea rows={2} placeholder={t('Например: показать продукт крупным планом')} value={f.dos} onChange={(e) => set('dos', e.target.value)} />
       </div>
 
       <div className="creator-portal__q">
-        <div className="creator-portal__q-title">Чего не делать (по желанию)</div>
-        <textarea rows={2} placeholder="Например: не упоминать конкурентов" value={f.donts} onChange={(e) => set('donts', e.target.value)} />
+        <div className="creator-portal__q-title">{t('Чего не делать (по желанию)')}</div>
+        <textarea rows={2} placeholder={t('Например: не упоминать конкурентов')} value={f.donts} onChange={(e) => set('donts', e.target.value)} />
       </div>
 
       {error && <p className="creator-portal__err">{error}</p>}
       <button className="btn btn--primary btn--block" disabled={busy}>
-        {busy ? 'Отправляю…' : brief ? 'Отправить на модерацию' : 'Создать бриф'}
+        {busy ? t('Отправляю…') : brief ? t('Отправить на модерацию') : t('Создать бриф')}
       </button>
       {msg && <p className="creator-portal__muted" style={{ textAlign: 'center', color: '#15803d' }}>{msg}</p>}
     </form>

@@ -322,6 +322,19 @@
 .bp-profile__row:last-of-type { border-bottom: 0; }
 .bp-profile__k { color: var(--fog); }
 
+/* Business logo + account editor */
+.bp-account__head { display: flex; align-items: center; gap: 16px; margin-bottom: 6px; }
+.bp-account__id { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; min-width: 0; }
+.bp-account__id b { color: var(--ink); font-size: 1.05rem; }
+.bp-logo {
+  flex: 0 0 auto; width: 72px; height: 72px; border-radius: 18px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #7c3aed, #6d28d9); color: #fff; font-weight: 700; font-size: 1.8rem; overflow: hidden;
+}
+.bp-logo img { width: 100%; height: 100%; object-fit: cover; }
+.bp-logo--sm { width: 52px; height: 52px; border-radius: 14px; font-size: 1.3rem; }
+.bp-hello { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+
 /* KPI mini-cards (dashboard summary) */
 .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 8px; }
 @media (min-width: 980px) { .kpi-grid { grid-template-columns: repeat(4, 1fr); } }
@@ -538,3 +551,440 @@
 }
 .ops-settings .creator-portal__q { margin: 0; }
 .ops-settings input[type='number'] { width: 90px; }
+
+/* ============================================================
+   Creator cabinet — "Заказы" order cards: a richer brief card
+   with brand avatar, price, meta tiles and a "take" action, plus
+   the sort control and the "get more orders" tip at the bottom.
+   ============================================================ */
+.cp-orders-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.cp-orders-head .creator-portal__h2 { margin-bottom: 0; }
+.cp-sort {
+  flex: 0 0 auto;
+  max-width: 190px;
+  font-size: 0.86rem;
+  padding: 8px 32px 8px 12px;
+}
+
+.cp-brief {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow-soft);
+}
+.cp-brief__top { display: flex; align-items: flex-start; gap: 14px; }
+.cp-brief__avatar {
+  flex: 0 0 auto;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.2rem;
+  letter-spacing: -0.02em;
+}
+.cp-brief__heading { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.cp-brief__title { color: var(--ink); font-weight: 600; font-size: 1.05rem; line-height: 1.25; }
+.cp-brief__badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.cp-brief__price { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
+.cp-brief__price-val { color: #7c3aed; font-weight: 700; font-size: 1.15rem; white-space: nowrap; }
+.cp-brief__price-unit { color: var(--fog); font-size: 0.78rem; margin-top: 2px; }
+
+.cp-brief__est { color: var(--stone); font-size: 0.9rem; margin: 12px 0 0; }
+.cp-brief__est b { color: var(--ink); }
+.cp-brief__msg { color: var(--ink); margin: 8px 0 0; }
+
+.cp-brief__tiles {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin: 14px 0 2px;
+}
+@media (min-width: 560px) { .cp-brief__tiles { grid-template-columns: repeat(4, 1fr); } }
+.cp-brief__tile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #faf9ff;
+}
+.cp-brief__tile-icon { flex: 0 0 auto; display: inline-flex; color: #8b7fb8; }
+.cp-brief__tile-text { display: flex; flex-direction: column; min-width: 0; }
+.cp-brief__tile-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fog);
+}
+.cp-brief__tile-value {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cp-brief__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.cp-brief__take { flex: 0 0 auto; }
+
+.cp-tip {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 6px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(124, 58, 237, 0.06), #fff);
+}
+.cp-tip__icon {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: rgba(124, 58, 237, 0.1);
+  font-size: 1.2rem;
+}
+.cp-tip__body { flex: 1 1 auto; display: flex; flex-direction: column; gap: 3px; }
+.cp-tip__body b { color: var(--ink); }
+.cp-tip .btn { flex: 0 0 auto; }
+
+@media (max-width: 480px) {
+  .cp-brief__actions { flex-direction: column; align-items: stretch; }
+  .cp-tip { flex-wrap: wrap; }
+  .cp-tip .btn { width: 100%; }
+}
+
+/* ============================================================
+   Admin panel — align with the cabinet look (violet brand,
+   soft-shadow sidebar + cards, centered login card).
+   ============================================================ */
+.app-light .admin-sidebar {
+  box-shadow: var(--shadow-soft);
+  border-radius: 16px;
+}
+.app-light .admin-sidebar__brand {
+  color: #7c3aed;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-size: 1.15rem;
+}
+.app-light .admin-nav__icon { color: rgba(124, 58, 237, 0.6); }
+.app-light .admin-nav__btn.is-active .admin-nav__icon { color: #6d28d9; }
+.app-light .admin-login {
+  max-width: 380px;
+  margin: 9vh auto;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 28px 26px;
+  box-shadow: var(--shadow-card);
+}
+.app-light .admin-login__title {
+  color: var(--ink);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-align: center;
+}
+.app-light .admin-login__back { display: block; margin-top: 14px; }
+
+/* ============================================================
+   Creator cabinet — desktop sidebar vs mobile tab strip.
+   The tab strip (.cp-tabs) is the mobile nav; on wide screens a
+   sticky left sidebar (.cp-side) takes over and the strip hides.
+   ============================================================ */
+.creator-portal__inner--wide { max-width: 720px; }
+.cp-shell { display: block; }
+.cp-side { display: none; }
+
+@media (min-width: 900px) {
+  .creator-portal__inner--wide { max-width: 1080px; }
+  .cp-shell {
+    display: grid;
+    grid-template-columns: 236px minmax(0, 1fr);
+    gap: 26px;
+    align-items: start;
+  }
+  .cp-shell__main { min-width: 0; }
+  .cp-tabs { display: none; }
+  .cp-side {
+    position: sticky;
+    top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-height: calc(100vh - 40px);
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 18px 14px;
+    box-shadow: var(--shadow-soft);
+  }
+}
+.cp-side__brand {
+  font-family: var(--font-display, var(--font));
+  font-weight: 800;
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+  color: #7c3aed;
+  text-decoration: none;
+  padding: 4px 10px 14px;
+}
+.cp-side__nav { display: flex; flex-direction: column; gap: 3px; }
+.cp-side__link {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: 10px; border: none; background: none;
+  color: var(--stone); font: inherit; font-weight: 500; font-size: 0.95rem;
+  cursor: pointer; text-align: left; width: 100%;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+.cp-side__link:hover { background: rgba(124, 58, 237, 0.06); color: var(--ink); }
+.cp-side__link.is-active { background: rgba(124, 58, 237, 0.1); color: #6d28d9; font-weight: 600; }
+.cp-side__icon { display: inline-flex; color: rgba(124, 58, 237, 0.6); transition: color 0.14s ease; }
+.cp-side__link.is-active .cp-side__icon { color: #6d28d9; }
+.cp-side__user {
+  margin-top: auto; display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 10px; border-radius: 12px; border: 1px solid var(--line); background: #fff;
+  cursor: pointer; font: inherit; text-align: left; transition: border-color 0.14s ease;
+}
+.cp-side__user:hover { border-color: rgba(124, 58, 237, 0.35); }
+.cp-side__user-text { display: flex; flex-direction: column; min-width: 0; }
+.cp-side__user-text b { color: var(--ink); font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cp-side__user-text .creator-portal__muted { margin: 0; font-size: 0.78rem; }
+
+/* ============================================================
+   Creator cabinet — avatar, header greeting, account editor.
+   ============================================================ */
+.cp-avatar {
+  flex: 0 0 auto; width: 44px; height: 44px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #7c3aed, #6d28d9); color: #fff; font-weight: 700;
+  overflow: hidden;
+}
+.cp-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.cp-avatar--lg { width: 84px; height: 84px; font-size: 2rem; border-radius: 22px; }
+
+.cp-greeting {
+  display: flex; align-items: center; gap: 14px; text-align: left; min-width: 0;
+  background: none; border: none; padding: 0; cursor: pointer; font: inherit;
+}
+.cp-greeting__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cp-greeting__title { margin: 0; }
+.cp-greeting:hover .cp-avatar { box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.18); }
+
+.cp-account__head { display: flex; align-items: center; gap: 16px; margin-bottom: 4px; }
+.cp-account__id { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
+.cp-account__id b { color: var(--ink); font-size: 1.05rem; }
+.cp-account__id .creator-portal__muted { margin: 0; font-size: 0.85rem; }
+.cp-field-label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; color: var(--ink); font-size: 0.92rem; }
+.cp-field-label input, .cp-field-label textarea { font-weight: 400; }
+.cp-topics { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.cp-topic {
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 13px; border-radius: 999px;
+  border: 1px solid var(--line); background: #fff; color: var(--stone);
+  font: inherit; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.14s ease;
+}
+.cp-topic:hover { border-color: rgba(124, 58, 237, 0.4); }
+.cp-topic.is-on { background: rgba(124, 58, 237, 0.1); border-color: rgba(124, 58, 237, 0.45); color: #6d28d9; font-weight: 600; }
+
+/* ============================================================
+   Creator cabinet — Referrals, Rating, "How it works" polish.
+   ============================================================ */
+.cp-section-sub { margin: -6px 0 16px; font-size: 0.92rem; max-width: 620px; }
+
+/* Referrals — funnel stats + link cards */
+.app-light .ref-stat { background: #fff; box-shadow: var(--shadow-soft); }
+.app-light .ref-stat__value { color: #6d28d9; }
+.ref-card__head { display: flex; align-items: center; gap: 12px; }
+.ref-card__icon {
+  flex: 0 0 auto; width: 42px; height: 42px; border-radius: 12px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(124, 58, 237, 0.1); color: #6d28d9;
+}
+.ref-card__titles { display: flex; flex-direction: column; }
+.ref-card__titles b { color: var(--ink); }
+.ref-card__titles .creator-portal__muted { font-size: 0.84rem; margin: 0; }
+
+/* Rating — leaderboard */
+.cp-lb { display: flex; flex-direction: column; gap: 2px; padding: 8px; }
+.cp-lb-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; }
+.cp-lb-row.is-me { background: linear-gradient(90deg, rgba(124, 58, 237, 0.12), rgba(124, 58, 237, 0.02)); }
+.cp-lb-rank {
+  flex: 0 0 auto; width: 26px; height: 26px; border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 0.85rem; color: var(--stone); background: rgba(124, 58, 237, 0.07);
+}
+.cp-lb-rank--gold { background: linear-gradient(135deg, #fde68a, #f59e0b); color: #7c4a03; }
+.cp-lb-rank--silver { background: linear-gradient(135deg, #eef0f3, #9ca3af); color: #374151; }
+.cp-lb-rank--bronze { background: linear-gradient(135deg, #fed7aa, #c2703a); color: #5b2c0a; }
+.cp-lb-avatar {
+  flex: 0 0 auto; width: 38px; height: 38px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #7c3aed, #6d28d9); color: #fff; font-weight: 700; font-size: 0.95rem;
+}
+.cp-lb-info { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.cp-lb-name { color: var(--ink); font-weight: 600; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.cp-lb-name > :first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cp-lb-you {
+  flex: 0 0 auto; font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  color: #6d28d9; background: rgba(124, 58, 237, 0.12); padding: 2px 7px; border-radius: 999px;
+}
+.cp-lb-meta { display: flex; align-items: center; gap: 8px; }
+.cp-lb-streak { font-size: 0.8rem; color: var(--fog); }
+.cp-lb-xp { flex: 0 0 auto; font-weight: 700; color: var(--ink); white-space: nowrap; }
+.cp-lb-xp span { font-weight: 500; font-size: 0.72rem; color: var(--fog); }
+
+/* "How it works" — card-ified steps, gradient number, refined FAQ */
+.app-light .guide__steps { gap: 12px; }
+.app-light .guide__step {
+  background: #fff; border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px 18px; box-shadow: var(--shadow-soft);
+}
+.app-light .guide__step-num {
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  box-shadow: 0 4px 10px rgba(124, 58, 237, 0.28);
+}
+.app-light .guide__faq-title { color: var(--ink); }
+.app-light .guide__faq-item {
+  background: #fff; border-radius: 12px; padding: 0; overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+.app-light .guide__faq-item[open] { border-color: rgba(124, 58, 237, 0.3); }
+.app-light .guide__faq-item summary {
+  list-style: none; padding: 13px 16px; color: var(--ink);
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.app-light .guide__faq-item summary::-webkit-details-marker { display: none; }
+.app-light .guide__faq-item summary::after {
+  content: '›'; font-size: 1.2rem; color: #6d28d9; line-height: 1;
+  transition: transform 0.18s ease; transform: rotate(90deg);
+}
+.app-light .guide__faq-item[open] summary::after { transform: rotate(-90deg); }
+.app-light .guide__faq-item p { margin: 0; padding: 0 16px 14px; }
+
+/* ============================================================
+   Creator cabinet — "Видео" tab: a two-column layout with the
+   submit form on the left and the "Мои видео" list on the right,
+   avatar-tile rows and icon-prefixed form fields.
+   ============================================================ */
+.cp-videos { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
+@media (min-width: 700px) { .cp-videos { grid-template-columns: minmax(0, 320px) minmax(0, 1fr); } }
+.cp-videos > .creator-portal__card { margin-bottom: 0; }
+.cp-card__title { font-size: 1.15rem; font-weight: 600; color: var(--ink); margin: 0 0 4px; letter-spacing: -0.01em; }
+
+/* Submit form — icon-prefixed fields */
+.cp-submit { align-content: start; }
+.cp-field { position: relative; display: block; }
+.cp-field__icon {
+  position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+  color: var(--fog); display: inline-flex; pointer-events: none;
+}
+/* Specificity must beat the base `.app-light input:not(...)` rule (0,3,1),
+   otherwise its `padding` shorthand overrides the left padding and the icon
+   sits on top of the placeholder text. */
+.app-light .cp-field > input:not([type='checkbox']):not([type='radio']),
+.app-light .cp-field > select { width: 100%; padding-left: 40px; }
+
+/* Screenshot upload (replaces the old "paste a link" field in the submit form) */
+.cp-shot { display: flex; flex-direction: column; gap: 10px; }
+.cp-shot__row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.cp-shot__btn.is-done {
+  background: rgba(22, 163, 74, 0.12); border: 1px solid rgba(22, 163, 74, 0.4); color: #15803d;
+}
+.cp-shot__help { font-size: 0.88rem; }
+.cp-shot__preview {
+  max-width: 200px; width: 100%; border-radius: 10px; border: 1px solid var(--line);
+}
+.cp-shot__guide {
+  margin: 0; padding: 14px 16px 14px 32px; list-style: decimal;
+  background: #faf9ff; border: 1px solid var(--line); border-radius: 12px;
+  display: grid; gap: 12px;
+}
+.cp-shot__guide li { color: var(--stone); font-size: 0.88rem; line-height: 1.45; }
+.cp-shot__guide li span { display: block; margin-bottom: 6px; }
+.cp-shot__guide img { max-width: 240px; width: 100%; border-radius: 8px; border: 1px solid var(--line); }
+
+/* Mobile bottom navigation bar (replaces the top tab strip on phones; on
+   desktop the sidebar handles nav and this is hidden). */
+.cp-bottomnav { display: none; }
+@media (max-width: 899px) {
+  .cp-bottomnav {
+    display: flex;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 40;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-top: 1px solid var(--line);
+    padding: 6px 2px calc(6px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -4px 16px rgba(24, 20, 48, 0.06);
+  }
+  .creator-portal__inner--wide { padding-bottom: 86px; }
+}
+.cp-bottomnav__btn {
+  flex: 1 1 0; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 6px 2px; border: none; background: none; cursor: pointer;
+  color: var(--fog); font: inherit; -webkit-tap-highlight-color: transparent;
+}
+.cp-bottomnav__icon { display: inline-flex; color: var(--fog); transition: color 0.14s ease; }
+.cp-bottomnav__label {
+  font-size: 0.6rem; font-weight: 600; line-height: 1;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cp-bottomnav__btn.is-active { color: #6d28d9; }
+.cp-bottomnav__btn.is-active .cp-bottomnav__icon { color: #6d28d9; }
+
+/* "Мои видео" list rows */
+.cp-vids { display: flex; flex-direction: column; }
+.cp-vid { display: flex; gap: 14px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.cp-vid:first-child { padding-top: 4px; }
+.cp-vid:last-child { border-bottom: 0; padding-bottom: 2px; }
+.cp-vid__avatar {
+  flex: 0 0 auto; width: 46px; height: 46px; border-radius: 13px;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  color: #fff; font-weight: 700; font-size: 1.15rem; letter-spacing: -0.02em;
+}
+.cp-vid__body { flex: 1 1 auto; min-width: 0; }
+.cp-vid__row1 { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.cp-vid__titlewrap { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
+.cp-vid__title {
+  color: var(--ink); font-weight: 600; text-decoration: none;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.cp-vid__title:hover { color: #6d28d9; text-decoration: underline; }
+.cp-vid__stats { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.cp-vid__views { color: var(--stone); font-size: 0.88rem; white-space: nowrap; }
+.cp-vid__coach {
+  margin: 10px 0 0; padding: 10px 12px; border-radius: 10px;
+  background: rgba(124, 58, 237, 0.06); border: 1px solid var(--line);
+  color: var(--stone); font-size: 0.88rem; line-height: 1.5;
+}

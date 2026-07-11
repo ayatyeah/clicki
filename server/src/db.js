@@ -290,6 +290,12 @@ export async function initDb() {
     // meaning a leaked token was permanent, unrevocable account access.
     await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS session_expires_at TIMESTAMP');
     await client.query('ALTER TABLE business_accounts ADD COLUMN IF NOT EXISTS session_expires_at TIMESTAMP');
+    // Account profiles: creator avatar/bio/topics (topics also drives the onboarding
+    // niche picker) and a business logo, editable from the "My account" screens.
+    await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS avatar_url TEXT');
+    await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS bio TEXT');
+    await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS topics TEXT');
+    await client.query('ALTER TABLE business_accounts ADD COLUMN IF NOT EXISTS logo_url TEXT');
 
     // Leads used to live in server/data/leads.jsonl. On an ephemeral-filesystem
     // host (DO App Platform) that file is destroyed on every redeploy, silently
@@ -785,7 +791,7 @@ export async function createCreator({ name, contact, socials, city, referred_by,
   return r.rows[0];
 }
 export async function updateCreator(id, fields) {
-  const allowed = ['account_open', 'onboarding_passed', 'status', 'trust_score'];
+  const allowed = ['account_open', 'onboarding_passed', 'status', 'trust_score', 'avatar_url', 'bio', 'topics', 'city', 'socials'];
   const sets = [];
   const vals = [];
   for (const k of allowed) {
@@ -962,6 +968,26 @@ export async function getBusinessByToken(token) {
     'SELECT * FROM business_accounts WHERE session_token = $1 AND session_expires_at > NOW()',
     [token]
   );
+  return r.rows[0] || null;
+}
+export async function getBusiness(id) {
+  const r = await pool.query('SELECT * FROM business_accounts WHERE id = $1', [id]);
+  return r.rows[0] || null;
+}
+// Self-service profile edits from the business "My account" screen (whitelisted).
+export async function updateBusiness(id, fields) {
+  const allowed = ['name', 'company', 'logo_url'];
+  const sets = [];
+  const vals = [];
+  for (const k of allowed) {
+    if (k in fields) {
+      vals.push(fields[k]);
+      sets.push(`${k} = $${vals.length}`);
+    }
+  }
+  if (!sets.length) return getBusiness(id);
+  vals.push(id);
+  const r = await pool.query(`UPDATE business_accounts SET ${sets.join(', ')} WHERE id = $${vals.length} RETURNING *`, vals);
   return r.rows[0] || null;
 }
 // Session expires 30 days out — a leaked/stolen token no longer grants access forever.

@@ -35,11 +35,11 @@ const GUIDE = {
   },
 };
 const isInstagram = (platform) => /instagram|reels/i.test(platform || '');
-const guideFor = (platform) => (isInstagram(platform) ? GUIDE.Instagram : GUIDE.TikTok);
+export const guideFor = (platform) => (isInstagram(platform) ? GUIDE.Instagram : GUIDE.TikTok);
 
 // Must match SCREENSHOT_COOLDOWN_MS on the server. The server is the source of
 // truth (it rejects an early upload); this only drives the UI hint.
-const COOLDOWN_MS = 10 * 60 * 60 * 1000;
+const COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const cooldownLeft = (lastAt) => {
   if (!lastAt) return 0;
   const left = COOLDOWN_MS - (Date.now() - new Date(lastAt).getTime());
@@ -144,6 +144,17 @@ export default function StatScreenshots({ submissionId, platform, basePath, auth
         {!canUpload && lastAt && (
           <span className="stat-shots__muted">последний: {new Date(lastAt).toLocaleDateString('ru-RU')}</span>
         )}
+        <button
+          type="button"
+          className="stat-shots__chev"
+          onClick={() => setOpen((v) => !v)}
+          aria-label={open ? 'Свернуть статистику' : 'Показать статистику'}
+          aria-expanded={open}
+        >
+          <svg className={open ? 'is-open' : ''} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18" aria-hidden="true">
+            <polyline points="9 6 15 12 9 18" />
+          </svg>
+        </button>
       </div>
 
       {open && (

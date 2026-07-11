@@ -21,6 +21,9 @@ const PATHS = {
   flame: <><path d="M12 3s5 4 5 9a5 5 0 0 1-10 0c0-1.6.7-2.8 1.5-3.7C9 10 9.5 11 10 11c0-2 1-4 2-8z" /></>,
   help: <><circle cx="12" cy="12" r="9" /><path d="M9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.8.4-1.4 1-1.4 1.9v.3" /><circle cx="12" cy="17" r="0.6" fill="currentColor" stroke="none" /></>,
   link: <><path d="M9 15l6-6" /><path d="M10.5 6.5l1-1a3.5 3.5 0 0 1 5 5l-1 1" /><path d="M13.5 17.5l-1 1a3.5 3.5 0 0 1-5-5l1-1" /></>,
+  trophy: <><path d="M7 4.5h10V9a5 5 0 0 1-10 0z" /><path d="M7 6H4.5v1.2A2.8 2.8 0 0 0 7 10M17 6h2.5v1.2A2.8 2.8 0 0 1 17 10" /><path d="M12 14v3.2" /><path d="M8.5 20.5h7M9.7 17.2h4.6l.6 3.3H9.1z" /></>,
+  star: <><path d="M12 3.6l2.6 5.3 5.8.9-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.4 9.8l5.8-.9z" /></>,
+  settings: <><circle cx="12" cy="12" r="3.2" /><path d="M12 2.5v2.4M12 19.1v2.4M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2.5 12h2.4M19.1 12h2.4M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7" /></>,
 };
 
 export default function Icon({ name, size = 20, className = '' }) {
