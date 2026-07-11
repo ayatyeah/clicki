@@ -419,6 +419,10 @@
    without this the table's min-width (720px) pushes the whole page wider
    than the viewport instead of scrolling inside .admin-table-wrap. */
 .an-cols > div { min-width: 0; }
+/* These are simple 2-column tables (label + count). Drop the wide 720px min-width
+   so both columns fit inside the half-width column — otherwise the "Визитов"
+   count scrolls off-screen and looks missing. */
+.an-cols .admin-table { min-width: 0; }
 .an-live {
   font-size: 0.7rem;
   font-weight: 500;
