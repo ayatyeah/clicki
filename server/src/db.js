@@ -296,6 +296,9 @@ export async function initDb() {
     await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS bio TEXT');
     await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS topics TEXT');
     await client.query('ALTER TABLE business_accounts ADD COLUMN IF NOT EXISTS logo_url TEXT');
+    // Temporary bans: status='banned' + banned_until (NULL = permanent). Auth
+    // auto-unbans once banned_until has passed.
+    await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS banned_until TIMESTAMP');
 
     // Leads used to live in server/data/leads.jsonl. On an ephemeral-filesystem
     // host (DO App Platform) that file is destroyed on every redeploy, silently
@@ -1053,6 +1056,21 @@ export async function deleteCreator(id) {
   await pool.query('UPDATE creators SET referred_by = NULL WHERE referred_by = $1', [id]);
   const r = await pool.query('DELETE FROM creators WHERE id = $1 RETURNING id', [id]);
   return r.rowCount > 0;
+}
+// Ban a creator until `until` (a Date), or permanently when until is null.
+export async function setCreatorBan(id, until) {
+  const r = await pool.query(
+    "UPDATE creators SET status = 'banned', banned_until = $2 WHERE id = $1 RETURNING *",
+    [id, until]
+  );
+  return r.rows[0] || null;
+}
+export async function unbanCreator(id) {
+  const r = await pool.query(
+    "UPDATE creators SET status = 'active', banned_until = NULL WHERE id = $1 RETURNING *",
+    [id]
+  );
+  return r.rows[0] || null;
 }
 /**
  * Danger zone: wipe all account + transactional data for a clean slate.

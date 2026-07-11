@@ -107,6 +107,8 @@ import {
   countLeads,
   deleteLead,
   deleteCreator,
+  setCreatorBan,
+  unbanCreator,
   touchCreatorSeen,
   touchBusinessSeen,
   getSiteHealth,
@@ -628,11 +630,26 @@ function publicCreator(c) {
   return { ...safe, tiktok_connected: !!tiktok_access_token };
 }
 // Bearer-token middleware — authorizes the caller as a specific creator (no IDOR).
+// Ban state for a creator row. Permanent when banned_until is null; temporary
+// while banned_until is in the future; auto-lifts once that moment has passed.
+function banState(c) {
+  if (!c || c.status !== 'banned') return { banned: false };
+  if (!c.banned_until) return { banned: true, message: 'Аккаунт заблокирован' };
+  const until = new Date(c.banned_until);
+  if (until.getTime() > Date.now()) {
+    return { banned: true, message: `Аккаунт заблокирован до ${until.toLocaleDateString('ru-RU')}` };
+  }
+  return { banned: false, expired: true };
+}
+
 async function requireCreator(req, res, next) {
   try {
     const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
     const c = await getCreatorByToken(token);
     if (!c) return res.status(401).json({ ok: false, errors: ['Войдите в кабинет'] });
+    const ban = banState(c);
+    if (ban.banned) return res.status(403).json({ ok: false, errors: [ban.message] });
+    if (ban.expired) { await unbanCreator(c.id); c.status = 'active'; c.banned_until = null; }
     req.creator = c;
     // Presence for the admin health page. Fire-and-forget: a failed bookkeeping
     // write must never turn a working request into a 500.
@@ -832,6 +849,9 @@ app.post(
     const c = await getCreatorByUsername(username);
     if (!c || !verifyPassword(password, c.password_hash))
       return res.status(401).json({ ok: false, errors: ['Неверный логин или пароль'] });
+    const ban = banState(c);
+    if (ban.banned) return res.status(403).json({ ok: false, errors: [ban.message] });
+    if (ban.expired) { await unbanCreator(c.id); c.status = 'active'; c.banned_until = null; }
     const token = newToken();
     await setCreatorToken(c.id, token);
     ok(res, { token, ...(await creatorPayload({ ...c, session_token: token })) });
@@ -1504,6 +1524,19 @@ app.post('/api/admin/creators/:id/delete', requireAdmin, wrap(async (req, res) =
   const done = await deleteCreator(Number(req.params.id));
   if (!done) return res.status(404).json({ ok: false, errors: ['Креатор не найден'] });
   ok(res, {});
+}));
+// Ban a creator: { days } for a temporary ban, or { permanent: true } for no end.
+app.post('/api/admin/creators/:id/ban', requireAdmin, wrap(async (req, res) => {
+  const days = Number(req.body?.days);
+  const until = req.body?.permanent || !days || days <= 0 ? null : new Date(Date.now() + days * 86400000);
+  const creator = await setCreatorBan(Number(req.params.id), until);
+  if (!creator) return res.status(404).json({ ok: false, errors: ['Креатор не найден'] });
+  ok(res, { creator: publicCreator(creator) });
+}));
+app.post('/api/admin/creators/:id/unban', requireAdmin, wrap(async (req, res) => {
+  const creator = await unbanCreator(Number(req.params.id));
+  if (!creator) return res.status(404).json({ ok: false, errors: ['Креатор не найден'] });
+  ok(res, { creator: publicCreator(creator) });
 }));
 
 /* ---------------- Admin: business accounts ---------------- */

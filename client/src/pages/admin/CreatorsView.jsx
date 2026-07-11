@@ -24,6 +24,77 @@ function Stars({ value = 0 }) {
   );
 }
 
+const BAN_OPTIONS = [
+  { days: 1, label: '1 день' },
+  { days: 7, label: '7 дней' },
+  { days: 30, label: '30 дней' },
+  { days: null, label: 'Навсегда' },
+];
+
+/** Temporary/permanent ban control for one creator: a "Бан" button that opens
+ * a duration menu, or, when already banned, the end date + a "Разбанить" button. */
+function BanControl({ creator, authFetch, onDone }) {
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const bannedUntil = creator.banned_until ? new Date(creator.banned_until) : null;
+  const isBanned = creator.status === 'banned' && (!bannedUntil || bannedUntil > new Date());
+
+  const ban = async (days) => {
+    setBusy(true);
+    try {
+      const res = await authFetch(`/api/admin/creators/${creator.id}/ban`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(days == null ? { permanent: true } : { days }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).errors?.[0] || 'Не удалось забанить');
+      toast.success(days == null ? 'Забанен навсегда' : `Бан на ${days} дн.`);
+      setOpen(false);
+      onDone();
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const unban = async () => {
+    setBusy(true);
+    try {
+      const res = await authFetch(`/api/admin/creators/${creator.id}/unban`, { method: 'POST' });
+      if (!res.ok) throw new Error('Не удалось разбанить');
+      toast.success('Разбанен');
+      onDone();
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (isBanned) {
+    const until = bannedUntil ? bannedUntil.toLocaleDateString('ru-RU') : 'навсегда';
+    return (
+      <div className="admin-ban">
+        <span className="pf-status pf-status--rejected">бан · {until}</span>
+        <button type="button" className="btn btn--ghost btn--sm" onClick={unban} disabled={busy}>Разбанить</button>
+      </div>
+    );
+  }
+  if (!open) {
+    return <button type="button" className="btn btn--ghost btn--sm" onClick={() => setOpen(true)} disabled={busy}>Бан</button>;
+  }
+  return (
+    <div className="admin-ban__menu">
+      {BAN_OPTIONS.map((o) => (
+        <button key={o.label} type="button" className="btn btn--sm" onClick={() => ban(o.days)} disabled={busy}>{o.label}</button>
+      ))}
+      <button type="button" className="btn btn--ghost btn--sm" onClick={() => setOpen(false)}>Отмена</button>
+    </div>
+  );
+}
+
 /* ---------------- Creators ---------------- */
 export function CreatorsView({ authFetch }) {
   const toast = useToast();
@@ -143,7 +214,10 @@ export function CreatorsView({ authFetch }) {
                   </select>
                 </td>
                 <td data-label="Действия">
-                  <ConfirmDelete onConfirm={() => remove(c.id)} />
+                  <div className="admin-row-actions">
+                    <BanControl creator={c} authFetch={authFetch} onDone={load} />
+                    <ConfirmDelete onConfirm={() => remove(c.id)} />
+                  </div>
                 </td>
               </tr>
             ))}

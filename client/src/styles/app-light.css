@@ -689,6 +689,11 @@
   .cp-tip .btn { width: 100%; }
 }
 
+/* Stacked row actions (ban + delete) in admin tables */
+.admin-row-actions { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.admin-ban { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.admin-ban__menu { display: flex; flex-wrap: wrap; gap: 6px; max-width: 230px; }
+
 /* Inline two-step delete button — armed ("Точно удалить?") state turns red. */
 .confirm-del { white-space: nowrap; }
 .confirm-del--armed,
