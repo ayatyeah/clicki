@@ -5,6 +5,22 @@ const FUNNEL_LABELS = {
   creator: '🟢 Заявка креатора',
 };
 
+/** ISO timestamp → readable Astana local time (UTC+5), e.g. "11.07.2026, 19:06".
+ * Falls back to the raw value if it isn't a valid date. */
+function formatAstana(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const s = new Intl.DateTimeFormat('ru-RU', {
+    timeZone: 'Asia/Almaty',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(d);
+  return `${s} (Астана)`;
+}
+
 /** Build a human-readable message body shared by Telegram + email. */
 function formatLead(lead) {
   const title = FUNNEL_LABELS[lead.funnel] ?? 'Новая заявка';
@@ -13,7 +29,7 @@ function formatLead(lead) {
     if (value === undefined || value === null || value === '') continue;
     lines.push(`${key}: ${value}`);
   }
-  lines.push('', `Время: ${lead.createdAt}`);
+  lines.push('', `Время: ${formatAstana(lead.createdAt)}`);
   if (lead.page) lines.push(`Страница: ${lead.page}`);
   return lines.join('\n');
 }
