@@ -477,11 +477,18 @@ app.get('/api/admin/leads', requireAdmin, async (_req, res) => {
     res.status(500).json({ ok: false, errors: ['Внутренняя ошибка'] });
   }
 });
-app.post('/api/admin/leads/:id/delete', requireAdmin, wrap(async (req, res) => {
-  const done = await deleteLead(Number(req.params.id));
-  if (!done) return res.status(404).json({ ok: false, errors: ['Заявка не найдена'] });
-  ok(res, {});
-}));
+// Plain async (not wrap/ok): this sits above their `const` definitions, so using
+// them here would hit the temporal dead zone and crash the whole app on boot.
+app.post('/api/admin/leads/:id/delete', requireAdmin, async (req, res) => {
+  try {
+    const done = await deleteLead(Number(req.params.id));
+    if (!done) return res.status(404).json({ ok: false, errors: ['Заявка не найдена'] });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[lead-delete]', err.message);
+    res.status(500).json({ ok: false, errors: ['Внутренняя ошибка'] });
+  }
+});
 
 // Upload a media file (image/video) → Spaces if configured (keeps big video out
 // of Postgres), otherwise fall back to storing the bytes in the DB.
