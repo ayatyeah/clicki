@@ -865,17 +865,20 @@ app.post(
   '/api/creator/register',
   loginLimiter,
   wrap(async (req, res) => {
-    const { name, contact, username, password } = req.body || {};
-    if (!name || !String(name).trim()) return res.status(400).json({ ok: false, errors: ['Укажите имя'] });
+    const { name, contact, city, username, password } = req.body || {};
+    if (!name || !String(name).trim()) return res.status(400).json({ ok: false, errors: ['Укажите ФИО'] });
+    if (!contact || !String(contact).trim()) return res.status(400).json({ ok: false, errors: ['Укажите телефон'] });
+    if (!city || !String(city).trim()) return res.status(400).json({ ok: false, errors: ['Укажите город'] });
     if (!username || String(username).trim().length < 3) return res.status(400).json({ ok: false, errors: ['Логин не короче 3 символов'] });
-    if (!password || String(password).length < 6) return res.status(400).json({ ok: false, errors: ['Пароль не короче 6 символов'] });
+    if (!password || String(password).length < 8) return res.status(400).json({ ok: false, errors: ['Пароль не короче 8 символов'] });
     if (await getCreatorByUsername(username)) return res.status(409).json({ ok: false, errors: ['Такой логин уже занят'] });
     // referred_by (from a friend link) only if it points to a real creator.
     const refId = Number(req.body?.referred_by) || null;
     const referred_by = refId && (await getCreator(refId)) ? refId : null;
     const creator = await createCreator({
       name: String(name).trim(),
-      contact: contact ? String(contact).trim() : null,
+      contact: String(contact).trim(),
+      city: String(city).trim(),
       username: String(username).trim(),
       password_hash: hashPassword(password),
       referred_by,
@@ -1156,7 +1159,7 @@ app.post(
     const { name, email, company, password } = req.body || {};
     if (!name || !email || !password) return res.status(400).json({ ok: false, errors: ['Имя, email и пароль обязательны'] });
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) return res.status(400).json({ ok: false, errors: ['Некорректный email'] });
-    if (String(password).length < 6) return res.status(400).json({ ok: false, errors: ['Пароль не короче 6 символов'] });
+    if (String(password).length < 8) return res.status(400).json({ ok: false, errors: ['Пароль не короче 8 символов'] });
     if (await getBusinessByEmail(email)) return res.status(409).json({ ok: false, errors: ['Аккаунт с таким email уже существует'] });
     const b = await createBusiness({ name: String(name).trim(), email: String(email).trim(), company, password_hash: hashPassword(password) });
     const token = newToken();
@@ -1445,7 +1448,7 @@ app.post('/api/admin/creators', requireAdmin, wrap(async (req, res) => {
   let hash = null;
   if (username || password) {
     if (!username || String(username).trim().length < 3) return res.status(400).json({ ok: false, errors: ['Логин не короче 3 символов'] });
-    if (!password || String(password).length < 6) return res.status(400).json({ ok: false, errors: ['Пароль не короче 6 символов'] });
+    if (!password || String(password).length < 8) return res.status(400).json({ ok: false, errors: ['Пароль не короче 8 символов'] });
     if (await getCreatorByUsername(username)) return res.status(409).json({ ok: false, errors: ['Такой логин уже занят'] });
     hash = hashPassword(password);
   }
@@ -1542,7 +1545,7 @@ app.post('/api/admin/creators/bulk', requireAdmin, wrap(async (req, res) => {
 app.post('/api/admin/creators/:id/credentials', requireAdmin, wrap(async (req, res) => {
   const { username, password } = req.body || {};
   if (!username || String(username).trim().length < 3) return res.status(400).json({ ok: false, errors: ['Логин не короче 3 символов'] });
-  if (!password || String(password).length < 6) return res.status(400).json({ ok: false, errors: ['Пароль не короче 6 символов'] });
+  if (!password || String(password).length < 8) return res.status(400).json({ ok: false, errors: ['Пароль не короче 8 символов'] });
   const existing = await getCreatorByUsername(username);
   if (existing && existing.id !== Number(req.params.id)) return res.status(409).json({ ok: false, errors: ['Такой логин уже занят'] });
   const creator = await setCreatorCredentials(Number(req.params.id), String(username).trim(), hashPassword(password));
@@ -1576,7 +1579,7 @@ app.post('/api/admin/businesses', requireAdmin, wrap(async (req, res) => {
   const { name, email, company, password } = req.body || {};
   if (!name || !String(name).trim()) return res.status(400).json({ ok: false, errors: ['Название обязательно'] });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || ''))) return res.status(400).json({ ok: false, errors: ['Некорректный email'] });
-  if (!password || String(password).length < 6) return res.status(400).json({ ok: false, errors: ['Пароль не короче 6 символов'] });
+  if (!password || String(password).length < 8) return res.status(400).json({ ok: false, errors: ['Пароль не короче 8 символов'] });
   if (await getBusinessByEmail(email)) return res.status(409).json({ ok: false, errors: ['Аккаунт с таким email уже существует'] });
   const b = await createBusiness({ name: String(name).trim(), email: String(email).trim(), company, password_hash: hashPassword(password) });
   ok(res, { business: { id: b.id, name: b.name, email: b.email, company: b.company, created_at: b.created_at, briefs: 0 } });
@@ -1585,7 +1588,7 @@ app.post('/api/admin/businesses', requireAdmin, wrap(async (req, res) => {
 app.post('/api/admin/businesses/:id/credentials', requireAdmin, wrap(async (req, res) => {
   const { email, password } = req.body || {};
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || ''))) return res.status(400).json({ ok: false, errors: ['Некорректный email'] });
-  if (!password || String(password).length < 6) return res.status(400).json({ ok: false, errors: ['Пароль не короче 6 символов'] });
+  if (!password || String(password).length < 8) return res.status(400).json({ ok: false, errors: ['Пароль не короче 8 символов'] });
   const existing = await getBusinessByEmail(email);
   if (existing && existing.id !== Number(req.params.id)) return res.status(409).json({ ok: false, errors: ['Такой email уже занят'] });
   const b = await setBusinessCredentials(Number(req.params.id), String(email).trim(), hashPassword(password));

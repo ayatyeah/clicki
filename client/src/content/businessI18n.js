@@ -25,7 +25,7 @@ const EN = {
   'Укажите имя': 'Enter a name',
   'Введите настоящий email (проверьте, не подставил ли браузер что-то другое)':
     'Enter a valid email (check your browser didn’t autofill something else)',
-  'Пароль не короче 6 символов': 'Password must be at least 6 characters',
+  'Пароль не короче 8 символов': 'Password must be at least 8 characters',
   'Введите пароль': 'Enter a password',
   Ошибка: 'Error',
 

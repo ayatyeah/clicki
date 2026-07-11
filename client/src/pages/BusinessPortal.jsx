@@ -161,7 +161,7 @@ function AuthForm({ endpoint, onAuthed, register, toRegister }) {
     // with a native tooltip that's easy to miss.
     if (register && !f.name.trim()) return setError(t('Укажите имя'));
     if (!EMAIL_RE.test(f.email)) return setError(t('Введите настоящий email (проверьте, не подставил ли браузер что-то другое)'));
-    if (register && f.password.length < 6) return setError(t('Пароль не короче 6 символов'));
+    if (register && f.password.length < 8) return setError(t('Пароль не короче 8 символов'));
     else if (!register && !f.password) return setError(t('Введите пароль'));
     setBusy(true);
     try {

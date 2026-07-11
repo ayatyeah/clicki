@@ -171,7 +171,7 @@ export function CreatorsView({ authFetch }) {
         <input placeholder="Телефон / Telegram" value={form.contact} onChange={(e) => setF('contact', e.target.value)} />
         <div className="pf-row">
           <input placeholder="Логин (мин. 3)" value={form.username} onChange={(e) => setF('username', e.target.value)} />
-          <input placeholder="Пароль (мин. 6)" value={form.password} onChange={(e) => setF('password', e.target.value)} />
+          <input placeholder="Пароль (мин. 8)" value={form.password} onChange={(e) => setF('password', e.target.value)} />
         </div>
         {error && <p className="creator-portal__err" style={{ margin: 0 }}>{error}</p>}
         <button className="btn btn--primary btn--sm" onClick={create} disabled={busy}>

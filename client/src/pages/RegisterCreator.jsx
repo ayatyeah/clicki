@@ -15,7 +15,7 @@ const KEY = 'clicki_creator_token';
 export default function RegisterCreator() {
   const navigate = useNavigate();
   const refId = new URLSearchParams(window.location.search).get('ref');
-  const [f, setF] = useState({ name: '', contact: '', username: '', password: '' });
+  const [f, setF] = useState({ name: '', contact: '', city: '', username: '', password: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
@@ -23,9 +23,11 @@ export default function RegisterCreator() {
   const submit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!f.name.trim()) return setError('Укажи имя');
+    if (!f.name.trim()) return setError('Укажи ФИО');
+    if (!f.contact.trim()) return setError('Укажи телефон');
+    if (!f.city.trim()) return setError('Укажи город');
     if (f.username.trim().length < 3) return setError('Логин не короче 3 символов');
-    if (f.password.length < 6) return setError('Пароль не короче 6 символов');
+    if (f.password.length < 8) return setError('Пароль не короче 8 символов');
     setBusy(true);
     try {
       const res = await fetch(`${API_BASE}/api/creator/register`, {
@@ -63,10 +65,11 @@ export default function RegisterCreator() {
           Создай аккаунт за минуту. Логин и пароль придумай сам — они понадобятся, чтобы заходить в кабинет.
         </p>
         <form className="creator-portal__card" onSubmit={submit} noValidate>
-          <input name="name" placeholder="Имя" autoComplete="name" value={f.name} onChange={(e) => set('name', e.target.value)} />
-          <input name="contact" placeholder="Телефон / Telegram (по желанию)" autoComplete="tel" value={f.contact} onChange={(e) => set('contact', e.target.value)} />
+          <input name="name" placeholder="ФИО" autoComplete="name" value={f.name} onChange={(e) => set('name', e.target.value)} />
+          <input name="contact" placeholder="Телефон" type="tel" inputMode="tel" autoComplete="tel" value={f.contact} onChange={(e) => set('contact', e.target.value)} />
+          <input name="city" placeholder="Город" autoComplete="address-level2" value={f.city} onChange={(e) => set('city', e.target.value)} />
           <input name="username" placeholder="Придумай логин (мин. 3)" autoComplete="username" value={f.username} onChange={(e) => set('username', e.target.value)} />
-          <input name="password" type="password" placeholder="Придумай пароль (мин. 6)" autoComplete="new-password" value={f.password} onChange={(e) => set('password', e.target.value)} />
+          <input name="password" type="password" placeholder="Придумай пароль (мин. 8)" autoComplete="new-password" value={f.password} onChange={(e) => set('password', e.target.value)} />
           {error && <p className="creator-portal__err">{error}</p>}
           <button className="btn btn--primary btn--block" disabled={busy}>{busy ? 'Создаю…' : 'Создать аккаунт →'}</button>
           <p className="creator-portal__muted creator-portal__switch">
