@@ -96,7 +96,6 @@ import {
   createBusiness,
   getBusinessByEmail,
   getBusinessByToken,
-  getBusiness,
   updateBusiness,
   setBusinessToken,
   listBusinessBriefs,

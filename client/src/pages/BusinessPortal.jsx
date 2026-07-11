@@ -276,7 +276,7 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
             </nav>
 
             {view === 'home' && (
-              <Home b={b} briefs={briefs} submissions={submissions} incoming={incoming} accepted={accepted} go={go} />
+              <Home briefs={briefs} submissions={submissions} incoming={incoming} accepted={accepted} go={go} />
             )}
             {view === 'briefs' && <BriefsView briefs={briefs} authFetch={authFetch} reload={reload} />}
             {view === 'review' && <ReviewView incoming={incoming} accepted={accepted} authFetch={authFetch} reload={reload} />}
@@ -308,7 +308,7 @@ function Stat({ label, value, hint }) {
 const sumViews = (subs) => subs.reduce((a, s) => a + (s.views || 0), 0);
 
 /* ---------------- Home ---------------- */
-function Home({ b, briefs, submissions, incoming, accepted, go }) {
+function Home({ briefs, submissions, incoming, accepted, go }) {
   const { lang } = useLang();
   const t = (s) => bt(lang, s);
   const activeBriefs = briefs.filter((x) => x.status === 'active').length;
