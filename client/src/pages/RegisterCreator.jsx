@@ -59,7 +59,7 @@ export default function RegisterCreator() {
           <Link to="/" className="creator-portal__brand">CLICKI</Link>
           <span className="creator-portal__tag">кабинет креатора</span>
         </div>
-        <div className="mascot-avatar"><img src="/mascot-star.png" alt="CLICKI" /></div>
+        <div className="mascot-avatar"><img src="/mascot-hood.jpg" alt="CLICKI" /></div>
         <h1 className="creator-portal__title">Регистрация креатора</h1>
         <p className="creator-portal__muted">
           Создай аккаунт за минуту. Логин и пароль придумай сам — они понадобятся, чтобы заходить в кабинет.

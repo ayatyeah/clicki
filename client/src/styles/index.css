@@ -3923,10 +3923,11 @@ canvas {
 /* Mascot avatar — transparent PNG on a soft violet halo. */
 .mascot-avatar {
   width: 104px; height: 104px; border-radius: 50%;
-  background: radial-gradient(circle at 50% 42%, rgba(139, 92, 246, 0.28), rgba(139, 92, 246, 0.08) 70%, transparent);
-  margin: 4px auto 14px; display: grid; place-items: center;
+  margin: 4px auto 14px; overflow: hidden;
+  background: #0e0b20; /* matches the mascot image's dark backdrop */
+  box-shadow: 0 12px 30px rgba(124, 58, 237, 0.28);
 }
-.mascot-avatar img { width: 92%; height: 92%; object-fit: contain; }
+.mascot-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 /* Bulk creator registration (admin CreatorsView) */
 .bulk-reg { margin: 12px 0 16px; }
@@ -3966,10 +3967,11 @@ canvas {
 .cp-level__bar > div { height: 100%; background: linear-gradient(90deg, #8b5cf6, #7cff67); border-radius: 999px; }
 .cp-level__meta { display: flex; justify-content: space-between; gap: 10px; font-size: 0.8rem; font-weight: 600; flex-wrap: wrap; }
 .cp-level__badge {
-  flex: none; width: 66px; height: 66px; border-radius: 18px; display: grid; place-items: center;
-  background: linear-gradient(135deg, #8b5cf6, #5227ff); color: #fff; font-size: 1.8rem;
+  flex: none; width: 66px; height: 66px; border-radius: 18px; overflow: hidden;
+  background: #0e0b20;
   box-shadow: 0 10px 26px rgba(82,39,255,0.35);
 }
+.cp-level__badge img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 /* KPI grid */
 .cp-kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }

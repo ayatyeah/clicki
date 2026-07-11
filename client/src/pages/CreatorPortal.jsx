@@ -138,7 +138,7 @@ function AuthScreen({ onAuthed, refId }) {
   const [applied, setApplied] = useState(false);
   return (
     <Shell>
-      <div className="mascot-avatar"><img src="/mascot-star.png" alt="CLICKI" /></div>
+      <div className="mascot-avatar"><img src="/mascot-hood.jpg" alt="CLICKI" /></div>
       <h1 className="creator-portal__title">Кабинет креатора</h1>
       <p className="creator-portal__muted">
         {mode === 'login'
@@ -706,7 +706,7 @@ function OverviewHome({ c, wallet, submissions, briefs, forecast, authFetch, rel
             {lp.next && <span className="creator-portal__muted">до «{lp.next}» осталось {nfmt(lp.toNext)} XP</span>}
           </div>
         </div>
-        <div className="cp-level__badge" aria-hidden="true">★</div>
+        <div className="cp-level__badge" aria-hidden="true"><img src="/mascot-hood.jpg" alt="" /></div>
       </div>
 
       {/* KPI grid */}

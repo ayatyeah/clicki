@@ -123,7 +123,7 @@ function AuthScreen({ onAuthed }) {
           <span className="creator-portal__tag">{t('кабинет бизнеса')}</span>
           <LangToggle />
         </div>
-        <div className="mascot-avatar"><img src="/mascot-star.png" alt="CLICKI" /></div>
+        <div className="mascot-avatar"><img src="/mascot-hood.jpg" alt="CLICKI" /></div>
         <h1 className="creator-portal__title">{t('Кабинет бизнеса')}</h1>
         <p className="creator-portal__muted">
           {mode === 'login' ? t('Войдите, чтобы создавать брифы и принимать работы.') : t('Создайте аккаунт бренда за минуту.')}

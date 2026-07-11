@@ -20,7 +20,7 @@ export default function AppLauncher() {
   // Brief splash while we decide — the mascot, on brand.
   return (
     <main className="app-launcher">
-      <div className="mascot-avatar app-launcher__mascot"><img src="/mascot-star.png" alt="CLICKI" /></div>
+      <div className="mascot-avatar app-launcher__mascot"><img src="/mascot-hood.jpg" alt="CLICKI" /></div>
       <p className="app-launcher__label">CLICKI</p>
     </main>
   );
