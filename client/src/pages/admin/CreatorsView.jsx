@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { SITE_URL } from '../../lib/config.js';
 import { useToast } from '../../components/Toast.jsx';
 import CopyButton from '../../components/CopyButton.jsx';
+import ConfirmDelete from '../../components/ConfirmDelete.jsx';
 
 const STAR_D = 'M12 2.6l2.85 5.77 6.37.93-4.61 4.49 1.09 6.35L12 17.77l-5.7 3l1.09-6.35-4.61-4.49 6.37-.93z';
 
@@ -25,6 +26,7 @@ function Stars({ value = 0 }) {
 
 /* ---------------- Creators ---------------- */
 export function CreatorsView({ authFetch }) {
+  const toast = useToast();
   const [creators, setCreators] = useState([]);
   const [form, setForm] = useState({ name: '', contact: '', username: '', password: '' });
   const [busy, setBusy] = useState(false);
@@ -69,6 +71,20 @@ export function CreatorsView({ authFetch }) {
     load();
   };
 
+  const remove = async (id) => {
+    setError('');
+    const res = await authFetch(`/api/admin/creators/${id}/delete`, { method: 'POST' });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const msg = (data.errors && data.errors[0]) || 'Не удалось удалить';
+      setError(msg);
+      toast.error(msg);
+      return;
+    }
+    toast.success('Креатор удалён');
+    load();
+  };
+
   return (
     <section className="admin-block">
       <h2 className="admin-block__title">Креаторы ({creators.length})</h2>
@@ -102,6 +118,7 @@ export function CreatorsView({ authFetch }) {
               <th>Доступ (логин)</th>
               <th>XP / Trust / Стрик</th>
               <th>Статус</th>
+              <th>Действия</th>
             </tr>
           </thead>
           <tbody>
@@ -125,9 +142,12 @@ export function CreatorsView({ authFetch }) {
                     <option value="banned">banned</option>
                   </select>
                 </td>
+                <td data-label="Действия">
+                  <ConfirmDelete onConfirm={() => remove(c.id)} />
+                </td>
               </tr>
             ))}
-            {!creators.length && <tr><td colSpan={6} className="admin-table__empty">Креаторов пока нет</td></tr>}
+            {!creators.length && <tr><td colSpan={7} className="admin-table__empty">Креаторов пока нет</td></tr>}
           </tbody>
         </table>
       </div>

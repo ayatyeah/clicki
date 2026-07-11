@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 import { API_BASE } from '../lib/config.js';
 import { createApiClient } from '../lib/apiClient.js';
 import Icon from '../components/Icon.jsx';
+import ConfirmDelete from '../components/ConfirmDelete.jsx';
+import { useToast } from '../components/Toast.jsx';
 import HealthView from './admin/HealthView.jsx';
 import { Stat, Kpi } from './admin/ui.jsx';
 import { AiAnalysisView } from './admin/AiAnalysisView.jsx';
@@ -419,11 +421,11 @@ export default function Admin() {
           {view === 'referrals' && <ReferralsView authFetch={authFetch} />}
 
           {view === 'leads-business' && (
-            <LeadsSection title="Заявки Бизнеса" leads={businessLeads} loading={loading} onReload={loadLeads} />
+            <LeadsSection title="Заявки Бизнеса" leads={businessLeads} loading={loading} onReload={loadLeads} authFetch={authFetch} />
           )}
 
           {view === 'leads-creators' && (
-            <LeadsSection title="Заявки Креаторов" leads={creatorLeads} loading={loading} onReload={loadLeads} />
+            <LeadsSection title="Заявки Креаторов" leads={creatorLeads} loading={loading} onReload={loadLeads} authFetch={authFetch} />
           )}
 
           {view === 'videos' && (
@@ -585,7 +587,18 @@ export default function Admin() {
   );
 }
 
-function LeadsSection({ title, leads, loading, onReload }) {
+function LeadsSection({ title, leads, loading, onReload, authFetch }) {
+  const toast = useToast();
+  const remove = async (id) => {
+    const res = await authFetch(`/api/admin/leads/${id}/delete`, { method: 'POST' });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      toast.error((d.errors && d.errors[0]) || 'Не удалось удалить');
+      return;
+    }
+    toast.success('Заявка удалена');
+    onReload();
+  };
   return (
     <section className="admin-block">
       <div className="admin-panel__head">
@@ -603,11 +616,12 @@ function LeadsSection({ title, leads, loading, onReload }) {
               <th>Данные</th>
               <th>Страница</th>
               <th>Время</th>
+              <th>Действия</th>
             </tr>
           </thead>
           <tbody>
             {leads.map((lead, i) => (
-              <tr key={i}>
+              <tr key={lead.id ?? i}>
                 <td data-label="Данные">
                   {Object.entries(lead.fields || {}).map(([k, v]) => (
                     <div key={k}>
@@ -617,11 +631,14 @@ function LeadsSection({ title, leads, loading, onReload }) {
                 </td>
                 <td data-label="Страница">{lead.page || '-'}</td>
                 <td data-label="Время">{new Date(lead.createdAt).toLocaleString('ru-RU')}</td>
+                <td data-label="Действия">
+                  {lead.id != null && <ConfirmDelete onConfirm={() => remove(lead.id)} />}
+                </td>
               </tr>
             ))}
             {!leads.length && !loading && (
               <tr>
-                <td colSpan={3} className="admin-table__empty">
+                <td colSpan={4} className="admin-table__empty">
                   Пока нет заявок
                 </td>
               </tr>

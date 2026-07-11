@@ -501,10 +501,11 @@ export async function insertLead(lead) {
 /** Newest first — matches the previous JSONL-reverse behaviour the admin UI expects. */
 export async function listLeads(limit = 1000) {
   const r = await pool.query(
-    'SELECT funnel, fields, page, ref, created_at FROM leads ORDER BY created_at DESC, id DESC LIMIT $1',
+    'SELECT id, funnel, fields, page, ref, created_at FROM leads ORDER BY created_at DESC, id DESC LIMIT $1',
     [limit]
   );
   return r.rows.map((row) => ({
+    id: row.id,
     funnel: row.funnel,
     fields: row.fields,
     page: row.page || undefined,
@@ -516,6 +517,10 @@ export async function listLeads(limit = 1000) {
 export async function countLeads() {
   const r = await pool.query('SELECT COUNT(*)::int AS n FROM leads');
   return r.rows[0].n;
+}
+export async function deleteLead(id) {
+  const r = await pool.query('DELETE FROM leads WHERE id = $1', [id]);
+  return r.rowCount > 0;
 }
 
 /** Cheap connectivity check for /api/health — a real DB round-trip, not just
@@ -1039,6 +1044,14 @@ export async function setBusinessCredentials(id, email, password_hash) {
 // Admin: delete a business account (its briefs keep, business_id → NULL per schema).
 export async function deleteBusiness(id) {
   const r = await pool.query('DELETE FROM business_accounts WHERE id = $1 RETURNING id', [id]);
+  return r.rowCount > 0;
+}
+// Admin: delete a creator. Submissions/assignments/payouts/screenshots cascade
+// per schema; first detach anyone this creator referred so the self-referencing
+// referred_by FK doesn't block the delete.
+export async function deleteCreator(id) {
+  await pool.query('UPDATE creators SET referred_by = NULL WHERE referred_by = $1', [id]);
+  const r = await pool.query('DELETE FROM creators WHERE id = $1 RETURNING id', [id]);
   return r.rowCount > 0;
 }
 /**

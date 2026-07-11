@@ -106,6 +106,8 @@ import {
   deleteBusiness,
   resetPlatformData,
   countLeads,
+  deleteLead,
+  deleteCreator,
   touchCreatorSeen,
   touchBusinessSeen,
   getSiteHealth,
@@ -475,6 +477,11 @@ app.get('/api/admin/leads', requireAdmin, async (_req, res) => {
     res.status(500).json({ ok: false, errors: ['Внутренняя ошибка'] });
   }
 });
+app.post('/api/admin/leads/:id/delete', requireAdmin, wrap(async (req, res) => {
+  const done = await deleteLead(Number(req.params.id));
+  if (!done) return res.status(404).json({ ok: false, errors: ['Заявка не найдена'] });
+  ok(res, {});
+}));
 
 // Upload a media file (image/video) → Spaces if configured (keeps big video out
 // of Postgres), otherwise fall back to storing the bytes in the DB.
@@ -1487,6 +1494,11 @@ app.post('/api/admin/creators/:id/credentials', requireAdmin, wrap(async (req, r
   ok(res, { creator: publicCreator(creator) });
 }));
 app.post('/api/admin/creators/:id', requireAdmin, wrap(async (req, res) => ok(res, { creator: publicCreator(await updateCreator(Number(req.params.id), req.body || {})) })));
+app.post('/api/admin/creators/:id/delete', requireAdmin, wrap(async (req, res) => {
+  const done = await deleteCreator(Number(req.params.id));
+  if (!done) return res.status(404).json({ ok: false, errors: ['Креатор не найден'] });
+  ok(res, {});
+}));
 
 /* ---------------- Admin: business accounts ---------------- */
 app.get('/api/admin/businesses', requireAdmin, wrap(async (_req, res) => ok(res, { businesses: await listBusinesses() })));

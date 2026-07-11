@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '../../components/Toast.jsx';
-import { useConfirm } from '../../components/ConfirmDialog.jsx';
+import ConfirmDelete from '../../components/ConfirmDelete.jsx';
 
 /* ---------------- Businesses (accounts) ---------------- */
 export function BusinessesView({ authFetch }) {
   const toast = useToast();
-  const confirm = useConfirm();
   const [businesses, setBusinesses] = useState([]);
   const [form, setForm] = useState({ name: '', company: '', email: '', password: '' });
   const [busy, setBusy] = useState(false);
@@ -36,14 +35,7 @@ export function BusinessesView({ authFetch }) {
     load();
   };
 
-  const remove = async (id, name) => {
-    const okToDelete = await confirm({
-      title: 'Удалить аккаунт бизнеса?',
-      message: `«${name}» и все его брифы будут удалены безвозвратно.`,
-      confirmText: 'Удалить',
-      danger: true,
-    });
-    if (!okToDelete) return;
+  const remove = async (id) => {
     setError('');
     const res = await authFetch(`/api/admin/businesses/${id}/delete`, { method: 'POST' });
     if (!res.ok) {
@@ -99,7 +91,7 @@ export function BusinessesView({ authFetch }) {
                 <td data-label="Брифов">{b.briefs}</td>
                 <td className="muted-cell" data-label="Создан">{b.created_at ? new Date(b.created_at).toLocaleDateString('ru-RU') : '—'}</td>
                 <td data-label="Действия">
-                  <button className="btn btn--ghost btn--sm" onClick={() => remove(b.id, b.company || b.name)}>Удалить</button>
+                  <ConfirmDelete onConfirm={() => remove(b.id)} />
                 </td>
               </tr>
             ))}

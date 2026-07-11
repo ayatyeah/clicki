@@ -689,6 +689,17 @@
   .cp-tip .btn { width: 100%; }
 }
 
+/* Inline two-step delete button — armed ("Точно удалить?") state turns red. */
+.confirm-del { white-space: nowrap; }
+.confirm-del--armed,
+.app-light .confirm-del--armed {
+  background: #dc2626;
+  color: #fff;
+  border: 1px solid transparent;
+  font-weight: 600;
+}
+.confirm-del--armed:hover { background: #b91c1c; }
+
 /* ============================================================
    Admin panel — align with the cabinet look (violet brand,
    soft-shadow sidebar + cards, centered login card).
