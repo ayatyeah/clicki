@@ -18,6 +18,20 @@ export const spacesEnabled = Boolean(SPACES_KEY && SPACES_SECRET && SPACES_BUCKE
 
 const endpoint = SPACES_ENDPOINT || (SPACES_REGION ? `https://${SPACES_REGION}.digitaloceanspaces.com` : undefined);
 
+function toOrigin(u) {
+  try { return new URL(u).origin; } catch { return null; }
+}
+/**
+ * Origins that public media URLs actually use — feed these to the CSP img/media
+ * allowlist. uploadToSpaces returns `${SPACES_CDN || `${endpoint}/${bucket}`}/…`,
+ * so the host is either the CDN origin or the (often region-derived) endpoint
+ * origin. Reading raw SPACES_ENDPOINT env missed the derived host, so the CSP
+ * blocked the embedded <img>/<video> even though the file opened fine on its own.
+ */
+export const spacesMediaHosts = spacesEnabled
+  ? [...new Set([SPACES_CDN, endpoint].map(toOrigin).filter(Boolean))]
+  : [];
+
 const EXT = {
   'video/mp4': '.mp4',
   'video/quicktime': '.mov',

@@ -994,28 +994,34 @@
     position: fixed;
     left: 0; right: 0; bottom: 0;
     z-index: 40;
-    background: rgba(255, 255, 255, 0.96);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border-top: 1px solid var(--line);
-    padding: 6px 2px calc(6px + env(safe-area-inset-bottom, 0px));
-    box-shadow: 0 -4px 16px rgba(24, 20, 48, 0.06);
+    padding: 9px 2px calc(9px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -6px 22px rgba(24, 20, 48, 0.1);
   }
-  .creator-portal__inner--wide { padding-bottom: 86px; }
+  .creator-portal__inner--wide { padding-bottom: 96px; }
 }
 .cp-bottomnav__btn {
   flex: 1 1 0; min-width: 0;
-  display: flex; flex-direction: column; align-items: center; gap: 3px;
-  padding: 6px 2px; border: none; background: none; cursor: pointer;
-  color: var(--fog); font: inherit; -webkit-tap-highlight-color: transparent;
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 4px 2px; border: none; background: none; cursor: pointer;
+  color: var(--stone); font: inherit; -webkit-tap-highlight-color: transparent;
 }
-.cp-bottomnav__icon { display: inline-flex; color: var(--fog); transition: color 0.14s ease; }
+/* Active item gets a filled violet pill behind the (bigger) icon so the current
+   tab is obvious — this bar is the primary navigation on mobile. */
+.cp-bottomnav__icon {
+  display: inline-flex; color: var(--stone);
+  padding: 5px 16px; border-radius: 999px;
+  transition: color 0.16s ease, background 0.16s ease;
+}
 .cp-bottomnav__label {
-  font-size: 0.6rem; font-weight: 600; line-height: 1;
+  font-size: 0.68rem; font-weight: 600; line-height: 1;
   max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .cp-bottomnav__btn.is-active { color: #6d28d9; }
-.cp-bottomnav__btn.is-active .cp-bottomnav__icon { color: #6d28d9; }
+.cp-bottomnav__btn.is-active .cp-bottomnav__icon { color: #6d28d9; background: rgba(124, 58, 237, 0.15); }
 
 /* "Мои видео" list rows */
 .cp-vids { display: flex; flex-direction: column; }

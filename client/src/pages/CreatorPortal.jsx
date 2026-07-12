@@ -46,11 +46,9 @@ const CREATOR_QA = [
 
 // Onboarding test (ТЗ §3 step 2) — filters "не по брифу" disputes before filming.
 const QUIZ = [
-  { q: 'Минимум просмотров, чтобы видео засчиталось?', opts: ['500', '2 000', '10 000'], a: 1 },
-  { q: 'Допустимый хронометраж ролика?', opts: ['5–15 сек', '15–90 сек', '60–180 сек'], a: 1 },
+  { q: 'Минимум просмотров, чтобы видео засчиталось?', opts: ['2 000', '5 000', '10 000'], a: 0 },
   { q: 'Можно загрузить чужое видео?', opts: ['Да', 'Нет, только своё по брифу'], a: 1 },
   { q: 'Когда проверяется, удалено ли видео?', opts: ['Каждый день', 'На 30-й день после публикации'], a: 1 },
-  { q: 'Хэштег из брифа обязателен?', opts: ['Да', 'На усмотрение'], a: 0 },
 ];
 
 export default function CreatorPortal() {
@@ -91,6 +89,17 @@ export default function CreatorPortal() {
   useEffect(() => {
     if (token && !data) loadMe();
   }, [token, data, loadMe]);
+
+  // Keep the cabinet numbers fresh without a manual reload — views, balance and
+  // "в проверке" update as the operator records them or the TikTok/Instagram sync
+  // runs. Poll only while the tab is visible so a backgrounded PWA stays idle.
+  useEffect(() => {
+    if (!token) return undefined;
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') loadMe();
+    }, 60000);
+    return () => clearInterval(id);
+  }, [token, loadMe]);
 
   const onAuthed = (tok, payload) => {
     api.setToken(tok);
@@ -265,21 +274,22 @@ function ApplyDone({ onToLogin }) {
 }
 
 function Onboarding({ authFetch, onDone }) {
-  const [step, setStep] = useState('quiz'); // 'quiz' | 'topics'
+  const [step, setStep] = useState('quiz'); // 'quiz' | 'done'
   const [ans, setAns] = useState({});
-  const [topics, setTopics] = useState([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
   const submitQuiz = async () => {
     const correct = QUIZ.filter((q, i) => ans[i] === q.a).length;
-    if (correct < 4) return setError(`Правильных ${correct} из ${QUIZ.length}. Нужно минимум 4 — перечитай и попробуй снова.`);
+    if (correct < QUIZ.length) {
+      return setError(`Правильных ${correct} из ${QUIZ.length}. Ответь верно на все — перечитай и попробуй снова.`);
+    }
     setBusy(true);
     setError('');
     try {
       const res = await authFetch('/api/creator/onboarding', { method: 'POST' });
       if (!res.ok) throw new Error('Не удалось сохранить — попробуйте ещё раз');
-      setStep('topics'); // ask about content niches before opening the cabinet
+      setStep('done'); // show the welcome screen before opening the cabinet
     } catch (err) {
       setError(err.message);
     } finally {
@@ -287,42 +297,16 @@ function Onboarding({ authFetch, onDone }) {
     }
   };
 
-  const toggleTopic = (key) => setTopics((ts) => (ts.includes(key) ? ts.filter((x) => x !== key) : [...ts, key]));
-
-  const finish = async () => {
-    setBusy(true);
-    try {
-      if (topics.length) {
-        await authFetch('/api/creator/profile', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ topics }),
-        });
-      }
-    } catch {
-      /* topics are optional and editable later in "Мой аккаунт" — never block entry */
-    } finally {
-      setBusy(false);
-      onDone(); // reload → Dashboard opens on "Как это работает"
-    }
-  };
-
-  if (step === 'topics') {
+  if (step === 'done') {
     return (
       <Shell>
-        <h1 className="creator-portal__title">На какие темы снимаешь?</h1>
-        <p className="creator-portal__muted">Выбери близкие тебе темы — так мы точнее подберём заказы. Можно изменить позже в профиле.</p>
+        <div className="mascot-avatar"><img src="/mascot-hood.jpg" alt="CLICKI" /></div>
+        <h1 className="creator-portal__title">Добро пожаловать в CLICKI! 🎉</h1>
+        <p className="creator-portal__muted">
+          Отличный результат — ты прошёл тест и разобрался в правилах. Теперь можно брать заказы и зарабатывать на коротких видео.
+        </p>
         <div className="creator-portal__card">
-          <div className="cp-topics">
-            {CREATOR_TOPICS.map((tp) => (
-              <button type="button" key={tp.key} className={`cp-topic ${topics.includes(tp.key) ? 'is-on' : ''}`} onClick={() => toggleTopic(tp.key)}>
-                <span aria-hidden="true">{tp.emoji}</span> {tp.label}
-              </button>
-            ))}
-          </div>
-          <button className="btn btn--primary btn--block" onClick={finish} disabled={busy}>
-            {busy ? 'Сохраняю…' : topics.length ? `Продолжить (${topics.length})` : 'Пропустить'}
-          </button>
+          <button className="btn btn--primary btn--block" onClick={onDone}>Войти в кабинет →</button>
         </div>
       </Shell>
     );
@@ -331,7 +315,7 @@ function Onboarding({ authFetch, onDone }) {
   return (
     <Shell>
       <h1 className="creator-portal__title">Короткий тест</h1>
-      <p className="creator-portal__muted">5 вопросов о правилах — чтобы видео не отклонялись потом.</p>
+      <p className="creator-portal__muted">Несколько вопросов о правилах — чтобы видео не отклонялись потом.</p>
       <div className="creator-portal__card">
         {QUIZ.map((q, i) => (
           <div key={i} className="creator-portal__q">
@@ -437,7 +421,7 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
                 className={`cp-bottomnav__btn ${view === tab.key ? 'is-active' : ''}`}
                 onClick={() => setView(tab.key)}
               >
-                <span className="cp-bottomnav__icon" aria-hidden="true"><Icon name={tab.icon} size={22} /></span>
+                <span className="cp-bottomnav__icon" aria-hidden="true"><Icon name={tab.icon} size={24} /></span>
                 <span className="cp-bottomnav__label">{tab.short || tab.label}</span>
               </button>
             ))}
@@ -772,8 +756,9 @@ function OverviewHome({ c, wallet, submissions, briefs, forecast, authFetch, rel
         </>
       )}
 
-      {/* TikTok connect (keeps the existing connect flow available on home) */}
+      {/* Connect social accounts so views sync automatically (no screenshots). */}
       {!c.tiktok_connected && <TikTokCard c={c} authFetch={authFetch} reload={reload} />}
+      <InstagramCard c={c} authFetch={authFetch} reload={reload} />
 
       {/* Active orders */}
       <h2 className="creator-portal__h2">Активные заказы</h2>
@@ -965,6 +950,59 @@ function TikTokCard({ c, authFetch, reload }) {
         <>
           <p className="creator-portal__muted">Подключи аккаунт — просмотры видео будут подтягиваться сами, без ручного ввода.</p>
           <button className="btn btn--primary btn--sm" onClick={connect} disabled={busy}>{busy ? '…' : 'Подключить TikTok'}</button>
+        </>
+      )}
+      {msg && <p className="creator-portal__muted">{msg}</p>}
+    </div>
+  );
+}
+
+/** Connect an Instagram professional account so per-video views sync automatically
+ * (Instagram Login for Business). Mirrors TikTokCard. */
+function InstagramCard({ c, authFetch, reload }) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    const status = new URLSearchParams(window.location.search).get('instagram');
+    if (!status) return;
+    setMsg(status === 'connected' ? 'Instagram подключён ✓' : 'Не удалось подключить Instagram — попробуй ещё раз.');
+    window.history.replaceState(null, '', window.location.pathname);
+    reload();
+  }, []); // eslint-disable-line
+
+  const connect = async () => {
+    setBusy(true);
+    try {
+      const r = await (await authFetch('/api/creator/instagram/connect', { method: 'POST' })).json();
+      if (r.ok && r.url) window.location.href = r.url;
+      else setMsg((r.errors && r.errors[0]) || 'Подключение Instagram пока недоступно');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const disconnect = async () => {
+    setBusy(true);
+    try {
+      await authFetch('/api/creator/instagram/disconnect', { method: 'POST' });
+      reload();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="creator-portal__card">
+      <div className="creator-portal__wallet-row"><span>Instagram</span></div>
+      {c.instagram_connected ? (
+        <>
+          <p className="creator-portal__muted">Подключён{c.ig_username ? `: @${c.ig_username}` : ''}. Просмотры Reels обновляются сами — скриншоты не нужны.</p>
+          <button className="btn btn--ghost btn--sm" onClick={disconnect} disabled={busy}>Отключить</button>
+        </>
+      ) : (
+        <>
+          <p className="creator-portal__muted">Подключи Instagram — статистика по видео будет подтягиваться автоматически, без скриншотов. Нужен профессиональный аккаунт (Business/Creator).</p>
+          <button className="btn btn--primary btn--sm" onClick={connect} disabled={busy}>{busy ? '…' : 'Подключить Instagram'}</button>
         </>
       )}
       {msg && <p className="creator-portal__muted">{msg}</p>}

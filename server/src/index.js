@@ -26,6 +26,15 @@ import {
   parseTikTokVideoId,
 } from './tiktok.js';
 import {
+  instagramEnabled,
+  instagramAuthorizeUrl,
+  exchangeInstagramCode,
+  refreshInstagramToken,
+  fetchInstagramUser,
+  fetchInstagramMediaViews,
+  parseInstagramShortcode,
+} from './instagram.js';
+import {
   initDb,
   saveMedia,
   getMedia,
@@ -78,6 +87,9 @@ import {
   saveTikTokTokens,
   clearTikTokConnection,
   listCreatorsWithTikTok,
+  saveInstagramTokens,
+  clearInstagramConnection,
+  listCreatorsWithInstagram,
   getCreatorWallet,
   getEarningsForecast,
   listPayouts,
@@ -120,7 +132,7 @@ import {
   recordRefVisit,
 } from './db.js';
 import { geminiGenerate, geminiEnabled } from './gemini.js';
-import { uploadToSpaces, spacesEnabled } from './storage.js';
+import { uploadToSpaces, spacesEnabled, spacesMediaHosts } from './storage.js';
 import { safeHttpUrl, fetchPageText, buildCspDirectives } from './security.js';
 import { maskName, maskContact, maskLeadFields, maskCreatorRow } from './mask.js';
 
@@ -145,7 +157,9 @@ app.set('trust proxy', 1);
 const CSP_MODE = process.env.CSP_MODE || 'enforce';
 const cspDirectives = buildCspDirectives({
   isProd: IS_PROD,
-  mediaHosts: [process.env.SPACES_CDN, process.env.SPACES_ENDPOINT],
+  // The exact origin(s) our Spaces public URLs use (region-derived when the
+  // endpoint isn't set explicitly) — so the CSP allows embedded <img>/<video>.
+  mediaHosts: spacesMediaHosts,
 });
 
 app.use(
@@ -626,8 +640,13 @@ const newToken = () => crypto.randomBytes(24).toString('hex');
 // Strip secrets before sending a creator object to the client.
 function publicCreator(c) {
   if (!c) return c;
-  const { password_hash, session_token, tiktok_access_token, tiktok_refresh_token, tiktok_token_expires_at, tiktok_refresh_expires_at, ...safe } = c;
-  return { ...safe, tiktok_connected: !!tiktok_access_token };
+  const {
+    password_hash, session_token,
+    tiktok_access_token, tiktok_refresh_token, tiktok_token_expires_at, tiktok_refresh_expires_at,
+    ig_access_token, ig_token_expires_at,
+    ...safe
+  } = c;
+  return { ...safe, tiktok_connected: !!tiktok_access_token, instagram_connected: !!ig_access_token };
 }
 // Bearer-token middleware — authorizes the caller as a specific creator (no IDOR).
 // Ban state for a creator row. Permanent when banned_until is null; temporary
@@ -939,6 +958,27 @@ app.post(
     ok(res, { creator: publicCreator(await getCreator(req.creator.id)) });
   })
 );
+
+// Start the Instagram connect flow (Instagram Login for Business).
+app.post(
+  '/api/creator/instagram/connect',
+  requireCreator,
+  wrap(async (req, res) => {
+    if (!instagramEnabled) return res.status(400).json({ ok: false, errors: ['Подключение Instagram пока не настроено'] });
+    const state = crypto.randomBytes(24).toString('hex');
+    await saveOAuthState(state, req.creator.id, 'instagram');
+    ok(res, { url: instagramAuthorizeUrl(state) });
+  })
+);
+app.post(
+  '/api/creator/instagram/disconnect',
+  requireCreator,
+  wrap(async (req, res) => {
+    await clearInstagramConnection(req.creator.id);
+    ok(res, { creator: publicCreator(await getCreator(req.creator.id)) });
+  })
+);
+
 // A creator checks their own leads/clients brought in via their referral link.
 app.get('/api/creator/referrals', requireCreator, wrap(async (req, res) => ok(res, { referrals: await getReferralLeadsForCreator(req.creator.id) })));
 
@@ -991,6 +1031,22 @@ app.get('/api/auth/tiktok/callback', async (req, res) => {
   } catch (err) {
     console.error('[tiktok-callback]', err.message);
     res.redirect('/creator?tiktok=error');
+  }
+});
+// Instagram redirects the browser back here after the creator authorizes (or declines). Public.
+app.get('/api/auth/instagram/callback', async (req, res) => {
+  const { code, state, error } = req.query || {};
+  try {
+    if (error || !code || !state) return res.redirect('/creator?instagram=error');
+    const creatorId = await consumeOAuthState(String(state), 'instagram');
+    if (!creatorId) return res.redirect('/creator?instagram=error');
+    const tokens = await exchangeInstagramCode(String(code));
+    const userInfo = await fetchInstagramUser(tokens.access_token).catch(() => null);
+    await saveInstagramTokens(creatorId, { ...tokens, username: userInfo?.username, user_id: userInfo?.user_id || tokens.user_id });
+    res.redirect('/creator?instagram=connected');
+  } catch (err) {
+    console.error('[instagram-callback]', err.message);
+    res.redirect('/creator?instagram=error');
   }
 });
 
@@ -1400,6 +1456,59 @@ async function syncAllTikTokViews() {
   return { synced, creators: creators.length };
 }
 
+// ---- Instagram auto-sync: same idea as TikTok, matching a submission's URL to
+// the connected account's media by shortcode and pulling the `views` insight.
+async function syncCreatorInstagramViews(creator) {
+  const exp = creator.ig_token_expires_at ? new Date(creator.ig_token_expires_at) : null;
+  if (!exp || exp <= new Date()) {
+    // Long-lived token expired — can't refresh an expired one; prompt reconnect.
+    await clearInstagramConnection(creator.id);
+    throw new Error(`Instagram reconnect needed for creator #${creator.id}`);
+  }
+  let token = creator.ig_access_token;
+  // Refresh proactively when under a week left (must refresh while still valid).
+  if (exp.getTime() - Date.now() < 7 * 24 * 3600 * 1000) {
+    try {
+      const refreshed = await refreshInstagramToken(token);
+      await saveInstagramTokens(creator.id, { user_id: creator.ig_user_id, username: creator.ig_username, ...refreshed });
+      token = refreshed.access_token;
+    } catch {
+      /* keep using the current token for this round */
+    }
+  }
+  const media = await fetchInstagramMediaViews(token);
+  const bySc = new Map();
+  for (const m of media) {
+    const sc = parseInstagramShortcode(m.permalink);
+    if (sc && m.views != null) bySc.set(sc, m.views);
+  }
+  const subs = await listCreatorSubmissions(creator.id);
+  let updated = 0;
+  for (const s of subs) {
+    if (!/instagram|reels/i.test(s.platform) || !['accepted', 'sent_to_business'].includes(s.status)) continue;
+    const sc = parseInstagramShortcode(s.video_url);
+    if (!sc || !bySc.has(sc)) continue;
+    const views = bySc.get(sc);
+    if (views === s.views) continue;
+    await recordViews(s.id, views, s.views_final);
+    updated += 1;
+  }
+  return updated;
+}
+async function syncAllInstagramViews() {
+  if (!instagramEnabled) return { synced: 0, creators: 0 };
+  const creators = await listCreatorsWithInstagram();
+  let synced = 0;
+  for (const c of creators) {
+    try {
+      synced += await syncCreatorInstagramViews(c);
+    } catch (err) {
+      console.error(`[instagram-sync] creator #${c.id} failed:`, err.message);
+    }
+  }
+  return { synced, creators: creators.length };
+}
+
 // ---- Admin / operator CRM (ТЗ §13) ----
 
 // Site health: one snapshot of accounts, pipeline, money, traffic and the
@@ -1448,6 +1557,7 @@ app.get('/api/admin/reports/monthly', requireAdmin, wrap(async (req, res) => {
 app.get('/api/admin/decisions', requireAdmin, wrap(async (_req, res) => ok(res, { decisions: await listDecisionJournal() })));
 // Manually trigger a TikTok view-count sync across all connected creators.
 app.post('/api/admin/tiktok/sync', requireAdmin, wrap(async (_req, res) => ok(res, await syncAllTikTokViews())));
+app.post('/api/admin/instagram/sync', requireAdmin, wrap(async (_req, res) => ok(res, await syncAllInstagramViews())));
 app.get('/api/admin/rates', requireAdmin, wrap(async (_req, res) => ok(res, { rates: await getRates(), settings: await getSettings() })));
 // Update a numeric platform setting (e.g. founding_cap — set as high as desired).
 app.post('/api/admin/settings', requireAdmin, wrap(async (req, res) => {
@@ -1840,6 +1950,11 @@ try {
 if (tiktokEnabled) {
   setInterval(() => {
     syncAllTikTokViews().catch((err) => console.error('[tiktok-sync]', err));
+  }, 3 * 60 * 60 * 1000);
+}
+if (instagramEnabled) {
+  setInterval(() => {
+    syncAllInstagramViews().catch((err) => console.error('[instagram-sync]', err));
   }, 3 * 60 * 60 * 1000);
 }
 

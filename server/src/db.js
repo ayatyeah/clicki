@@ -274,6 +274,12 @@ export async function initDb() {
     await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS tiktok_refresh_token TEXT');
     await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS tiktok_token_expires_at TIMESTAMP');
     await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS tiktok_refresh_expires_at TIMESTAMP');
+    // Instagram (Instagram Login for Business): one long-lived token, refreshed
+    // in place — no separate refresh token like TikTok.
+    await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS ig_user_id TEXT');
+    await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS ig_username VARCHAR(120)');
+    await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS ig_access_token TEXT');
+    await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS ig_token_expires_at TIMESTAMP');
     // Short-lived CSRF state ↔ creator mapping for the OAuth redirect round-trip
     // (TikTok's redirect_uri must be static, so we can't carry the creator id in it).
     await client.query(`
@@ -855,6 +861,30 @@ export async function listCreatorsWithTikTok() {
             tiktok_token_expires_at, tiktok_refresh_expires_at
        FROM creators
       WHERE tiktok_access_token IS NOT NULL AND tiktok_refresh_expires_at > NOW()`
+  );
+  return r.rows;
+}
+export async function saveInstagramTokens(creatorId, { user_id, username, access_token, expires_in }) {
+  const r = await pool.query(
+    `UPDATE creators SET
+       ig_user_id=$1, ig_username=$2, ig_access_token=$3,
+       ig_token_expires_at = NOW() + ($4 || ' seconds')::interval
+     WHERE id=$5 RETURNING *`,
+    [user_id || null, username || null, access_token, expires_in || 0, creatorId]
+  );
+  return r.rows[0] || null;
+}
+export async function clearInstagramConnection(creatorId) {
+  await pool.query(
+    `UPDATE creators SET ig_user_id=NULL, ig_username=NULL, ig_access_token=NULL, ig_token_expires_at=NULL WHERE id=$1`,
+    [creatorId]
+  );
+}
+export async function listCreatorsWithInstagram() {
+  const r = await pool.query(
+    `SELECT id, ig_user_id, ig_username, ig_access_token, ig_token_expires_at
+       FROM creators
+      WHERE ig_access_token IS NOT NULL`
   );
   return r.rows;
 }
