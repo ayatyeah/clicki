@@ -2,7 +2,7 @@ import { useParams, Link } from 'react-router-dom';
 import Seo from '../components/Seo.jsx';
 import Logo from '../components/Logo.jsx';
 import { useLang } from '../i18n.jsx';
-import { TELEGRAM_URL } from '../lib/config.js';
+import { COMMUNITY_URL } from '../lib/config.js';
 
 const COPY = {
   ru: {
@@ -60,7 +60,7 @@ export default function ThankYou() {
         <p className="thanks__text">{data.text}</p>
         <div className="thanks__actions">
           {type === 'creator' && (
-            <a href={TELEGRAM_URL} target="_blank" rel="noreferrer" className="btn btn--green">
+            <a href={COMMUNITY_URL} target="_blank" rel="noreferrer" className="btn btn--green">
               {t.community}
             </a>
           )}

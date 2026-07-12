@@ -16,7 +16,7 @@ import {
   ContactSplit,
 } from '../components/funnel/Shinta.jsx';
 import { useLang } from '../i18n.jsx';
-import { TELEGRAM_URL } from '../lib/config.js';
+import { COMMUNITY_URL } from '../lib/config.js';
 
 const COPY = {
   ru: {
@@ -248,7 +248,7 @@ export default function Creators() {
           title={t.contact.title}
           text={t.contact.text}
           contacts={
-            <a href={TELEGRAM_URL} target="_blank" rel="noreferrer" className="btn btn--ghost" style={{ marginTop: 20 }}>
+            <a href={COMMUNITY_URL} target="_blank" rel="noreferrer" className="btn btn--ghost" style={{ marginTop: 20 }}>
               {t.contact.community}
             </a>
           }
