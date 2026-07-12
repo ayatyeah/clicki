@@ -35,6 +35,20 @@ export default function HealthView({ authFetch }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [tg, setTg] = useState(null); // Telegram self-test result
+  const [tgBusy, setTgBusy] = useState(false);
+
+  const testTelegram = useCallback(async () => {
+    setTgBusy(true);
+    try {
+      const res = await authFetch('/api/admin/notify-test', { method: 'POST' });
+      setTg(await res.json());
+    } catch (err) {
+      setTg({ ok: false, error: err.message });
+    } finally {
+      setTgBusy(false);
+    }
+  }, [authFetch]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -98,6 +112,27 @@ export default function HealthView({ authFetch }) {
           </button>
         </div>
         {error && <p className="muted-note">Данные могли устареть: {error}</p>}
+
+        {/* Telegram notifications health check — surfaces the real reason they stop
+            (e.g. group → supergroup changes the chat_id, revoked token, bot kicked). */}
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', margin: '4px 0 18px' }}>
+          <span>
+            Telegram-уведомления:{' '}
+            {tg == null ? (
+              <b style={{ color: 'var(--fog)' }}>не проверено</b>
+            ) : tg.ok ? (
+              <b style={{ color: '#15803d' }}>работают ✓ (проверь чат)</b>
+            ) : (
+              <b style={{ color: '#b91c1c' }}>не работают</b>
+            )}
+          </span>
+          <button className="btn btn--ghost btn--sm" onClick={testTelegram} disabled={tgBusy}>
+            {tgBusy ? 'Проверяю…' : 'Проверить Telegram'}
+          </button>
+          {tg && !tg.ok && tg.error && (
+            <span className="creator-portal__err" style={{ fontSize: '0.85rem' }}>{tg.error}</span>
+          )}
+        </div>
 
         <div className="kpi-grid">
           <Kpi tone="green" icon="user" value={num(creators.online)} label="Креаторов онлайн" hint={`за 5 мин · ${num(creators.active_24h)} за сутки`} />

@@ -61,6 +61,27 @@ export async function notifyOps(text) {
   }
 }
 
+/** True once the Telegram ops bot is configured (token + chat id present). */
+export const telegramConfigured = () => !!(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID);
+
+/**
+ * Diagnostic: actually send a test message and return the real outcome (unlike
+ * notifyOps, which swallows errors) so the operator can see WHY notifications
+ * stopped — e.g. "chat not found" after the group became a supergroup (its
+ * chat_id changes), a revoked token, or the bot being removed from the group.
+ */
+export async function telegramSelfTest() {
+  if (!telegramConfigured()) {
+    return { configured: false, ok: false, error: 'TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID не заданы в переменных окружения' };
+  }
+  try {
+    await notifyTelegram('✅ Тест уведомлений CLICKI — если ты это видишь, Telegram работает.');
+    return { configured: true, ok: true };
+  } catch (e) {
+    return { configured: true, ok: false, error: e.message };
+  }
+}
+
 let transporter = null;
 function getTransporter() {
   if (transporter) return transporter;

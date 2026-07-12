@@ -13,7 +13,7 @@ import multer from 'multer';
 
 import { validateLead } from './validate.js';
 import { verifyRecaptcha } from './recaptcha.js';
-import { dispatchLead, notifyOps } from './notify.js';
+import { dispatchLead, notifyOps, telegramConfigured, telegramSelfTest } from './notify.js';
 import { saveLead, readLeads, migrateLegacyLeads } from './store.js';
 import { readContent, writeContent } from './content.js';
 import {
@@ -233,6 +233,9 @@ if (IS_PROD) {
   if (!process.env.RECAPTCHA_SECRET) {
     console.warn('[startup] WARNING: RECAPTCHA_SECRET is not set — lead forms accept unverified submissions.');
   }
+}
+if (!telegramConfigured()) {
+  console.warn('[startup] WARNING: TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID not set — no Telegram notifications will be sent.');
 }
 
 const loginLimiter = rateLimit({
@@ -1556,6 +1559,9 @@ app.get('/api/admin/reports/monthly', requireAdmin, wrap(async (req, res) => {
 // Decision journal: raw accept/reject/rework log — the foundation for future AI, not AI itself.
 app.get('/api/admin/decisions', requireAdmin, wrap(async (_req, res) => ok(res, { decisions: await listDecisionJournal() })));
 // Manually trigger a TikTok view-count sync across all connected creators.
+// Diagnostic: send a test Telegram message and report the real result, so a
+// silent failure (chat_id changed, token revoked, bot removed) is visible.
+app.post('/api/admin/notify-test', requireAdmin, wrap(async (_req, res) => ok(res, await telegramSelfTest())));
 app.post('/api/admin/tiktok/sync', requireAdmin, wrap(async (_req, res) => ok(res, await syncAllTikTokViews())));
 app.post('/api/admin/instagram/sync', requireAdmin, wrap(async (_req, res) => ok(res, await syncAllInstagramViews())));
 app.get('/api/admin/rates', requireAdmin, wrap(async (_req, res) => ok(res, { rates: await getRates(), settings: await getSettings() })));
