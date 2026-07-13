@@ -263,6 +263,7 @@ export default function Admin() {
   const NAV = [
     { key: 'dashboard', label: 'Дашборд', icon: 'grid' },
     { key: 'health', label: 'Состояние сайта', icon: 'flame' },
+    { key: 'broadcast', label: 'Рассылка', icon: 'bell' },
     { key: 'ai', label: 'ИИ Аналитика', icon: 'sparkle' },
     { key: 'autopilot', label: 'Автопилот кампаний', icon: 'sparkle' },
     { key: 'analytics', label: 'Аналитика', icon: 'chart' },
@@ -411,6 +412,7 @@ export default function Admin() {
           )}
 
           {view === 'health' && <HealthView authFetch={authFetch} />}
+          {view === 'broadcast' && <BroadcastView authFetch={authFetch} />}
           {view === 'ai' && <AiAnalysisView authFetch={authFetch} />}
           {view === 'autopilot' && <AutopilotView authFetch={authFetch} />}
 
@@ -646,6 +648,132 @@ function LeadsSection({ title, leads, loading, onReload, authFetch }) {
           </tbody>
         </table>
       </div>
+    </section>
+  );
+}
+
+/**
+ * Broadcast to every creator's notification bell. Creating an announcement IS the
+ * send — it lands in all creators' bells instantly — so the send is gated behind
+ * an inline two-step confirm to prevent an accidental blast to everyone.
+ */
+function BroadcastView({ authFetch }) {
+  const toast = useToast();
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [confirming, setConfirming] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await (await authFetch('/api/admin/announcements')).json();
+      if (r.ok !== false) setItems(r.announcements || []);
+    } catch {
+      /* ignore transient error */
+    } finally {
+      setLoading(false);
+    }
+  }, [authFetch]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const send = async () => {
+    if (!title.trim()) { toast.error('Введите заголовок'); return; }
+    setSending(true);
+    try {
+      const res = await authFetch('/api/admin/announcements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: title.trim(), body: body.trim() }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { toast.error((d.errors && d.errors[0]) || 'Не удалось отправить'); return; }
+      toast.success('Рассылка отправлена всем креаторам');
+      setTitle(''); setBody(''); setConfirming(false);
+      load();
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const remove = async (id) => {
+    const res = await authFetch(`/api/admin/announcements/${id}/delete`, { method: 'POST' });
+    if (!res.ok) { toast.error('Не удалось удалить'); return; }
+    toast.success('Уведомление удалено');
+    setItems((prev) => prev.filter((a) => a.id !== id));
+  };
+
+  return (
+    <section className="admin-block">
+      <h2 className="admin-block__title">Рассылка креаторам</h2>
+      <p className="muted-note">
+        Сообщение появится в колокольчике у <b>всех</b> креаторов сразу после отправки. Внешние
+        уведомления (Telegram / e-mail) при этом не рассылаются — только внутри кабинета.
+      </p>
+
+      <div className="broadcast-compose">
+        <label className="broadcast-field">
+          <span>Заголовок</span>
+          <input
+            type="text"
+            value={title}
+            maxLength={200}
+            placeholder="Например: Новые брифы уже в кабинете"
+            onChange={(e) => { setTitle(e.target.value); setConfirming(false); }}
+          />
+        </label>
+        <label className="broadcast-field">
+          <span>Текст (необязательно)</span>
+          <textarea
+            value={body}
+            rows={4}
+            placeholder="Подробности рассылки…"
+            onChange={(e) => { setBody(e.target.value); setConfirming(false); }}
+          />
+        </label>
+        <div className="broadcast-actions">
+          {!confirming ? (
+            <button className="btn btn--primary" disabled={!title.trim() || sending} onClick={() => setConfirming(true)}>
+              Отправить всем креаторам
+            </button>
+          ) : (
+            <>
+              <button className="btn btn--danger" disabled={sending} onClick={send}>
+                {sending ? 'Отправляю…' : 'Точно отправить всем креаторам?'}
+              </button>
+              <button className="btn btn--ghost" disabled={sending} onClick={() => setConfirming(false)}>
+                Отмена
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="admin-panel__head" style={{ marginTop: 26 }}>
+        <h3 className="admin-block__title">Отправленные ({items.length})</h3>
+        <button className="btn btn--ghost btn--sm" onClick={load} disabled={loading}>
+          {loading ? 'Обновляю…' : 'Обновить'}
+        </button>
+      </div>
+      {items.length ? (
+        <ul className="broadcast-list">
+          {items.map((a) => (
+            <li key={a.id} className="broadcast-item">
+              <div className="broadcast-item__main">
+                <div className="broadcast-item__title">{a.title}</div>
+                {a.body && <div className="broadcast-item__body">{a.body}</div>}
+                <div className="broadcast-item__time">{new Date(a.createdAt).toLocaleString('ru-RU')}</div>
+              </div>
+              <ConfirmDelete onConfirm={() => remove(a.id)} />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        !loading && <div className="admin-placeholder">Пока ничего не отправляли</div>
+      )}
     </section>
   );
 }

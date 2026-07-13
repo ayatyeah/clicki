@@ -345,6 +345,92 @@ const CREATOR_TABS = [
   { key: 'account', label: 'Мой аккаунт', short: 'Профиль', icon: 'user' },
 ];
 
+function timeAgo(iso) {
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diff < 60) return 'только что';
+  if (diff < 3600) return `${Math.floor(diff / 60)} мин назад`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} ч назад`;
+  return `${Math.floor(diff / 86400)} дн назад`;
+}
+
+/** Notification bell — shows admin broadcasts. Opening it marks everything read
+ *  (clears the badge). Polls once a minute so a fresh broadcast shows up live. */
+function NotificationBell({ authFetch }) {
+  const [items, setItems] = useState([]);
+  const [unread, setUnread] = useState(0);
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+
+  const load = useCallback(async () => {
+    try {
+      const r = await (await authFetch('/api/creator/announcements')).json();
+      if (r.ok !== false) {
+        setItems(r.items || []);
+        setUnread(r.unread || 0);
+      }
+    } catch {
+      /* keep the last snapshot on a transient error */
+    }
+  }, [authFetch]);
+
+  useEffect(() => {
+    load();
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') load();
+    }, 60000);
+    return () => clearInterval(id);
+  }, [load]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDoc = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const toggle = async () => {
+    const next = !open;
+    setOpen(next);
+    if (next && unread > 0) {
+      setUnread(0);
+      setItems((prev) => prev.map((it) => ({ ...it, unread: false })));
+      try { await authFetch('/api/creator/announcements/seen', { method: 'POST' }); } catch { /* ignore */ }
+    }
+  };
+
+  return (
+    <div className="cp-bell" ref={wrapRef}>
+      <button type="button" className="cp-bell__btn" onClick={toggle} aria-label="Уведомления" aria-expanded={open}>
+        <Icon name="bell" size={20} />
+        {unread > 0 && <span className="cp-bell__badge">{unread > 9 ? '9+' : unread}</span>}
+      </button>
+      {open && (
+        <div className="cp-bell__panel" role="dialog" aria-label="Уведомления">
+          <div className="cp-bell__head">Уведомления</div>
+          {items.length ? (
+            <ul className="cp-bell__list">
+              {items.map((a) => (
+                <li key={a.id} className={`cp-bell__item ${a.unread ? 'is-unread' : ''}`}>
+                  <div className="cp-bell__item-title">{a.title}</div>
+                  {a.body && <div className="cp-bell__item-body">{a.body}</div>}
+                  <div className="cp-bell__item-time">{timeAgo(a.createdAt)}</div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="cp-bell__empty">Пока нет уведомлений</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview' }) {
   const { creator: c, wallet, briefs, openBriefs = [], submissions, level } = data;
   const [view, setView] = useState(initialView);
@@ -402,7 +488,10 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
                 <span className="creator-portal__muted">{level} · Стрик {c.streak} дн · XP {c.xp} · Trust {c.trust_score}</span>
               </span>
             </button>
-            <button className="btn btn--ghost btn--sm" onClick={onLogout}>Выйти</button>
+            <div className="cp-top__actions">
+              <NotificationBell authFetch={authFetch} />
+              <button className="btn btn--ghost btn--sm" onClick={onLogout}>Выйти</button>
+            </div>
           </div>
 
           {needStatsToday > 0 && (

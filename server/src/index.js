@@ -130,6 +130,11 @@ import {
   listStatScreenshots,
   getLastScreenshotAt,
   recordRefVisit,
+  createAnnouncement,
+  listAnnouncements,
+  deleteAnnouncement,
+  getCreatorAnnouncements,
+  markCreatorAnnouncementsSeen,
 } from './db.js';
 import { geminiGenerate, geminiEnabled } from './gemini.js';
 import { uploadToSpaces, spacesEnabled, spacesMediaHosts } from './storage.js';
@@ -985,6 +990,14 @@ app.post(
 // A creator checks their own leads/clients brought in via their referral link.
 app.get('/api/creator/referrals', requireCreator, wrap(async (req, res) => ok(res, { referrals: await getReferralLeadsForCreator(req.creator.id) })));
 
+// Notification bell: recent broadcasts + unread count. Marking as seen is a
+// separate call so the badge only clears when the creator actually opens the bell.
+app.get('/api/creator/announcements', requireCreator, wrap(async (req, res) => ok(res, await getCreatorAnnouncements(req.creator.id))));
+app.post('/api/creator/announcements/seen', requireCreator, wrap(async (req, res) => {
+  await markCreatorAnnouncementsSeen(req.creator.id);
+  ok(res);
+}));
+
 // AI Script & Teleprompter: generate a ready-to-read script from the brief's own
 // fields so a creator can film straight off the teleprompter instead of guessing
 // what to say. Not persisted — cheap enough (small output) to regenerate on demand.
@@ -1562,6 +1575,23 @@ app.get('/api/admin/decisions', requireAdmin, wrap(async (_req, res) => ok(res, 
 // Diagnostic: send a test Telegram message and report the real result, so a
 // silent failure (chat_id changed, token revoked, bot removed) is visible.
 app.post('/api/admin/notify-test', requireAdmin, wrap(async (_req, res) => ok(res, await telegramSelfTest())));
+
+// Broadcast to every creator's notification bell. Creating one is the "send" —
+// it becomes visible to all creators immediately, so it must be an explicit admin
+// action (no auto/test sends).
+app.get('/api/admin/announcements', requireAdmin, wrap(async (_req, res) => ok(res, { announcements: await listAnnouncements() })));
+app.post('/api/admin/announcements', requireAdmin, wrap(async (req, res) => {
+  const title = String(req.body?.title || '').trim();
+  const body = String(req.body?.body || '').trim();
+  if (!title) return res.status(400).json({ ok: false, errors: ['Заголовок обязателен'] });
+  ok(res, { announcement: await createAnnouncement({ title, body }) });
+}));
+app.post('/api/admin/announcements/:id/delete', requireAdmin, wrap(async (req, res) => {
+  const done = await deleteAnnouncement(Number(req.params.id));
+  if (!done) return res.status(404).json({ ok: false, errors: ['Не найдено'] });
+  ok(res);
+}));
+
 app.post('/api/admin/tiktok/sync', requireAdmin, wrap(async (_req, res) => ok(res, await syncAllTikTokViews())));
 app.post('/api/admin/instagram/sync', requireAdmin, wrap(async (_req, res) => ok(res, await syncAllInstagramViews())));
 app.get('/api/admin/rates', requireAdmin, wrap(async (_req, res) => ok(res, { rates: await getRates(), settings: await getSettings() })));

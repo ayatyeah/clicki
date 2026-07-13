@@ -372,6 +372,21 @@ export async function initDb() {
     await client.query('ALTER TABLE business_accounts ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMP');
     await client.query('CREATE INDEX IF NOT EXISTS creators_last_seen_idx ON creators (last_seen_at)');
     await client.query('CREATE INDEX IF NOT EXISTS business_last_seen_idx ON business_accounts (last_seen_at)');
+
+    // Announcements: an in-app broadcast the admin sends to every creator. They
+    // surface in the creator cabinet's notification bell; no external message is
+    // sent, so a creator only ever sees one when the admin explicitly creates it.
+    // announcements_seen_at marks when a creator last opened the bell → unread =
+    // announcements newer than that.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS announcements (
+        id BIGSERIAL PRIMARY KEY,
+        title VARCHAR(200) NOT NULL,
+        body TEXT NOT NULL DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+    await client.query('CREATE INDEX IF NOT EXISTS announcements_created_idx ON announcements (created_at DESC)');
+    await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS announcements_seen_at TIMESTAMP');
   } finally {
     client.release();
   }
@@ -530,6 +545,56 @@ export async function countLeads() {
 export async function deleteLead(id) {
   const r = await pool.query('DELETE FROM leads WHERE id = $1', [id]);
   return r.rowCount > 0;
+}
+
+/* ---------------- Announcements (creator broadcast bell) ---------------- */
+function mapAnnouncement(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    body: row.body || '',
+    createdAt: row.created_at?.toISOString?.() ?? row.created_at,
+  };
+}
+/** Create a broadcast — instantly visible in every creator's notification bell. */
+export async function createAnnouncement({ title, body }) {
+  const r = await pool.query(
+    'INSERT INTO announcements (title, body) VALUES ($1, $2) RETURNING id, title, body, created_at',
+    [title, body || '']
+  );
+  return mapAnnouncement(r.rows[0]);
+}
+/** Admin history of everything broadcast so far. */
+export async function listAnnouncements(limit = 50) {
+  const r = await pool.query(
+    'SELECT id, title, body, created_at FROM announcements ORDER BY created_at DESC, id DESC LIMIT $1',
+    [limit]
+  );
+  return r.rows.map(mapAnnouncement);
+}
+export async function deleteAnnouncement(id) {
+  const r = await pool.query('DELETE FROM announcements WHERE id = $1', [id]);
+  return r.rowCount > 0;
+}
+/** The creator's bell: recent announcements + how many are unread (newer than
+ *  the last time they opened the bell — all of them if they never have). */
+export async function getCreatorAnnouncements(creatorId, limit = 30) {
+  const seenR = await pool.query('SELECT announcements_seen_at FROM creators WHERE id = $1', [creatorId]);
+  const seenAt = seenR.rows[0]?.announcements_seen_at ?? null;
+  const r = await pool.query(
+    'SELECT id, title, body, created_at FROM announcements ORDER BY created_at DESC, id DESC LIMIT $1',
+    [limit]
+  );
+  const items = r.rows.map((row) => ({ ...mapAnnouncement(row), unread: !seenAt || row.created_at > seenAt }));
+  const countR = await pool.query(
+    'SELECT COUNT(*)::int AS n FROM announcements WHERE $1::timestamp IS NULL OR created_at > $1',
+    [seenAt]
+  );
+  return { items, unread: countR.rows[0].n };
+}
+/** Mark the bell as read for this creator (called when they open it). */
+export async function markCreatorAnnouncementsSeen(creatorId) {
+  await pool.query('UPDATE creators SET announcements_seen_at = NOW() WHERE id = $1', [creatorId]);
 }
 
 /** Cheap connectivity check for /api/health — a real DB round-trip, not just
