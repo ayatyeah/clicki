@@ -180,14 +180,12 @@ export function CreatorsView({ authFetch }) {
       </div>
 
       <div className="admin-table-wrap" style={{ marginTop: 16 }}>
-        <table className="admin-table">
+        <table className="admin-table admin-table--creators">
           <thead>
             <tr>
               <th>Креатор</th>
-              <th>Рейтинг</th>
               <th>Контакт</th>
               <th>Доступ (логин)</th>
-              <th>XP / Trust / Стрик</th>
               <th>Статус</th>
               <th>Действия</th>
             </tr>
@@ -197,14 +195,16 @@ export function CreatorsView({ authFetch }) {
               <tr key={c.id}>
                 <td data-label="Креатор">
                   <b>{c.name}</b> {c.founding && <span className="pf-badge">Founding</span>}
-                  <div style={{ fontSize: '0.8rem', color: 'var(--fog)' }}>{c.socials || ''}</div>
+                  {c.socials && <div className="creators-cell__socials">{c.socials}</div>}
+                  <div className="creators-cell__meta">
+                    <Stars value={c.rating || 0} />
+                    <span>XP {c.xp} · Trust {c.trust_score} · Стрик {c.streak}</span>
+                  </div>
                 </td>
-                <td data-label="Рейтинг"><Stars value={c.rating || 0} /></td>
                 <td data-label="Контакт">{c.contact}</td>
                 <td data-label="Доступ">
                   <Credentials creator={c} authFetch={authFetch} onSaved={load} />
                 </td>
-                <td data-label="XP / Trust / Стрик">{c.xp} / {c.trust_score} / {c.streak}</td>
                 <td data-label="Статус">
                   <select value={c.status} onChange={(e) => toggle(c.id, 'status', e.target.value)}>
                     <option value="pending">pending</option>
@@ -221,7 +221,7 @@ export function CreatorsView({ authFetch }) {
                 </td>
               </tr>
             ))}
-            {!creators.length && <tr><td colSpan={7} className="admin-table__empty">Креаторов пока нет</td></tr>}
+            {!creators.length && <tr><td colSpan={5} className="admin-table__empty">Креаторов пока нет</td></tr>}
           </tbody>
         </table>
       </div>

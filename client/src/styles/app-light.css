@@ -912,6 +912,21 @@
 .broadcast-item__body { margin-top: 4px; color: var(--stone); font-size: 0.9rem; white-space: pre-wrap; word-break: break-word; }
 .broadcast-item__time { margin-top: 6px; color: var(--fog); font-size: 0.75rem; }
 
+/* Creators table: 5 compact columns that fit the admin content width, so
+   Статус/Действия are visible without scrolling right. Rating + XP/Trust/Streak
+   fold into the name cell; a long pasted socials URL can't push the row wide. */
+.admin-table.admin-table--creators { min-width: 0; }
+.admin-table--creators th,
+.admin-table--creators td { padding: 12px; }
+.creators-cell__socials {
+  margin-top: 2px; font-size: 0.8rem; color: var(--fog);
+  max-width: 220px; word-break: break-word; overflow-wrap: anywhere;
+}
+.creators-cell__meta {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-top: 5px; font-size: 0.76rem; color: var(--fog);
+}
+
 .cp-account__head { display: flex; align-items: center; gap: 16px; margin-bottom: 4px; }
 .cp-account__id { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
 .cp-account__id b { color: var(--ink); font-size: 1.05rem; }
