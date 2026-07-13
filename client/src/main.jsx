@@ -29,3 +29,29 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </HelmetProvider>
   </React.StrictMode>
 );
+
+// Service worker: keep the app self-updating so users never need a hard reload.
+// A freshly deployed SW skips waiting and claims control (see vite.config PWA);
+// when that new SW takes over we reload the page once so the running tab swaps to
+// the new build automatically. We also actively check for an update on load and
+// whenever the tab regains focus.
+if ('serviceWorker' in navigator) {
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (refreshing) return;
+    refreshing = true;
+    window.location.reload();
+  });
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((reg) => {
+        const check = () => reg.update().catch(() => {});
+        check();
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') check();
+        });
+      })
+      .catch(() => {});
+  });
+}

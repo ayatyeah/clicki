@@ -1917,10 +1917,29 @@ app.use('/api', (err, _req, res, _next) => {
 // When client/dist exists (production build), serve it + SPA fallback so
 // /business, /creators, etc. resolve to index.html on refresh.
 if (existsSync(CLIENT_DIST)) {
-  app.use(express.static(CLIENT_DIST));
+  app.use(
+    express.static(CLIENT_DIST, {
+      setHeaders(res, filePath) {
+        const name = path.basename(filePath);
+        // Update-critical files must always revalidate, otherwise the browser (or
+        // the DO edge) keeps serving a stale service worker / HTML and users are
+        // stuck on an old build until a manual hard reload.
+        if (name === 'sw.js' || name === 'index.html' || name.endsWith('.webmanifest')) {
+          res.setHeader('Cache-Control', 'no-cache');
+        } else if (/-[A-Za-z0-9_-]{8,}\.[a-z0-9]+$/i.test(name)) {
+          // Content-hashed build assets (JS/CSS/workbox) — safe to cache forever.
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        } else {
+          // Non-hashed public files (icons, logos, mascot): cache but revalidate.
+          res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate');
+        }
+      },
+    })
+  );
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api/')) return next();
-    res.sendFile(path.join(CLIENT_DIST, 'index.html'));
+    res.set('Cache-Control', 'no-cache');
+    res.sendFile(path.join(CLIENT_DIST, 'index.html'), { cacheControl: false });
   });
   console.log(`Serving static client from ${CLIENT_DIST}`);
 } else {
