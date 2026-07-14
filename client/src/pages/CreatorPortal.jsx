@@ -1211,6 +1211,7 @@ function VideoRow({ s, authFetch }) {
         {(s.status === 'accepted' || s.status === 'rejected') && s.coach_feedback && (
           <p className="cp-vid__coach">🎯 AI-коуч: {s.coach_feedback}</p>
         )}
+        {s.review_note && <p className="cp-vid__note">📝 Комментарий модератора: {s.review_note}</p>}
 
         {/* Daily stats reporting — only while the video is live (not after a reject). */}
         {s.status !== 'rejected' && (
@@ -1263,6 +1264,7 @@ function SubmitForm({ c, authFetch, briefs, reload, initialBriefId = '' }) {
   const submit = async (e) => {
     e.preventDefault();
     setError('');
+    if (!f.brief_id) return setError('Выбери заказ — без брифа сдать видео нельзя');
     if (!f.video_url || !f.rights_confirmed) return setError('Укажи ссылку на видео и подтверди права');
     setBusy(true);
     try {
@@ -1290,12 +1292,17 @@ function SubmitForm({ c, authFetch, briefs, reload, initialBriefId = '' }) {
       <div className="cp-field">
         <span className="cp-field__icon"><FieldIcon name="brief" /></span>
         <select value={f.brief_id} onChange={(e) => set('brief_id', e.target.value)}>
-          <option value="">Без брифа</option>
+          <option value="" disabled>Выбери заказ</option>
           {briefs.map((b) => (
             <option key={b.id} value={b.brief_id || b.id}>{b.title}</option>
           ))}
         </select>
       </div>
+      {!briefs.length && (
+        <p className="creator-portal__muted" style={{ marginTop: -4 }}>
+          Нет доступных заказов — возьми заказ во вкладке «Заказы», чтобы сдать по нему видео.
+        </p>
+      )}
       <div className="cp-field">
         <span className="cp-field__icon"><FieldIcon name="platform" /></span>
         <select value={f.platform} onChange={(e) => set('platform', e.target.value)}>

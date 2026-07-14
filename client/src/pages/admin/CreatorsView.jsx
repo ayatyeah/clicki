@@ -95,6 +95,47 @@ function BanControl({ creator, authFetch, onDone }) {
   );
 }
 
+/** Send a private message to one creator — lands in that creator's bell only. */
+function MessageCreator({ creator, authFetch }) {
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const send = async () => {
+    if (!title.trim()) { toast.error('Введите заголовок'); return; }
+    setBusy(true);
+    try {
+      const res = await authFetch(`/api/admin/creators/${creator.id}/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: title.trim(), body: body.trim() }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { toast.error((d.errors && d.errors[0]) || 'Не удалось отправить'); return; }
+      toast.success(`Отправлено: ${creator.name}`);
+      setTitle(''); setBody(''); setOpen(false);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!open) {
+    return <button type="button" className="btn btn--ghost btn--sm" onClick={() => setOpen(true)}>✉️ Написать</button>;
+  }
+  return (
+    <div className="msg-creator">
+      <input placeholder="Заголовок" value={title} onChange={(e) => setTitle(e.target.value)} />
+      <textarea rows={2} placeholder="Сообщение (придёт в колокольчик креатору)" value={body} onChange={(e) => setBody(e.target.value)} />
+      <div className="pf-row">
+        <button className="btn btn--primary btn--sm" onClick={send} disabled={busy}>{busy ? '…' : 'Отправить'}</button>
+        <button className="btn btn--ghost btn--sm" onClick={() => setOpen(false)}>Отмена</button>
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- Creators ---------------- */
 export function CreatorsView({ authFetch }) {
   const toast = useToast();
@@ -277,6 +318,7 @@ export function CreatorsView({ authFetch }) {
                 </td>
                 <td data-label="Действия">
                   <div className="admin-row-actions">
+                    <MessageCreator creator={c} authFetch={authFetch} />
                     <BanControl creator={c} authFetch={authFetch} onDone={load} />
                     <ConfirmDelete onConfirm={() => remove(c.id)} />
                   </div>

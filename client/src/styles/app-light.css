@@ -949,6 +949,28 @@
 }
 .cr-filters__count { color: var(--fog); font-size: 0.85rem; margin-left: auto; white-space: nowrap; }
 
+/* Admin: submission status override + human review note */
+.status-override { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; max-width: 250px; }
+.status-override select, .status-override textarea {
+  padding: 7px 10px; border: 1px solid var(--line, #ddd); border-radius: 9px;
+  font: inherit; color: var(--ink); background: #fff; resize: vertical;
+}
+.review-note {
+  font-size: 0.78rem; color: #92400e; background: #fff7ed; border: 1px solid #fed7aa;
+  border-radius: 8px; padding: 5px 8px; margin-top: 4px; white-space: pre-wrap; word-break: break-word;
+}
+/* Admin: per-creator message composer */
+.msg-creator { display: flex; flex-direction: column; gap: 6px; min-width: 220px; }
+.msg-creator input, .msg-creator textarea {
+  padding: 7px 10px; border: 1px solid var(--line, #ddd); border-radius: 9px;
+  font: inherit; color: var(--ink); background: #fff; resize: vertical;
+}
+/* Creator: moderator comment on their video */
+.cp-vid__note {
+  margin: 6px 0 0; font-size: 0.85rem; color: #92400e; background: #fff7ed;
+  border: 1px solid #fed7aa; border-radius: 8px; padding: 6px 10px;
+}
+
 /* Hidden /demo-test sandbox banner */
 .demo-banner {
   margin: 0 0 16px; padding: 11px 15px; border-radius: 12px;

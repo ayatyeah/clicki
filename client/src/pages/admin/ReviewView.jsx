@@ -58,6 +58,10 @@ export function ReviewView({ authFetch }) {
   const review = async (id, status, reject_code, checklist) => {
     if (await post(`/api/admin/submissions/${id}/review`, { status, reject_code, checklist })) load();
   };
+  // Fix-it: change a (possibly already-decided) submission's status and/or write a reason.
+  const override = async (id, status, note) => {
+    if (await post(`/api/admin/submissions/${id}/override`, { status, note })) load();
+  };
   const sendToBusiness = async (id, checklist) => {
     if (await post(`/api/admin/submissions/${id}/send-to-business`, checklist ? { checklist } : undefined)) load();
   };
@@ -144,6 +148,7 @@ export function ReviewView({ authFetch }) {
                   {s.ai_score != null && <div className="ai-score">AI: {s.ai_score}/100</div>}
                   {s.ai_feedback && <div style={{ fontSize: '0.76rem', color: 'var(--fog)', marginTop: 2 }}>{s.ai_feedback}</div>}
                   {s.reject_code && <div style={{ fontSize: '0.78rem', color: 'var(--fog)' }}>{s.reject_code}</div>}
+                  {s.review_note && <div className="review-note">📝 {s.review_note}</div>}
                   {s.fraud?.suspicious && (
                     <div className="fraud-flag" title={s.fraud.reasons.join('; ')}>
                       ⚠️ Подозрительный рост
@@ -167,6 +172,7 @@ export function ReviewView({ authFetch }) {
                       </button>
                     </div>
                   )}
+                  <StatusOverride submission={s} onSave={(status, note) => override(s.id, status, note)} />
                 </td>
               </tr>
             ))}
@@ -226,6 +232,58 @@ function ReviewActions({ submission, onSend, onRework, onReject }) {
           ))}
         </select>
         <button className="btn btn--ghost btn--sm" onClick={() => onReject(code, checks)}>Отклонить</button>
+      </div>
+    </div>
+  );
+}
+
+const OVERRIDE_STATUSES = [
+  { value: 'ai_passed', label: 'На проверке (в обработке)' },
+  { value: 'sent_to_business', label: 'У бизнеса' },
+  { value: 'accepted', label: 'Принято' },
+  { value: 'rejected', label: 'Отклонено' },
+];
+/** Fix-it control: override the status of a (possibly already-decided) submission
+ *  and write a human reason — e.g. undo an accidental rejection. */
+function StatusOverride({ submission, onSave }) {
+  const [open, setOpen] = useState(false);
+  const [status, setStatus] = useState(
+    OVERRIDE_STATUSES.some((o) => o.value === submission.status) ? submission.status : 'ai_passed'
+  );
+  const [note, setNote] = useState(submission.review_note || '');
+  const [busy, setBusy] = useState(false);
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      await onSave(status, note);
+      setOpen(false);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <button className="btn btn--ghost btn--sm" style={{ marginTop: 6 }} onClick={() => setOpen(true)}>
+        ✏️ Изменить статус / причину
+      </button>
+    );
+  }
+  return (
+    <div className="status-override">
+      <select value={status} onChange={(e) => setStatus(e.target.value)}>
+        {OVERRIDE_STATUSES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+      <textarea
+        rows={2}
+        placeholder="Причина / комментарий (виден креатору)"
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+      />
+      <div className="pf-row">
+        <button className="btn btn--primary btn--sm" onClick={save} disabled={busy}>{busy ? '…' : 'Сохранить'}</button>
+        <button className="btn btn--ghost btn--sm" onClick={() => setOpen(false)}>Отмена</button>
       </div>
     </div>
   );

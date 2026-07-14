@@ -79,6 +79,7 @@ import {
   listBusinessSubmissions,
   acceptSubmissionByBusiness,
   reviewSubmission,
+  overrideSubmissionStatus,
   recordViews,
   listDecisionJournal,
   getBusinessGrowth,
@@ -1178,6 +1179,10 @@ app.post(
     if (!b.platform || !b.video_url || !b.rights_confirmed) {
       return res.status(400).json({ ok: false, errors: ['Укажите видео, платформу и подтвердите права'] });
     }
+    // A video must be tied to an order — no "без брифа" submissions.
+    if (!b.brief_id) {
+      return res.status(400).json({ ok: false, errors: ['Выбери заказ — без брифа сдать видео нельзя'] });
+    }
     // Reject non-http(s) links at the door, so nothing that can execute as script
     // ever reaches the DB and, from there, the operator's review queue.
     const videoUrl = safeHttpUrl(b.video_url);
@@ -1633,6 +1638,16 @@ app.post('/api/admin/announcements/:id/delete', requireAdmin, wrap(async (req, r
   if (!done) return res.status(404).json({ ok: false, errors: ['Не найдено'] });
   ok(res);
 }));
+// Private message to one creator — lands only in that creator's bell.
+app.post('/api/admin/creators/:id/message', requireAdmin, wrap(async (req, res) => {
+  const creatorId = Number(req.params.id);
+  const creator = await getCreator(creatorId);
+  if (!creator) return res.status(404).json({ ok: false, errors: ['Креатор не найден'] });
+  const title = String(req.body?.title || '').trim();
+  const body = String(req.body?.body || '').trim();
+  if (!title) return res.status(400).json({ ok: false, errors: ['Заголовок обязателен'] });
+  ok(res, { announcement: await createAnnouncement({ title, body, creatorId }) });
+}));
 
 app.post('/api/admin/tiktok/sync', requireAdmin, wrap(async (_req, res) => ok(res, await syncAllTikTokViews())));
 app.post('/api/admin/instagram/sync', requireAdmin, wrap(async (_req, res) => ok(res, await syncAllInstagramViews())));
@@ -1890,6 +1905,18 @@ app.post('/api/admin/submissions/:id/coach', requireAdmin, wrap(async (req, res)
   const note = await aiCoachFeedback(submission, brief, { status: submission.status, reject_code: submission.reject_code });
   if (!note) return res.status(503).json({ ok: false, errors: ['AI временно недоступен — попробуйте позже'] });
   ok(res, { submission: await setCoachFeedback(submission.id, note) });
+}));
+// Admin override: change a decided submission's status (e.g. undo an accidental
+// rejection → back to "на проверке"/"у бизнеса") and/or set a written reason.
+// Unlike /review this is not gated on the current status — it's the fix-it button.
+app.post('/api/admin/submissions/:id/override', requireAdmin, wrap(async (req, res) => {
+  const id = Number(req.params.id);
+  const current = await getSubmission(id);
+  if (!current) return res.status(404).json({ ok: false, errors: ['Видео не найдено'] });
+  const ALLOWED = ['ai_passed', 'sent_to_business', 'accepted', 'rejected'];
+  const status = ALLOWED.includes(req.body?.status) ? req.body.status : current.status;
+  const note = typeof req.body?.note === 'string' ? req.body.note : undefined;
+  ok(res, { submission: await overrideSubmissionStatus(id, status, note) });
 }));
 // Pipeline step 10-11: manager approves an AI-passed video and forwards it to the business.
 // Guarded (sendSubmissionToBusiness) so an already-accepted/rejected submission can't be re-queued.

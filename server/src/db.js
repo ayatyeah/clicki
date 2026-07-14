@@ -387,6 +387,11 @@ export async function initDb() {
       )`);
     await client.query('CREATE INDEX IF NOT EXISTS announcements_created_idx ON announcements (created_at DESC)');
     await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS announcements_seen_at TIMESTAMP');
+    // creator_id NULL = broadcast to everyone; set = a private message to one creator.
+    await client.query('ALTER TABLE announcements ADD COLUMN IF NOT EXISTS creator_id INTEGER REFERENCES creators(id) ON DELETE CASCADE');
+    // Admin's own written reason/comment on a submission (e.g. why it was rejected),
+    // separate from the AI feedback. Editable any time, shown to the creator.
+    await client.query('ALTER TABLE submissions ADD COLUMN IF NOT EXISTS review_note TEXT');
   } finally {
     client.release();
   }
@@ -572,21 +577,26 @@ function mapAnnouncement(row) {
     id: row.id,
     title: row.title,
     body: row.body || '',
+    creatorId: row.creator_id ?? null,
+    creatorName: row.creator_name ?? null,
     createdAt: row.created_at?.toISOString?.() ?? row.created_at,
   };
 }
-/** Create a broadcast — instantly visible in every creator's notification bell. */
-export async function createAnnouncement({ title, body }) {
+/** Create a notification. creatorId NULL = broadcast to everyone; set = private
+ *  message to that one creator. Instantly visible in the target bell(s). */
+export async function createAnnouncement({ title, body, creatorId = null }) {
   const r = await pool.query(
-    'INSERT INTO announcements (title, body) VALUES ($1, $2) RETURNING id, title, body, created_at',
-    [title, body || '']
+    'INSERT INTO announcements (title, body, creator_id) VALUES ($1, $2, $3) RETURNING id, title, body, creator_id, created_at',
+    [title, body || '', creatorId]
   );
   return mapAnnouncement(r.rows[0]);
 }
-/** Admin history of everything broadcast so far. */
+/** Admin history of everything sent so far (with the target creator's name). */
 export async function listAnnouncements(limit = 50) {
   const r = await pool.query(
-    'SELECT id, title, body, created_at FROM announcements ORDER BY created_at DESC, id DESC LIMIT $1',
+    `SELECT a.id, a.title, a.body, a.creator_id, a.created_at, c.name AS creator_name
+       FROM announcements a LEFT JOIN creators c ON c.id = a.creator_id
+      ORDER BY a.created_at DESC, a.id DESC LIMIT $1`,
     [limit]
   );
   return r.rows.map(mapAnnouncement);
@@ -595,19 +605,22 @@ export async function deleteAnnouncement(id) {
   const r = await pool.query('DELETE FROM announcements WHERE id = $1', [id]);
   return r.rowCount > 0;
 }
-/** The creator's bell: recent announcements + how many are unread (newer than
- *  the last time they opened the bell — all of them if they never have). */
+/** The creator's bell: recent notifications addressed to them — broadcasts
+ *  (creator_id IS NULL) plus their own private messages — with the unread count. */
 export async function getCreatorAnnouncements(creatorId, limit = 30) {
   const seenR = await pool.query('SELECT announcements_seen_at FROM creators WHERE id = $1', [creatorId]);
   const seenAt = seenR.rows[0]?.announcements_seen_at ?? null;
   const r = await pool.query(
-    'SELECT id, title, body, created_at FROM announcements ORDER BY created_at DESC, id DESC LIMIT $1',
-    [limit]
+    `SELECT id, title, body, creator_id, created_at FROM announcements
+      WHERE creator_id IS NULL OR creator_id = $1
+      ORDER BY created_at DESC, id DESC LIMIT $2`,
+    [creatorId, limit]
   );
   const items = r.rows.map((row) => ({ ...mapAnnouncement(row), unread: !seenAt || row.created_at > seenAt }));
   const countR = await pool.query(
-    'SELECT COUNT(*)::int AS n FROM announcements WHERE $1::timestamp IS NULL OR created_at > $1',
-    [seenAt]
+    `SELECT COUNT(*)::int AS n FROM announcements
+      WHERE (creator_id IS NULL OR creator_id = $1) AND ($2::timestamp IS NULL OR created_at > $2)`,
+    [creatorId, seenAt]
   );
   return { items, unread: countR.rows[0].n };
 }
@@ -1607,6 +1620,25 @@ export async function reviewSubmission(id, { status, reject_code, checklist }) {
 export async function setCoachFeedback(id, feedback) {
   const r = await pool.query('UPDATE submissions SET coach_feedback = $1 WHERE id = $2 RETURNING *', [feedback, id]);
   return r.rows[0] || null;
+}
+/** Admin override: change a submission's status even after a decision (e.g. undo an
+ *  accidental rejection → back to review/at-business) and/or set a written reason.
+ *  `note === undefined` leaves the existing note untouched. Re-accepting recomputes XP. */
+export async function overrideSubmissionStatus(id, status, note) {
+  const r = await pool.query(
+    `UPDATE submissions
+        SET status = $1,
+            review_note = CASE WHEN $2::text IS NULL THEN review_note ELSE $2 END,
+            reviewed_at = CURRENT_TIMESTAMP
+      WHERE id = $3 RETURNING *`,
+    [status, note ?? null, id]
+  );
+  const sub = r.rows[0] || null;
+  if (sub) {
+    await logSubmissionDecision(sub, status, sub.reject_code);
+    if (status === 'accepted') await recomputeXp(sub.creator_id);
+  }
+  return sub;
 }
 /** Manual view entry (ТЗ §9). final = 30-day window check done. Recomputes XP.
  *  Also appends a snapshot — the single `views` column only ever holds the
