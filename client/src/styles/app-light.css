@@ -926,6 +926,13 @@
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   margin-top: 5px; font-size: 0.76rem; color: var(--fog);
 }
+/* TikTok connection chip in the admin creators table */
+.tt-chip {
+  display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px;
+  border-radius: 999px; font-size: 0.72rem; font-weight: 600;
+  background: #f0eff5; color: var(--fog);
+}
+.tt-chip--on { background: rgba(34, 197, 94, 0.14); color: #15803d; }
 
 /* Hidden /demo-test sandbox banner */
 .demo-banner {

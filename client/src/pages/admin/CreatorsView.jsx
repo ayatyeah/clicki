@@ -158,7 +158,12 @@ export function CreatorsView({ authFetch }) {
 
   return (
     <section className="admin-block">
-      <h2 className="admin-block__title">Креаторы ({creators.length})</h2>
+      <h2 className="admin-block__title">
+        Креаторы ({creators.length}){' '}
+        <span className="creator-portal__muted" style={{ fontSize: '0.9rem', fontWeight: 400 }}>
+          · TikTok подключили: {creators.filter((c) => c.tiktok_connected).length}
+        </span>
+      </h2>
       <p className="muted-note" style={{ textAlign: 'left', marginTop: 0 }}>
         Создай аккаунт креатору (выдай логин и пароль) — под этими данными он войдёт в кабинет.
         Заявки с сайта приходят со статусом <b>pending</b>: выдай им доступ кнопкой «Выдать».
@@ -199,6 +204,11 @@ export function CreatorsView({ authFetch }) {
                   <div className="creators-cell__meta">
                     <Stars value={c.rating || 0} />
                     <span>XP {c.xp} · Trust {c.trust_score} · Стрик {c.streak}</span>
+                    {c.tiktok_connected ? (
+                      <span className="tt-chip tt-chip--on">TikTok ✓{c.tiktok_username ? ` @${c.tiktok_username}` : ''}</span>
+                    ) : (
+                      <span className="tt-chip">TikTok —</span>
+                    )}
                   </div>
                 </td>
                 <td data-label="Контакт">{c.contact}</td>
