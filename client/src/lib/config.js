@@ -17,6 +17,6 @@ export const PHONE_TEL = PHONE.replace(/[^\d+]/g, '');
 export const TELEGRAM_URL = `https://t.me/${TELEGRAM}`;
 // Public Telegram community (invite link) — where creators are pointed to join,
 // separate from the @-handle used for direct contact/support.
-export const COMMUNITY_URL = import.meta.env.VITE_COMMUNITY_URL || 'https://t.me/+czj_kNeCACBhN2Qy';
+export const COMMUNITY_URL = import.meta.env.VITE_COMMUNITY_URL || 'https://telegram.me/+czj_kNeCACBhN2Qy';
 export const EMAIL_URL = `mailto:${EMAIL}`;
 export const WHATSAPP_URL = `https://wa.me/${WHATSAPP}`;
