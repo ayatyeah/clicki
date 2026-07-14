@@ -40,6 +40,10 @@ export const guideFor = (platform) => (isInstagram(platform) ? GUIDE.Instagram :
 // Must match SCREENSHOT_COOLDOWN_MS on the server. The server is the source of
 // truth (it rejects an early upload); this only drives the UI hint.
 const COOLDOWN_MS = 24 * 60 * 60 * 1000;
+// Auto-retry transient upload failures (network drop / 5xx) so a flaky phone
+// connection doesn't make the creator hunt for the file again. Client 4xx
+// (bad file, 429 cooldown) is NOT retried — that won't fix itself.
+const MAX_TRIES = 3;
 const cooldownLeft = (lastAt) => {
   if (!lastAt) return 0;
   const left = COOLDOWN_MS - (Date.now() - new Date(lastAt).getTime());
@@ -84,35 +88,49 @@ export default function StatScreenshots({ submissionId, platform, basePath, auth
       if (file.size > 4 * 1024 * 1024) return setError('Слишком большой файл — сделайте обычный скриншот (до 4 МБ).');
       setError('');
       setProgress(0);
-      const fd = new FormData();
-      fd.append('file', file);
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', `${API_BASE}${basePath}/${submissionId}/screenshots`);
       // Creator token now lives in localStorage (persistent PWA login); admin
-      // stays in sessionStorage. Check both so the raw XHR upload always auths.
+      // stays in sessionStorage. Check all so the raw XHR upload always auths.
       const token =
         localStorage.getItem('clicki_creator_token') ||
         sessionStorage.getItem('clicki_admin_token') ||
         localStorage.getItem('clicki_business_token') ||
         '';
-      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-      xhr.upload.onprogress = (e) => { if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100)); };
-      xhr.onload = () => {
-        setProgress(null);
-        let d = {};
-        try { d = JSON.parse(xhr.responseText); } catch { /* ignore */ }
-        if (xhr.status >= 200 && xhr.status < 300 && d.ok !== false) {
-          setShots(d.screenshots || []);
-          setOpen(true);
-          toast.success('Скриншот загружен');
-        } else {
+
+      const attempt = (tryNo) => {
+        const fd = new FormData();
+        fd.append('file', file);
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `${API_BASE}${basePath}/${submissionId}/screenshots`);
+        if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        xhr.upload.onprogress = (e) => { if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100)); };
+        // Wait, then retry the whole upload (fresh XHR + FormData).
+        const retry = () => { setProgress(0); setTimeout(() => attempt(tryNo + 1), 800 * tryNo); };
+        xhr.onload = () => {
+          let d = {};
+          try { d = JSON.parse(xhr.responseText); } catch { /* ignore */ }
+          if (xhr.status >= 200 && xhr.status < 300 && d.ok !== false) {
+            setProgress(null);
+            setShots(d.screenshots || []);
+            setOpen(true);
+            toast.success('Скриншот загружен');
+            return;
+          }
+          // 5xx is transient → retry; 4xx (bad file, 429 cooldown) is final.
+          if (xhr.status >= 500 && tryNo < MAX_TRIES) return retry();
+          setProgress(null);
           const msg = d.errors?.[0] || 'Не удалось загрузить';
           setError(msg);
           toast.error(msg);
-        }
+        };
+        xhr.onerror = () => {
+          if (tryNo < MAX_TRIES) return retry();
+          setProgress(null);
+          setError('Ошибка сети при загрузке — проверь интернет и попробуй ещё раз.');
+          toast.error('Ошибка сети при загрузке');
+        };
+        xhr.send(fd);
       };
-      xhr.onerror = () => { setProgress(null); setError('Ошибка сети при загрузке'); toast.error('Ошибка сети при загрузке'); };
-      xhr.send(fd);
+      attempt(1);
     },
     [basePath, submissionId, toast]
   );

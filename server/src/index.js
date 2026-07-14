@@ -193,6 +193,7 @@ const ALLOWED_UPLOAD_MIME = new Set([
   'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif',
   'video/mp4', 'video/quicktime', 'video/webm',
 ]);
+// 150 MB path is for the admin CMS only (showcase videos), behind requireAdmin.
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 150 * 1024 * 1024, files: 1 }, // 150 MB per file
@@ -201,6 +202,25 @@ const upload = multer({
     cb(ok ? null : new Error('Разрешены только JPEG/PNG/WebP/GIF/AVIF и MP4/MOV/WebM'), ok);
   },
 });
+
+// Image-only uploads (creator/business: avatars, logos, stats screenshots) are
+// capped HARD at 5 MB server-side. The client pre-checks ~4 MB, but that is
+// trivially bypassed by hand-crafting the request — without a server cap a single
+// forged call could stream up to `upload`'s 150 MB straight into this 1 GB box's
+// RAM (memoryStorage) and OOM it. multer stops reading at the limit, so at most
+// 5 MB is ever buffered per request.
+const IMAGE_UPLOAD_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']);
+const uploadImage = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 }, // 5 MB — images only
+  fileFilter: (_req, file, cb) => {
+    const ok = IMAGE_UPLOAD_MIME.has(file.mimetype);
+    cb(ok ? null : new Error('Разрешены только изображения JPEG/PNG/WebP/GIF/AVIF'), ok);
+  },
+});
+// Throttle uploads per IP so nobody can flood the (in-RAM) buffering path. Legit
+// use is a few a minute — one daily screenshot per video plus the odd avatar.
+const uploadLimiter = rateLimit({ windowMs: 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
 
 const origins = (process.env.CORS_ORIGINS || 'http://localhost:5174')
   .split(',')
@@ -1097,7 +1117,7 @@ app.post(
 );
 
 // Creator avatar upload (image only). Reuses storeUpload (Spaces or Postgres blob).
-app.post('/api/creator/avatar', requireCreator, upload.single('file'), async (req, res) => {
+app.post('/api/creator/avatar', uploadLimiter, requireCreator, uploadImage.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ ok: false, errors: ['Файл не получен'] });
   try {
     const url = await storeUpload(req.file, { imageOnly: true });
@@ -1111,7 +1131,7 @@ app.post('/api/creator/avatar', requireCreator, upload.single('file'), async (re
 // Generic creator image upload → returns a URL. Used to attach a stats screenshot
 // at submit time (before the submission row exists), which also confirms the
 // creator actually has access to the video's statistics.
-app.post('/api/creator/upload', requireCreator, upload.single('file'), async (req, res) => {
+app.post('/api/creator/upload', uploadLimiter, requireCreator, uploadImage.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ ok: false, errors: ['Файл не получен'] });
   try {
     res.json({ ok: true, url: await storeUpload(req.file, { imageOnly: true }) });
@@ -1179,8 +1199,9 @@ const SCREENSHOT_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24h — one clean data po
 
 app.post(
   '/api/creator/submissions/:id/screenshots',
+  uploadLimiter,
   requireCreator,
-  upload.single('file'),
+  uploadImage.single('file'),
   wrap(async (req, res) => {
     const submissionId = Number(req.params.id);
     if (!(await creatorOwnsSubmission(req.creator.id, submissionId))) {
@@ -1293,7 +1314,7 @@ app.post('/api/business/profile', requireBusiness, wrap(async (req, res) => {
 }));
 
 // Business logo upload (image only). Reuses storeUpload (Spaces or Postgres blob).
-app.post('/api/business/logo', requireBusiness, upload.single('file'), async (req, res) => {
+app.post('/api/business/logo', uploadLimiter, requireBusiness, uploadImage.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ ok: false, errors: ['Файл не получен'] });
   try {
     const url = await storeUpload(req.file, { imageOnly: true });
@@ -1945,7 +1966,10 @@ app.get(
 // (multer's own, and the fileFilter rejection) are echoed back; anything else is
 // an unexpected internal error whose message could leak paths or query text.
 app.use('/api', (err, _req, res, _next) => {
-  const isSafeMessage = err instanceof multer.MulterError || typeof err?.message === 'string' && err.message.startsWith('Разрешены только');
+  if (err?.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({ ok: false, errors: ['Файл слишком большой (для изображений — до 5 МБ).'] });
+  }
+  const isSafeMessage = err instanceof multer.MulterError || (typeof err?.message === 'string' && err.message.startsWith('Разрешены только'));
   if (!isSafeMessage) console.error('[api]', err);
   res.status(400).json({ ok: false, errors: [isSafeMessage ? err.message : 'Ошибка запроса'] });
 });
@@ -1983,11 +2007,37 @@ if (existsSync(CLIENT_DIST)) {
   console.log('client/dist not found — running API only (dev mode uses Vite separately)');
 }
 
-// Log (don't silently crash on) anything that slips past the per-request try/catch
-// and wrap() helpers — a bare unhandled rejection would otherwise kill the process.
+// Lightweight self-monitoring (no external APM): a problem should ping the
+// Telegram ops chat, not surface only via user complaints. All alerts are
+// throttled so a repeating fault can't spam the chat. Complements DO's own
+// platform alerts (CPU/RAM/restarts), which must be enabled in the dashboard.
+let lastRejectionAlert = 0;
 process.on('unhandledRejection', (err) => {
   console.error('[unhandled rejection]', err);
+  if (Date.now() - lastRejectionAlert > 15 * 60 * 1000) {
+    lastRejectionAlert = Date.now();
+    notifyOps(`⚠️ CLICKI: необработанная ошибка на сервере — ${err?.message || err}`);
+  }
 });
+// An uncaught exception leaves the process in an undefined state — alert, then
+// exit so the platform restarts a clean instance (was: default crash, no alert).
+process.on('uncaughtException', (err) => {
+  console.error('[uncaught exception]', err);
+  notifyOps(`🔴 CLICKI упал (uncaught): ${err?.message || err}. Перезапуск…`);
+  setTimeout(() => process.exit(1), 1500); // give the alert a moment to send
+});
+// Memory watchdog: warn before the 1 GB instance OOMs. Catches sustained growth
+// (leaks / a flood of buffered uploads); a very fast spike may still OOM before a
+// 30 s tick — DO's platform alert is the backstop for that.
+const RSS_ALERT_BYTES = 850 * 1024 * 1024; // ~83% of 1 GB
+let lastMemAlert = 0;
+setInterval(() => {
+  const rss = process.memoryUsage().rss;
+  if (rss > RSS_ALERT_BYTES && Date.now() - lastMemAlert > 15 * 60 * 1000) {
+    lastMemAlert = Date.now();
+    notifyOps(`⚠️ CLICKI: высокая память — RSS ${Math.round(rss / 1048576)} МБ из ~1024 МБ. Возможен скорый перезапуск (OOM).`);
+  }
+}, 30 * 1000).unref();
 
 // Wait for the DB schema before accepting any traffic — otherwise requests can
 // race initDb() on a fresh deploy/restart and fail against missing tables.
