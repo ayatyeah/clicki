@@ -987,14 +987,6 @@
 .cp-account__id .creator-portal__muted { margin: 0; font-size: 0.85rem; }
 .cp-field-label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; color: var(--ink); font-size: 0.92rem; }
 .cp-field-label input, .cp-field-label textarea { font-weight: 400; }
-.cp-topics { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-.cp-topic {
-  display: inline-flex; align-items: center; gap: 6px; padding: 8px 13px; border-radius: 999px;
-  border: 1px solid var(--line); background: #fff; color: var(--stone);
-  font: inherit; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.14s ease;
-}
-.cp-topic:hover { border-color: rgba(124, 58, 237, 0.4); }
-.cp-topic.is-on { background: rgba(124, 58, 237, 0.1); border-color: rgba(124, 58, 237, 0.45); color: #6d28d9; font-weight: 600; }
 
 /* ============================================================
    Creator cabinet — Referrals, Rating, "How it works" polish.

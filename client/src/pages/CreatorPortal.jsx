@@ -20,21 +20,6 @@ const PLATFORMS = ['TikTok', 'Instagram Reels', 'YouTube Shorts', 'Threads', 'X 
 // Screenshots/avatars may live in Spaces (absolute URL) or Postgres (relative /api/media/:id).
 const mediaUrl = (u) => (u && /^https?:\/\//i.test(u) ? u : `${API_BASE}${u}`);
 
-// Content niches — reused by the onboarding niche step and the account editor.
-const CREATOR_TOPICS = [
-  { key: 'beauty', label: 'Красота', emoji: '💄' },
-  { key: 'fashion', label: 'Мода', emoji: '👗' },
-  { key: 'food', label: 'Еда', emoji: '🍔' },
-  { key: 'travel', label: 'Путешествия', emoji: '✈️' },
-  { key: 'fitness', label: 'Спорт и фитнес', emoji: '💪' },
-  { key: 'tech', label: 'Технологии', emoji: '📱' },
-  { key: 'gaming', label: 'Игры', emoji: '🎮' },
-  { key: 'humor', label: 'Юмор', emoji: '😂' },
-  { key: 'lifestyle', label: 'Лайфстайл', emoji: '☕' },
-  { key: 'education', label: 'Образование', emoji: '📚' },
-  { key: 'business', label: 'Бизнес', emoji: '💼' },
-  { key: 'music', label: 'Музыка и танцы', emoji: '🎵' },
-];
 // TODO: written but never rendered — no component consumes this FAQ. Either wire
 // it into the cabinet or delete it. Kept so the copy isn't lost silently.
 // eslint-disable-next-line no-unused-vars
@@ -606,13 +591,10 @@ function AccountView({ c, authFetch, reload }) {
   const [city, setCity] = useState(c.city || '');
   const [socials, setSocials] = useState(c.socials || '');
   const [bio, setBio] = useState(c.bio || '');
-  const [topics, setTopics] = useState(() => (c.topics ? c.topics.split(',').filter(Boolean) : []));
   const [uploading, setUploading] = useState(false);
   const [cropFile, setCropFile] = useState(null); // raw file being cropped
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
-
-  const toggleTopic = (key) => setTopics((ts) => (ts.includes(key) ? ts.filter((x) => x !== key) : [...ts, key]));
 
   // A user picked a file → open the cropper (validation of the raw file only).
   const pickFile = (file) => {
@@ -649,7 +631,7 @@ function AccountView({ c, authFetch, reload }) {
       const res = await authFetch('/api/creator/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bio, city, socials, topics }),
+        body: JSON.stringify({ bio, city, socials }),
       });
       const d = await res.json();
       if (!res.ok || d.ok === false) throw new Error(d.errors?.[0] || 'Ошибка');
@@ -694,17 +676,6 @@ function AccountView({ c, authFetch, reload }) {
         <label className="cp-field-label">О себе
           <textarea rows={3} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Пара слов о тебе и твоём контенте" />
         </label>
-
-        <div className="cp-field-label">
-          Темы, на которые ты снимаешь
-          <div className="cp-topics">
-            {CREATOR_TOPICS.map((t) => (
-              <button type="button" key={t.key} className={`cp-topic ${topics.includes(t.key) ? 'is-on' : ''}`} onClick={() => toggleTopic(t.key)}>
-                <span aria-hidden="true">{t.emoji}</span> {t.label}
-              </button>
-            ))}
-          </div>
-        </div>
 
         <button className="btn btn--primary btn--block" onClick={save} disabled={busy}>{busy ? 'Сохраняю…' : 'Сохранить'}</button>
         {msg && <p className="creator-portal__muted" style={{ textAlign: 'center' }}>{msg}</p>}
