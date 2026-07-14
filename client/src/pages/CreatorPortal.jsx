@@ -6,6 +6,7 @@ import { createApiClient } from '../lib/apiClient.js';
 import { safeHref } from '../lib/safeHref.js';
 import StatScreenshots, { guideFor } from '../components/StatScreenshots.jsx';
 import Icon from '../components/Icon.jsx';
+import { TikTokConnect, InstagramSoon } from '../components/SocialConnect.jsx';
 import AvatarCropper from '../components/AvatarCropper.jsx';
 import CopyButton from '../components/CopyButton.jsx';
 import EmptyState from '../components/EmptyState.jsx';
@@ -534,7 +535,7 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
 
       {view === 'videos' && (
         <div className="cp-videos">
-          <SubmitForm authFetch={authFetch} briefs={submitBriefs} reload={reload} initialBriefId={takeBriefId} />
+          <SubmitForm c={c} authFetch={authFetch} briefs={submitBriefs} reload={reload} initialBriefId={takeBriefId} />
 
           <section className="creator-portal__card cp-videos__list">
             <h2 className="cp-card__title">Мои видео</h2>
@@ -707,6 +708,14 @@ function AccountView({ c, authFetch, reload }) {
 
         <button className="btn btn--primary btn--block" onClick={save} disabled={busy}>{busy ? 'Сохраняю…' : 'Сохранить'}</button>
         {msg && <p className="creator-portal__muted" style={{ textAlign: 'center' }}>{msg}</p>}
+      </div>
+
+      {/* Connect social accounts so views sync automatically (no daily screenshots). */}
+      <div className="creator-portal__card cp-social">
+        <h3 className="cp-card__title">Подключение соцсетей</h3>
+        <p className="creator-portal__muted cp-section-sub">Подключи аккаунт — просмотры видео будут подтягиваться сами, без скриншотов.</p>
+        <TikTokConnect c={c} authFetch={authFetch} reload={reload} />
+        <InstagramSoon />
       </div>
     </>
   );
@@ -1250,7 +1259,7 @@ function VideoRow({ s, authFetch }) {
   );
 }
 
-function SubmitForm({ authFetch, briefs, reload, initialBriefId = '' }) {
+function SubmitForm({ c, authFetch, briefs, reload, initialBriefId = '' }) {
   const today = new Date().toISOString().slice(0, 10);
   const [f, setF] = useState({ brief_id: initialBriefId || '', platform: 'TikTok', video_url: '', published_at: today, screenshot_url: '', rights_confirmed: false });
   const [error, setError] = useState('');
@@ -1322,6 +1331,8 @@ function SubmitForm({ authFetch, briefs, reload, initialBriefId = '' }) {
           {PLATFORMS.map((p) => <option key={p}>{p}</option>)}
         </select>
       </div>
+      {/* Only when TikTok is the chosen platform — connect once so views auto-sync. */}
+      {f.platform === 'TikTok' && <TikTokConnect c={c} authFetch={authFetch} reload={reload} compact />}
       <div className="cp-field">
         <span className="cp-field__icon"><FieldIcon name="link" /></span>
         <input placeholder="Ссылка на опубликованное видео" value={f.video_url} onChange={(e) => set('video_url', e.target.value)} />

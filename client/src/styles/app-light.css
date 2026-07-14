@@ -948,6 +948,32 @@
 .presence-row__time { color: var(--stone); font-size: 0.82rem; white-space: nowrap; }
 .presence-row.is-online .presence-row__time { color: #15803d; font-weight: 600; }
 
+/* Social connect (creator account page + submit form) */
+.cp-social { margin-top: 16px; }
+.cp-social .cp-section-sub { margin-top: 4px; }
+.cp-social__row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 14px 0; border-top: 1px solid var(--line, #eee);
+}
+.cp-social__row:first-of-type { border-top: none; }
+.cp-social__brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; color: var(--ink); }
+.cp-social__brand--ig { color: #c13584; } /* Instagram accent for its glyph */
+.cp-social__ctl { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cp-social__status { font-size: 0.85rem; color: var(--fog); }
+.cp-social__status.is-on { color: #15803d; font-weight: 600; }
+.cp-social__status--soon { color: #b45309; }
+
+/* TikTok-branded connect button (black), used inline in the form and on the account page */
+.cp-connect-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: #010101; color: #fff; border: none;
+}
+.cp-connect-btn:hover:not(:disabled) { background: #222; }
+
+.cp-connect-inline { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: -4px 0 4px; }
+.cp-connect-inline__ok { display: inline-flex; align-items: center; gap: 8px; color: #15803d; font-size: 0.88rem; font-weight: 600; }
+.cp-connect-inline__hint { font-size: 0.8rem; color: var(--fog); }
+
 .cp-account__head { display: flex; align-items: center; gap: 16px; margin-bottom: 4px; }
 .cp-account__id { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
 .cp-account__id b { color: var(--ink); font-size: 1.05rem; }

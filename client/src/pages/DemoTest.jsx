@@ -132,7 +132,11 @@ function TikTokConnectCard({ c, authFetch, reload }) {
   const connect = async () => {
     setBusy(true);
     try {
-      const r = await (await authFetch('/api/creator/tiktok/connect', { method: 'POST' })).json();
+      const r = await (await authFetch('/api/creator/tiktok/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ redirect: window.location.pathname }),
+      })).json();
       if (r.ok && r.url) window.location.href = r.url;
       else setMsg((r.errors && r.errors[0]) || 'Не удалось начать подключение');
     } finally {
@@ -184,7 +188,11 @@ function InstagramConnectCard({ c, authFetch, reload }) {
   const connect = async () => {
     setBusy(true);
     try {
-      const r = await (await authFetch('/api/creator/instagram/connect', { method: 'POST' })).json();
+      const r = await (await authFetch('/api/creator/instagram/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ redirect: window.location.pathname }),
+      })).json();
       if (r.ok && r.url) window.location.href = r.url;
       else setMsg((r.errors && r.errors[0]) || 'Подключение Instagram пока недоступно');
     } finally {

@@ -968,13 +968,26 @@ app.get(
   wrap(async (req, res) => ok(res, await creatorPayload(req.creator)))
 );
 
+// Encode a safe internal return path into the OAuth `state` so the callback can
+// send the browser back to the page the connect started from (the real cabinet
+// /creator vs the hidden /demo-test). Only same-origin absolute paths are allowed
+// (no query, no protocol) so this can't be turned into an open redirect.
+const safeReturnPath = (p) => (typeof p === 'string' && /^\/[A-Za-z0-9/_-]*$/.test(p) ? p : '/creator');
+const buildOAuthState = (returnPath) =>
+  `${crypto.randomBytes(24).toString('hex')}.${Buffer.from(safeReturnPath(returnPath)).toString('base64url')}`;
+const returnPathFromState = (state) => {
+  const enc = String(state || '').split('.')[1];
+  if (!enc) return '/creator';
+  try { return safeReturnPath(Buffer.from(enc, 'base64url').toString('utf8')); } catch { return '/creator'; }
+};
+
 // Start the TikTok connect flow (Login Kit): returns the authorize URL to redirect the browser to.
 app.post(
   '/api/creator/tiktok/connect',
   requireCreator,
   wrap(async (req, res) => {
     if (!tiktokEnabled) return res.status(400).json({ ok: false, errors: ['Подключение TikTok пока не настроено'] });
-    const state = crypto.randomBytes(24).toString('hex');
+    const state = buildOAuthState(req.body?.redirect);
     await saveOAuthState(state, req.creator.id, 'tiktok');
     ok(res, { url: tiktokAuthorizeUrl(state) });
   })
@@ -994,7 +1007,7 @@ app.post(
   requireCreator,
   wrap(async (req, res) => {
     if (!instagramEnabled) return res.status(400).json({ ok: false, errors: ['Подключение Instagram пока не настроено'] });
-    const state = crypto.randomBytes(24).toString('hex');
+    const state = buildOAuthState(req.body?.redirect);
     await saveOAuthState(state, req.creator.id, 'instagram');
     ok(res, { url: instagramAuthorizeUrl(state) });
   })
@@ -1054,39 +1067,40 @@ app.post('/api/creator/briefs/:id/script', requireCreator, wrap(async (req, res)
     res.status(503).json({ ok: false, errors: ['AI временно недоступен — попробуйте позже'] });
   }
 }));
-// TikTok redirects the browser back here after the creator authorizes (or declines). Public.
-// TikTok/Instagram connect is currently exercised only from the hidden /demo-test
-// harness (the buttons are not shown to creators yet), so the OAuth round-trip
-// returns there — closing the test loop on the same page it started from.
+// TikTok redirects the browser back here after the creator authorizes (or declines).
+// Public. The return page is decoded from `state` so we land back where the
+// connect started — the cabinet (/creator) or the hidden /demo-test harness.
 app.get('/api/auth/tiktok/callback', async (req, res) => {
   const { code, state, error } = req.query || {};
+  const back = returnPathFromState(state);
   try {
-    if (error || !code || !state) return res.redirect('/demo-test?tiktok=error');
+    if (error || !code || !state) return res.redirect(`${back}?tiktok=error`);
     const creatorId = await consumeOAuthState(String(state), 'tiktok');
-    if (!creatorId) return res.redirect('/demo-test?tiktok=error');
+    if (!creatorId) return res.redirect(`${back}?tiktok=error`);
     const tokens = await exchangeTikTokCode(String(code));
     const userInfo = await fetchTikTokUserInfo(tokens.access_token).catch(() => null);
     await saveTikTokTokens(creatorId, { ...tokens, username: userInfo?.display_name });
-    res.redirect('/demo-test?tiktok=connected');
+    res.redirect(`${back}?tiktok=connected`);
   } catch (err) {
     console.error('[tiktok-callback]', err.message);
-    res.redirect('/demo-test?tiktok=error');
+    res.redirect(`${back}?tiktok=error`);
   }
 });
 // Instagram redirects the browser back here after the creator authorizes (or declines). Public.
 app.get('/api/auth/instagram/callback', async (req, res) => {
   const { code, state, error } = req.query || {};
+  const back = returnPathFromState(state);
   try {
-    if (error || !code || !state) return res.redirect('/demo-test?instagram=error');
+    if (error || !code || !state) return res.redirect(`${back}?instagram=error`);
     const creatorId = await consumeOAuthState(String(state), 'instagram');
-    if (!creatorId) return res.redirect('/demo-test?instagram=error');
+    if (!creatorId) return res.redirect(`${back}?instagram=error`);
     const tokens = await exchangeInstagramCode(String(code));
     const userInfo = await fetchInstagramUser(tokens.access_token).catch(() => null);
     await saveInstagramTokens(creatorId, { ...tokens, username: userInfo?.username, user_id: userInfo?.user_id || tokens.user_id });
-    res.redirect('/demo-test?instagram=connected');
+    res.redirect(`${back}?instagram=connected`);
   } catch (err) {
     console.error('[instagram-callback]', err.message);
-    res.redirect('/demo-test?instagram=error');
+    res.redirect(`${back}?instagram=error`);
   }
 });
 
