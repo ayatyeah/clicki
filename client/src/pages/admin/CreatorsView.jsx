@@ -102,6 +102,11 @@ export function CreatorsView({ authFetch }) {
   const [form, setForm] = useState({ name: '', contact: '', username: '', password: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // Filters (client-side — the full creator list is already loaded).
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [ttFilter, setTtFilter] = useState('all');
+  const [accessFilter, setAccessFilter] = useState('all');
   const load = async () => {
     const r = await (await authFetch('/api/admin/creators')).json();
     setCreators(r.creators || []);
@@ -156,6 +161,18 @@ export function CreatorsView({ authFetch }) {
     load();
   };
 
+  const q = query.trim().toLowerCase();
+  const filtered = creators.filter((c) => {
+    if (statusFilter !== 'all' && c.status !== statusFilter) return false;
+    if (ttFilter === 'connected' && !c.tiktok_connected) return false;
+    if (ttFilter === 'not' && c.tiktok_connected) return false;
+    if (accessFilter === 'has' && !c.username) return false;
+    if (accessFilter === 'none' && c.username) return false;
+    if (q && !`${c.name || ''} ${c.username || ''} ${c.contact || ''}`.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  const filtersActive = query || statusFilter !== 'all' || ttFilter !== 'all' || accessFilter !== 'all';
+
   return (
     <section className="admin-block">
       <h2 className="admin-block__title">
@@ -184,7 +201,42 @@ export function CreatorsView({ authFetch }) {
         </button>
       </div>
 
-      <div className="admin-table-wrap" style={{ marginTop: 16 }}>
+      <div className="cr-filters">
+        <input
+          className="cr-filters__search"
+          placeholder="Поиск: имя, логин, контакт…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <option value="all">Все статусы</option>
+          <option value="pending">pending</option>
+          <option value="active">active</option>
+          <option value="paused">paused</option>
+          <option value="banned">banned</option>
+        </select>
+        <select value={ttFilter} onChange={(e) => setTtFilter(e.target.value)}>
+          <option value="all">TikTok: все</option>
+          <option value="connected">TikTok: подключён</option>
+          <option value="not">TikTok: не подключён</option>
+        </select>
+        <select value={accessFilter} onChange={(e) => setAccessFilter(e.target.value)}>
+          <option value="all">Доступ: все</option>
+          <option value="has">Есть доступ</option>
+          <option value="none">Нет доступа</option>
+        </select>
+        {filtersActive && (
+          <button
+            className="btn btn--ghost btn--sm"
+            onClick={() => { setQuery(''); setStatusFilter('all'); setTtFilter('all'); setAccessFilter('all'); }}
+          >
+            Сбросить
+          </button>
+        )}
+        <span className="cr-filters__count">Показано: {filtered.length} из {creators.length}</span>
+      </div>
+
+      <div className="admin-table-wrap" style={{ marginTop: 12 }}>
         <table className="admin-table admin-table--creators">
           <thead>
             <tr>
@@ -196,7 +248,7 @@ export function CreatorsView({ authFetch }) {
             </tr>
           </thead>
           <tbody>
-            {creators.map((c) => (
+            {filtered.map((c) => (
               <tr key={c.id}>
                 <td data-label="Креатор">
                   <b>{c.name}</b> {c.founding && <span className="pf-badge">Founding</span>}
@@ -231,7 +283,11 @@ export function CreatorsView({ authFetch }) {
                 </td>
               </tr>
             ))}
-            {!creators.length && <tr><td colSpan={5} className="admin-table__empty">Креаторов пока нет</td></tr>}
+            {!filtered.length && (
+              <tr><td colSpan={5} className="admin-table__empty">
+                {creators.length ? 'Никого не нашли по фильтру' : 'Креаторов пока нет'}
+              </td></tr>
+            )}
           </tbody>
         </table>
       </div>

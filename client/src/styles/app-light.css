@@ -934,6 +934,21 @@
 }
 .tt-chip--on { background: rgba(34, 197, 94, 0.14); color: #15803d; }
 
+/* Admin creators filter bar */
+.cr-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; }
+.cr-filters__search {
+  flex: 1 1 220px; min-width: 170px; padding: 9px 12px;
+  border: 1px solid var(--line, #ddd); border-radius: 11px; font: inherit; color: var(--ink); background: #fff;
+}
+.cr-filters select {
+  padding: 9px 12px; border: 1px solid var(--line, #ddd); border-radius: 11px;
+  font: inherit; color: var(--ink); background: #fff; cursor: pointer;
+}
+.cr-filters__search:focus, .cr-filters select:focus {
+  outline: none; border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.14);
+}
+.cr-filters__count { color: var(--fog); font-size: 0.85rem; margin-left: auto; white-space: nowrap; }
+
 /* Hidden /demo-test sandbox banner */
 .demo-banner {
   margin: 0 0 16px; padding: 11px 15px; border-radius: 12px;
