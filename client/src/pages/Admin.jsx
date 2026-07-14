@@ -263,6 +263,7 @@ export default function Admin() {
   const NAV = [
     { key: 'dashboard', label: 'Дашборд', icon: 'grid' },
     { key: 'health', label: 'Состояние сайта', icon: 'flame' },
+    { key: 'presence', label: 'Онлайн', icon: 'user' },
     { key: 'broadcast', label: 'Рассылка', icon: 'bell' },
     { key: 'ai', label: 'ИИ Аналитика', icon: 'sparkle' },
     { key: 'autopilot', label: 'Автопилот кампаний', icon: 'sparkle' },
@@ -412,6 +413,7 @@ export default function Admin() {
           )}
 
           {view === 'health' && <HealthView authFetch={authFetch} />}
+          {view === 'presence' && <PresenceView authFetch={authFetch} />}
           {view === 'broadcast' && <BroadcastView authFetch={authFetch} />}
           {view === 'ai' && <AiAnalysisView authFetch={authFetch} />}
           {view === 'autopilot' && <AutopilotView authFetch={authFetch} />}
@@ -648,6 +650,98 @@ function LeadsSection({ title, leads, loading, onReload, authFetch }) {
           </tbody>
         </table>
       </div>
+    </section>
+  );
+}
+
+/** "Онлайн" — who is on the site right now. A creator/business counts as online
+ *  if their last authenticated request was under 5 minutes ago (matches the
+ *  server presence window). Auto-refreshes every 20s. */
+const ONLINE_MS = 5 * 60 * 1000;
+function presenceAgo(iso) {
+  if (!iso) return 'ни разу';
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diff < 60) return 'только что';
+  if (diff < 3600) return `${Math.floor(diff / 60)} мин назад`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} ч назад`;
+  return `${Math.floor(diff / 86400)} дн назад`;
+}
+
+function PresenceRow({ name, sub, lastSeenAt }) {
+  const online = lastSeenAt && Date.now() - new Date(lastSeenAt).getTime() < ONLINE_MS;
+  return (
+    <li className={`presence-row ${online ? 'is-online' : ''}`}>
+      <span className={`presence-dot ${online ? 'is-online' : ''}`} aria-hidden="true" />
+      <span className="presence-row__main">
+        <span className="presence-row__name">{name}</span>
+        {sub && <span className="presence-row__sub">{sub}</span>}
+      </span>
+      <span className="presence-row__time">{online ? 'онлайн' : `был(а) ${presenceAgo(lastSeenAt)}`}</span>
+    </li>
+  );
+}
+
+function PresenceGroup({ title, people, render }) {
+  const onlineCount = people.filter((p) => p.lastSeenAt && Date.now() - new Date(p.lastSeenAt).getTime() < ONLINE_MS).length;
+  return (
+    <div className="presence-group">
+      <h3 className="admin-block__title admin-subhead">
+        {title} <span className="presence-count">{onlineCount} онлайн из {people.length}</span>
+      </h3>
+      {people.length ? (
+        <ul className="presence-list">{people.map(render)}</ul>
+      ) : (
+        <div className="admin-placeholder">Пусто</div>
+      )}
+    </div>
+  );
+}
+
+function PresenceView({ authFetch }) {
+  const [data, setData] = useState({ creators: [], businesses: [] });
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await (await authFetch('/api/admin/presence')).json();
+      if (r.ok !== false) setData({ creators: r.creators || [], businesses: r.businesses || [] });
+    } catch {
+      /* keep last snapshot */
+    } finally {
+      setLoading(false);
+    }
+  }, [authFetch]);
+
+  useEffect(() => {
+    load();
+    const id = setInterval(load, 20000);
+    return () => clearInterval(id);
+  }, [load]);
+
+  const onlineTotal =
+    data.creators.filter((p) => p.lastSeenAt && Date.now() - new Date(p.lastSeenAt).getTime() < ONLINE_MS).length +
+    data.businesses.filter((p) => p.lastSeenAt && Date.now() - new Date(p.lastSeenAt).getTime() < ONLINE_MS).length;
+
+  return (
+    <section className="admin-block">
+      <div className="admin-panel__head">
+        <h2 className="admin-block__title">
+          Онлайн <span className="creator-portal__muted">— сейчас на сайте: {onlineTotal} · обновляется каждые 20 сек</span>
+        </h2>
+        <button className="btn btn--ghost btn--sm" onClick={load} disabled={loading}>{loading ? 'Обновляю…' : 'Обновить'}</button>
+      </div>
+
+      <PresenceGroup
+        title="Креаторы"
+        people={data.creators}
+        render={(c) => <PresenceRow key={`c${c.id}`} name={c.name} sub={c.username ? `@${c.username}` : (c.status || '')} lastSeenAt={c.lastSeenAt} />}
+      />
+      <PresenceGroup
+        title="Бизнесы"
+        people={data.businesses}
+        render={(b) => <PresenceRow key={`b${b.id}`} name={b.name} sub={b.email || ''} lastSeenAt={b.lastSeenAt} />}
+      />
     </section>
   );
 }

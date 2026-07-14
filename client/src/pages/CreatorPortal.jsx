@@ -519,7 +519,7 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
       {view === 'overview' && (
         <OverviewHome
           c={c} wallet={wallet} level={level} submissions={submissions} briefs={briefs}
-          forecast={data.forecast} authFetch={authFetch} reload={reload} go={setView}
+          forecast={data.forecast} go={setView}
         />
       )}
 
@@ -753,7 +753,7 @@ const nfmt = (n) => Math.round(n || 0).toLocaleString('ru-RU');
  * metrics, an attention list of what to do next, and active orders. All from the
  * data the cabinet already loads.
  */
-function OverviewHome({ c, wallet, submissions, briefs, forecast, authFetch, reload, go }) {
+function OverviewHome({ c, wallet, submissions, briefs, forecast, go }) {
   const toast = useToast();
   const lp = levelProgress(c.xp);
   const threshold = wallet.payout_threshold || 0;
@@ -844,10 +844,6 @@ function OverviewHome({ c, wallet, submissions, briefs, forecast, authFetch, rel
           </div>
         </>
       )}
-
-      {/* Connect social accounts so views sync automatically (no screenshots). */}
-      {!c.tiktok_connected && <TikTokCard c={c} authFetch={authFetch} reload={reload} />}
-      <InstagramCard c={c} authFetch={authFetch} reload={reload} />
 
       {/* Active orders */}
       <h2 className="creator-portal__h2">Активные заказы</h2>
@@ -995,110 +991,6 @@ function ReferralsView({ authFetch, username }) {
 }
 
 /** Connect TikTok (Login Kit) so view counts sync automatically instead of an operator typing them in. */
-function TikTokCard({ c, authFetch, reload }) {
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState('');
-
-  useEffect(() => {
-    const status = new URLSearchParams(window.location.search).get('tiktok');
-    if (!status) return;
-    setMsg(status === 'connected' ? 'TikTok подключён ✓' : 'Не удалось подключить TikTok — попробуй ещё раз.');
-    window.history.replaceState(null, '', window.location.pathname);
-    reload();
-  }, []); // eslint-disable-line
-
-  const connect = async () => {
-    setBusy(true);
-    try {
-      const r = await (await authFetch('/api/creator/tiktok/connect', { method: 'POST' })).json();
-      if (r.ok && r.url) window.location.href = r.url;
-      else setMsg((r.errors && r.errors[0]) || 'Не удалось начать подключение');
-    } finally {
-      setBusy(false);
-    }
-  };
-  const disconnect = async () => {
-    setBusy(true);
-    try {
-      await authFetch('/api/creator/tiktok/disconnect', { method: 'POST' });
-      reload();
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="creator-portal__card">
-      <div className="creator-portal__wallet-row"><span>TikTok</span></div>
-      {c.tiktok_connected ? (
-        <>
-          <p className="creator-portal__muted">Подключён{c.tiktok_username ? `: @${c.tiktok_username}` : ''}. Просмотры твоих видео обновляются сами.</p>
-          <button className="btn btn--ghost btn--sm" onClick={disconnect} disabled={busy}>Отключить</button>
-        </>
-      ) : (
-        <>
-          <p className="creator-portal__muted">Подключи аккаунт — просмотры видео будут подтягиваться сами, без ручного ввода.</p>
-          <button className="btn btn--primary btn--sm" onClick={connect} disabled={busy}>{busy ? '…' : 'Подключить TikTok'}</button>
-        </>
-      )}
-      {msg && <p className="creator-portal__muted">{msg}</p>}
-    </div>
-  );
-}
-
-/** Connect an Instagram professional account so per-video views sync automatically
- * (Instagram Login for Business). Mirrors TikTokCard. */
-function InstagramCard({ c, authFetch, reload }) {
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState('');
-
-  useEffect(() => {
-    const status = new URLSearchParams(window.location.search).get('instagram');
-    if (!status) return;
-    setMsg(status === 'connected' ? 'Instagram подключён ✓' : 'Не удалось подключить Instagram — попробуй ещё раз.');
-    window.history.replaceState(null, '', window.location.pathname);
-    reload();
-  }, []); // eslint-disable-line
-
-  const connect = async () => {
-    setBusy(true);
-    try {
-      const r = await (await authFetch('/api/creator/instagram/connect', { method: 'POST' })).json();
-      if (r.ok && r.url) window.location.href = r.url;
-      else setMsg((r.errors && r.errors[0]) || 'Подключение Instagram пока недоступно');
-    } finally {
-      setBusy(false);
-    }
-  };
-  const disconnect = async () => {
-    setBusy(true);
-    try {
-      await authFetch('/api/creator/instagram/disconnect', { method: 'POST' });
-      reload();
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="creator-portal__card">
-      <div className="creator-portal__wallet-row"><span>Instagram</span></div>
-      {c.instagram_connected ? (
-        <>
-          <p className="creator-portal__muted">Подключён{c.ig_username ? `: @${c.ig_username}` : ''}. Просмотры Reels обновляются сами — скриншоты не нужны.</p>
-          <button className="btn btn--ghost btn--sm" onClick={disconnect} disabled={busy}>Отключить</button>
-        </>
-      ) : (
-        <>
-          <p className="creator-portal__muted">Подключи Instagram — статистика по видео будет подтягиваться автоматически, без скриншотов. Нужен профессиональный аккаунт (Business/Creator).</p>
-          <button className="btn btn--primary btn--sm" onClick={connect} disabled={busy}>{busy ? '…' : 'Подключить Instagram'}</button>
-        </>
-      )}
-      {msg && <p className="creator-portal__muted">{msg}</p>}
-    </div>
-  );
-}
-
 /* ---------------- Orders (Заказы) ---------------- */
 /** The Заказы tab: open orders (available to everyone) + orders personally
  * assigned to this creator, with a lightweight client-side sort and a

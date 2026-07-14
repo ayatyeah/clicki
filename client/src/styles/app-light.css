@@ -927,6 +927,27 @@
   margin-top: 5px; font-size: 0.76rem; color: var(--fog);
 }
 
+/* Hidden /demo-test sandbox banner */
+.demo-banner {
+  margin: 0 0 16px; padding: 11px 15px; border-radius: 12px;
+  background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412;
+  font-size: 0.9rem; font-weight: 500;
+}
+
+/* Admin "Онлайн" presence panel */
+.presence-group { margin-top: 6px; }
+.presence-count { font-size: 0.8rem; color: var(--fog); font-weight: 500; }
+.presence-list { list-style: none; margin: 8px 0 20px; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.presence-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; }
+.presence-row:hover { background: #f6f5fb; }
+.presence-dot { width: 9px; height: 9px; border-radius: 999px; background: #c9c6d6; flex: 0 0 auto; }
+.presence-dot.is-online { background: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18); }
+.presence-row__main { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.presence-row__name { color: var(--ink); font-weight: 600; }
+.presence-row__sub { color: var(--fog); font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.presence-row__time { color: var(--stone); font-size: 0.82rem; white-space: nowrap; }
+.presence-row.is-online .presence-row__time { color: #15803d; font-weight: 600; }
+
 .cp-account__head { display: flex; align-items: center; gap: 16px; margin-bottom: 4px; }
 .cp-account__id { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
 .cp-account__id b { color: var(--ink); font-size: 1.05rem; }

@@ -135,6 +135,7 @@ import {
   deleteAnnouncement,
   getCreatorAnnouncements,
   markCreatorAnnouncementsSeen,
+  getPresenceRoster,
 } from './db.js';
 import { geminiGenerate, geminiEnabled } from './gemini.js';
 import { uploadToSpaces, spacesEnabled, spacesMediaHosts } from './storage.js';
@@ -1034,35 +1035,38 @@ app.post('/api/creator/briefs/:id/script', requireCreator, wrap(async (req, res)
   }
 }));
 // TikTok redirects the browser back here after the creator authorizes (or declines). Public.
+// TikTok/Instagram connect is currently exercised only from the hidden /demo-test
+// harness (the buttons are not shown to creators yet), so the OAuth round-trip
+// returns there — closing the test loop on the same page it started from.
 app.get('/api/auth/tiktok/callback', async (req, res) => {
   const { code, state, error } = req.query || {};
   try {
-    if (error || !code || !state) return res.redirect('/creator?tiktok=error');
+    if (error || !code || !state) return res.redirect('/demo-test?tiktok=error');
     const creatorId = await consumeOAuthState(String(state), 'tiktok');
-    if (!creatorId) return res.redirect('/creator?tiktok=error');
+    if (!creatorId) return res.redirect('/demo-test?tiktok=error');
     const tokens = await exchangeTikTokCode(String(code));
     const userInfo = await fetchTikTokUserInfo(tokens.access_token).catch(() => null);
     await saveTikTokTokens(creatorId, { ...tokens, username: userInfo?.display_name });
-    res.redirect('/creator?tiktok=connected');
+    res.redirect('/demo-test?tiktok=connected');
   } catch (err) {
     console.error('[tiktok-callback]', err.message);
-    res.redirect('/creator?tiktok=error');
+    res.redirect('/demo-test?tiktok=error');
   }
 });
 // Instagram redirects the browser back here after the creator authorizes (or declines). Public.
 app.get('/api/auth/instagram/callback', async (req, res) => {
   const { code, state, error } = req.query || {};
   try {
-    if (error || !code || !state) return res.redirect('/creator?instagram=error');
+    if (error || !code || !state) return res.redirect('/demo-test?instagram=error');
     const creatorId = await consumeOAuthState(String(state), 'instagram');
-    if (!creatorId) return res.redirect('/creator?instagram=error');
+    if (!creatorId) return res.redirect('/demo-test?instagram=error');
     const tokens = await exchangeInstagramCode(String(code));
     const userInfo = await fetchInstagramUser(tokens.access_token).catch(() => null);
     await saveInstagramTokens(creatorId, { ...tokens, username: userInfo?.username, user_id: userInfo?.user_id || tokens.user_id });
-    res.redirect('/creator?instagram=connected');
+    res.redirect('/demo-test?instagram=connected');
   } catch (err) {
     console.error('[instagram-callback]', err.message);
-    res.redirect('/creator?instagram=error');
+    res.redirect('/demo-test?instagram=error');
   }
 });
 
@@ -1575,6 +1579,9 @@ app.get('/api/admin/decisions', requireAdmin, wrap(async (_req, res) => ok(res, 
 // Diagnostic: send a test Telegram message and report the real result, so a
 // silent failure (chat_id changed, token revoked, bot removed) is visible.
 app.post('/api/admin/notify-test', requireAdmin, wrap(async (_req, res) => ok(res, await telegramSelfTest())));
+
+// Who's online: presence roster (creators + businesses) for the admin panel.
+app.get('/api/admin/presence', requireAdmin, wrap(async (_req, res) => ok(res, await getPresenceRoster())));
 
 // Broadcast to every creator's notification bell. Creating one is the "send" —
 // it becomes visible to all creators immediately, so it must be an explicit admin

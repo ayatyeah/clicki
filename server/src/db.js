@@ -408,6 +408,25 @@ export async function touchBusinessSeen(id) {
   );
 }
 
+/** Full presence roster for the admin "Онлайн" panel — every creator and business
+ *  with their last activity time (most-recent first). Online/offline is derived on
+ *  the client from lastSeenAt so the panel can show a live countdown. */
+export async function getPresenceRoster() {
+  const [creators, businesses] = await Promise.all([
+    pool.query('SELECT id, name, username, status, last_seen_at FROM creators ORDER BY last_seen_at DESC NULLS LAST, id DESC'),
+    pool.query('SELECT id, name, email, company, last_seen_at FROM business_accounts ORDER BY last_seen_at DESC NULLS LAST, id DESC'),
+  ]);
+  const iso = (v) => v?.toISOString?.() ?? v ?? null;
+  return {
+    creators: creators.rows.map((r) => ({
+      id: r.id, name: r.name, username: r.username || null, status: r.status, lastSeenAt: iso(r.last_seen_at),
+    })),
+    businesses: businesses.rows.map((r) => ({
+      id: r.id, name: r.name || r.company || r.email, email: r.email || null, lastSeenAt: iso(r.last_seen_at),
+    })),
+  };
+}
+
 /* ---------------- Site health (admin overview) ---------------- */
 /** A creator/business counts as "online" if a request of theirs authenticated
  *  within this window. Kept generous because the cabinets don't poll. */
