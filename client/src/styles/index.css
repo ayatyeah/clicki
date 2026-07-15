@@ -1671,6 +1671,10 @@ img.ae {
   border-bottom: 1px solid var(--line);
   vertical-align: top;
   color: var(--stone);
+  /* Long text (AI feedback, URLs, pasted socials) wraps instead of forcing the
+     column — and the row — wider than the container and clipping the right side. */
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .admin-table th {
   color: var(--ink);
@@ -1688,9 +1692,12 @@ img.ae {
   color: var(--fog);
   padding: 40px;
 }
-/* Mobile: turn each table row into a labelled card (no horizontal scroll).
-   Each <td> carries a data-label that becomes its field name. */
-@media (max-width: 860px) {
+/* Narrow screens: turn each table row into a labelled card (no horizontal scroll,
+   nothing clipped). Threshold is 1024px because the admin content column is ~300px
+   narrower than the viewport (sidebar + gaps), so rich multi-column tables don't
+   fit until the window is genuinely wide. Each <td> carries a data-label used as
+   the field name. */
+@media (max-width: 1024px) {
   .admin-table-wrap {
     border: none;
     background: transparent;

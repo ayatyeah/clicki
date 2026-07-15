@@ -110,7 +110,7 @@ export function ReviewView({ authFetch }) {
       {error && <p className="lead-form__errors" role="alert">{error}</p>}
       {syncMsg && <p className="muted-note" style={{ textAlign: 'left' }}>{syncMsg}</p>}
       <div className="admin-table-wrap">
-        <table className="admin-table">
+        <table className="admin-table admin-table--review">
           <thead>
             <tr>
               <th>Креатор / бриф</th>

@@ -952,6 +952,13 @@
 
 /* Admin: submission status override + human review note */
 .status-override { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; max-width: 250px; }
+
+/* "Проверка видео" is the richest table (5 widget-heavy columns). Let it compress
+   to the container so it never clips the right column on narrower windows. */
+.admin-table.admin-table--review { min-width: 0; }
+.admin-table--review th,
+.admin-table--review td { padding: 10px 12px; }
+.admin-table--review .status-override { max-width: 200px; }
 .status-override select, .status-override textarea {
   padding: 7px 10px; border: 1px solid var(--line, #ddd); border-radius: 9px;
   font: inherit; color: var(--ink); background: #fff; resize: vertical;
