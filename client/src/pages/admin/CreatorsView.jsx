@@ -297,6 +297,7 @@ export function CreatorsView({ authFetch }) {
                   <div className="creators-cell__meta">
                     <Stars value={c.rating || 0} />
                     <span>XP {c.xp} · Trust {c.trust_score} · Стрик {c.streak}</span>
+                    <span className="cr-balance">Баланс: {(c.balance || 0).toLocaleString('ru-RU')} ₸</span>
                     {c.tiktok_connected ? (
                       <span className="tt-chip tt-chip--on">TikTok ✓{c.tiktok_username ? ` @${c.tiktok_username}` : ''}</span>
                     ) : (

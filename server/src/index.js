@@ -95,6 +95,7 @@ import {
   getEarningsForecast,
   listPayouts,
   createPayout,
+  hasActivePayoutForSubmission,
   markPayoutPaid,
   getLeaderboard,
   levelFromXp,
@@ -1391,7 +1392,11 @@ app.post(
       const minViews = settings.min_views_per_video || 2000;
       const rate = rates.find((r) => r.platform === sub.platform)?.creator_rate || 0;
       const amount = (sub.views || 0) >= minViews ? Math.round((sub.views || 0) * rate) : 0;
-      if (amount > 0) await createPayout(sub.creator_id, amount, sub.id);
+      // Only if this video doesn't already have a live payout — a re-opened then
+      // re-accepted submission must not spawn a second payout for the same work.
+      if (amount > 0 && !(await hasActivePayoutForSubmission(sub.id))) {
+        await createPayout(sub.creator_id, amount, sub.id);
+      }
     } catch (err) {
       console.error('[payout]', err.message);
     }
@@ -1954,8 +1959,10 @@ app.post('/api/admin/payouts', requireAdmin, wrap(async (req, res) => {
     return res.status(400).json({ ok: false, errors: ['Укажите креатора и сумму больше нуля'] });
   }
   const wallet = await getCreatorWallet(creatorId);
-  if (amount > wallet.balance) {
-    return res.status(400).json({ ok: false, errors: [`Сумма превышает баланс креатора (доступно ${Math.round(wallet.balance).toLocaleString('ru-RU')} ₸)`] });
+  // Guard against the AVAILABLE amount (earned − paid − already-queued), so you
+  // can't pay on top of a pending auto-payout and double-pay the creator.
+  if (amount > wallet.available) {
+    return res.status(400).json({ ok: false, errors: [`Сумма превышает доступный баланс (доступно ${Math.round(wallet.available).toLocaleString('ru-RU')} ₸, из них уже в очереди ${Math.round(wallet.pending).toLocaleString('ru-RU')} ₸)`] });
   }
   ok(res, { payout: await createPayout(creatorId, amount) });
 }));

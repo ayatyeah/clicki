@@ -933,6 +933,7 @@
   background: #f0eff5; color: var(--fog);
 }
 .tt-chip--on { background: rgba(34, 197, 94, 0.14); color: #15803d; }
+.cr-balance { color: #15803d; font-weight: 600; }
 
 /* Admin creators filter bar */
 .cr-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; }

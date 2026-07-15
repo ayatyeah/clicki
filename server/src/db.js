@@ -136,11 +136,6 @@ export async function initDb() {
     // Briefs created from the business cabinet: link + detailed creative spec (JSON).
     await client.query('ALTER TABLE briefs ADD COLUMN IF NOT EXISTS business_id INTEGER REFERENCES business_accounts(id) ON DELETE SET NULL');
     await client.query(`ALTER TABLE briefs ADD COLUMN IF NOT EXISTS spec JSONB DEFAULT '{}'::jsonb`);
-    // AI auto-check result on submissions (pipeline step 7-9)
-    await client.query('ALTER TABLE submissions ADD COLUMN IF NOT EXISTS ai_score INTEGER');
-    await client.query('ALTER TABLE submissions ADD COLUMN IF NOT EXISTS ai_feedback TEXT');
-    // AI Coach note generated after the operator's final accept/reject decision.
-    await client.query('ALTER TABLE submissions ADD COLUMN IF NOT EXISTS coach_feedback TEXT');
     // Brief moderation: AI quality check + revision note (business → us → creators/back)
     await client.query('ALTER TABLE briefs ADD COLUMN IF NOT EXISTS ai_score INTEGER');
     await client.query('ALTER TABLE briefs ADD COLUMN IF NOT EXISTS ai_feedback TEXT');
@@ -175,6 +170,11 @@ export async function initDb() {
         views_final BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`);
+    // AI auto-check result + AI Coach note on submissions. Must run AFTER the
+    // CREATE above — ALTER on a not-yet-created table throws on a fresh DB.
+    await client.query('ALTER TABLE submissions ADD COLUMN IF NOT EXISTS ai_score INTEGER');
+    await client.query('ALTER TABLE submissions ADD COLUMN IF NOT EXISTS ai_feedback TEXT');
+    await client.query('ALTER TABLE submissions ADD COLUMN IF NOT EXISTS coach_feedback TEXT');
     // Payouts (ТЗ §8)
     await client.query(`
       CREATE TABLE IF NOT EXISTS payouts (
@@ -815,21 +815,42 @@ export function creatorRating(c) {
   return Math.round(Math.max(1, Math.min(5, score)) * 2) / 2;
 }
 export async function listCreators() {
-  const r = await pool.query(`
-    SELECT c.*,
-      COALESCE(s.accepted,0)::int AS accepted,
-      COALESCE(s.rejected,0)::int AS rejected,
-      COALESCE(s.avg_ai,0)::float AS avg_ai
-    FROM creators c
-    LEFT JOIN (
-      SELECT creator_id,
-        COUNT(*) FILTER (WHERE status='accepted') AS accepted,
-        COUNT(*) FILTER (WHERE status='rejected') AS rejected,
-        AVG(ai_score) FILTER (WHERE ai_score IS NOT NULL) AS avg_ai
-      FROM submissions GROUP BY creator_id
-    ) s ON s.creator_id = c.id
-    ORDER BY c.id DESC`);
-  return r.rows.map((row) => ({ ...row, rating: creatorRating(row) }));
+  const settings = await getSettings();
+  const minViews = settings.min_views_per_video || 2000;
+  // Balance per creator = earned (accepted videos over the min-views threshold ×
+  // platform rate) − already-paid payouts — same formula as getCreatorWallet.
+  const r = await pool.query(
+    `SELECT c.*,
+       COALESCE(s.accepted,0)::int AS accepted,
+       COALESCE(s.rejected,0)::int AS rejected,
+       COALESCE(s.avg_ai,0)::float AS avg_ai,
+       COALESCE(earn.earned,0)::float AS earned,
+       COALESCE(pay.paid,0)::float AS paid
+     FROM creators c
+     LEFT JOIN (
+       SELECT creator_id,
+         COUNT(*) FILTER (WHERE status='accepted') AS accepted,
+         COUNT(*) FILTER (WHERE status='rejected') AS rejected,
+         AVG(ai_score) FILTER (WHERE ai_score IS NOT NULL) AS avg_ai
+       FROM submissions GROUP BY creator_id
+     ) s ON s.creator_id = c.id
+     LEFT JOIN (
+       SELECT s2.creator_id, SUM(s2.views * r.creator_rate) AS earned
+       FROM submissions s2 JOIN rates r ON r.platform = s2.platform
+       WHERE s2.status='accepted' AND s2.views >= $1
+       GROUP BY s2.creator_id
+     ) earn ON earn.creator_id = c.id
+     LEFT JOIN (
+       SELECT creator_id, SUM(amount) AS paid FROM payouts WHERE status='paid' GROUP BY creator_id
+     ) pay ON pay.creator_id = c.id
+     ORDER BY c.id DESC`,
+    [minViews]
+  );
+  return r.rows.map((row) => ({
+    ...row,
+    rating: creatorRating(row),
+    balance: Math.round((row.earned || 0) - (row.paid || 0)),
+  }));
 }
 export async function getCreator(id) {
   const r = await pool.query('SELECT * FROM creators WHERE id = $1', [id]);
@@ -1614,6 +1635,8 @@ export async function reviewSubmission(id, { status, reject_code, checklist }) {
       await applyStreak(sub.creator_id);
       await recomputeXp(sub.creator_id);
       await handleReferralFirstAccept(sub.creator_id);
+    } else if (status === 'rejected' || status === 'rework') {
+      await cancelPendingPayout(id); // don't leave a payable payout on a non-accepted video
     }
   }
   return sub;
@@ -1638,6 +1661,7 @@ export async function overrideSubmissionStatus(id, status, note) {
   if (sub) {
     await logSubmissionDecision(sub, status, sub.reject_code);
     if (status === 'accepted') await recomputeXp(sub.creator_id);
+    else await cancelPendingPayout(id); // left 'accepted' → void any still-unpaid payout
   }
   return sub;
 }
@@ -1922,9 +1946,24 @@ export async function getCreatorWallet(creatorId) {
     `SELECT COALESCE(SUM(amount),0)::float AS paid FROM payouts WHERE creator_id=$1 AND status='paid'`,
     [creatorId]
   );
+  // Payouts already queued (created on business-accept) but not yet marked paid.
+  // These must NOT be payable again — `available` is what an operator can safely
+  // disburse now. `balance` stays "earned − paid" (what the creator is owed).
+  const pendingQ = await pool.query(
+    `SELECT COALESCE(SUM(amount),0)::float AS pending FROM payouts WHERE creator_id=$1 AND status='pending'`,
+    [creatorId]
+  );
   const earned = earnedQ.rows[0].earned;
   const paid = paidQ.rows[0].paid;
-  return { earned, paid, balance: earned - paid, payout_threshold: settings.payout_threshold || 10000 };
+  const pending = pendingQ.rows[0].pending;
+  return {
+    earned,
+    paid,
+    pending,
+    balance: earned - paid,
+    available: earned - paid - pending,
+    payout_threshold: settings.payout_threshold || 10000,
+  };
 }
 /**
  * Earnings Forecaster — projects income from the creator's own recent pace,
@@ -1968,6 +2007,20 @@ export async function createPayout(creatorId, amount, submissionId) {
     [creatorId, amount, submissionId || null]
   );
   return r.rows[0];
+}
+/** True if this submission already has a live (pending or paid) payout — used to
+ *  stop a re-opened/re-accepted video from creating a second payout. */
+export async function hasActivePayoutForSubmission(submissionId) {
+  const r = await pool.query(
+    "SELECT 1 FROM payouts WHERE submission_id=$1 AND status IN ('pending','paid') LIMIT 1",
+    [submissionId]
+  );
+  return r.rowCount > 0;
+}
+/** Void a submission's still-unpaid payout (when the video leaves 'accepted').
+ *  Already-paid payouts are left untouched. */
+export async function cancelPendingPayout(submissionId) {
+  await pool.query("UPDATE payouts SET status='cancelled' WHERE submission_id=$1 AND status='pending'", [submissionId]);
 }
 export async function markPayoutPaid(id) {
   const r = await pool.query(
