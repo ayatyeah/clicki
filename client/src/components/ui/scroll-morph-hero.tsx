@@ -7,7 +7,6 @@ import { motion, useTransform, useSpring, useMotionValue } from "motion/react";
 export type AnimationPhase = "scatter" | "line" | "circle" | "bottom-strip";
 
 interface FlipCardProps {
-    src: string;
     index: number;
     total: number;
     phase: AnimationPhase;
@@ -18,7 +17,7 @@ interface FlipCardProps {
 const IMG_WIDTH = 60;
 const IMG_HEIGHT = 85;
 
-function FlipCard({ src, index, target }: FlipCardProps) {
+function FlipCard({ index, target }: FlipCardProps) {
     return (
         <motion.div
             animate={{
@@ -45,11 +44,15 @@ function FlipCard({ src, index, target }: FlipCardProps) {
                 whileHover={{ rotateY: 180 }}
             >
                 <div
-                    className="absolute inset-0 h-full w-full overflow-hidden rounded-xl shadow-lg bg-gray-200"
-                    style={{ backfaceVisibility: "hidden" }}
+                    className="absolute inset-0 h-full w-full overflow-hidden rounded-xl shadow-lg flex items-center justify-center"
+                    style={{
+                        backfaceVisibility: "hidden",
+                        // Self-hosted branded tile — no external stock images / CDN.
+                        background: `linear-gradient(150deg, hsl(${255 + index * 5} 72% 60%), hsl(${278 + index * 4} 60% 42%))`,
+                    }}
                 >
-                    <img src={src} alt={`hero-${index}`} className="h-full w-full object-cover" />
-                    <div className="absolute inset-0 bg-black/10 transition-colors group-hover:bg-transparent" />
+                    <span className="text-white text-lg opacity-90" aria-hidden="true">▶</span>
+                    <div className="absolute inset-0 bg-black/5 transition-colors group-hover:bg-transparent" />
                 </div>
                 <div
                     className="absolute inset-0 h-full w-full overflow-hidden rounded-xl shadow-lg bg-gray-900 flex flex-col items-center justify-center p-4 border border-gray-700"
@@ -69,28 +72,9 @@ function FlipCard({ src, index, target }: FlipCardProps) {
 const TOTAL_IMAGES = 20;
 const MAX_SCROLL = 3000;
 
-const IMAGES = [
-    "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=300&q=80",
-    "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=300&q=80",
-    "https://images.unsplash.com/photo-1497366216548-37526070297c?w=300&q=80",
-    "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=300&q=80",
-    "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=300&q=80",
-    "https://images.unsplash.com/photo-1506765515384-028b60a970df?w=300&q=80",
-    "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=300&q=80",
-    "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=300&q=80",
-    "https://images.unsplash.com/photo-1500485035595-cbe6f645feb1?w=300&q=80",
-    "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=300&q=80",
-    "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=300&q=80",
-    "https://images.unsplash.com/photo-1518020382113-a7e8fc38eac9?w=300&q=80",
-    "https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?w=300&q=80",
-    "https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?w=300&q=80",
-    "https://images.unsplash.com/photo-1493246507139-91e8fad9978e?w=300&q=80",
-    "https://images.unsplash.com/photo-1494438639946-1ebd1d20bf85?w=300&q=80",
-    "https://images.unsplash.com/photo-1483729558449-99ef09a8c325?w=300&q=80",
-    "https://images.unsplash.com/photo-1518173946687-a4c8892bbd9f?w=300&q=80",
-    "https://images.unsplash.com/photo-1523961131990-5ea7c61b2107?w=300&q=80",
-    "https://images.unsplash.com/photo-1496568816309-51d7c20e3b21?w=300&q=80",
-];
+// Decorative branded tiles (indices) — rendered as self-hosted violet gradients,
+// no external stock photos. Swap for real UGC thumbnails here when available.
+const TILES = Array.from({ length: TOTAL_IMAGES }, (_, i) => i);
 
 const lerp = (start: number, end: number, t: number) => start * (1 - t) + end * t;
 
@@ -118,6 +102,11 @@ export default function IntroAnimation() {
     useEffect(() => {
         const container = containerRef.current;
         if (!container) return;
+        // Never hijack scroll on touch devices or for reduced-motion users — the
+        // section then scrolls like any other and rests as a ring of tiles. This
+        // removes the "page feels stuck / swipe captured" problem on phones.
+        const mq = (q: string) => typeof window !== "undefined" && !!window.matchMedia && window.matchMedia(q).matches;
+        if (mq("(pointer: coarse)") || mq("(prefers-reduced-motion: reduce)")) return;
         const handleWheel = (e: WheelEvent) => {
             const atStart = scrollRef.current <= 0;
             const atEnd = scrollRef.current >= MAX_SCROLL;
@@ -177,7 +166,7 @@ export default function IntroAnimation() {
     }, []);
 
     const scatterPositions = useMemo(() => {
-        return IMAGES.map(() => ({
+        return TILES.map(() => ({
             x: (Math.random() - 0.5) * 1500,
             y: (Math.random() - 0.5) * 1000,
             rotation: (Math.random() - 0.5) * 180,
@@ -227,16 +216,16 @@ export default function IntroAnimation() {
                     className="absolute top-[10%] z-10 flex flex-col items-center justify-center text-center pointer-events-none px-4"
                 >
                     <h2 className="text-3xl md:text-5xl font-semibold text-white tracking-tight mb-4">
-                        Лента нашей рекламы
+                        Короткие видео, которые залетают
                     </h2>
                     <p className="text-sm md:text-base text-white/60 max-w-lg leading-relaxed">
-                        Живые UGC-ролики от реальных авторов. <br className="hidden md:block" />
-                        Так выглядит органика, которая залетает.
+                        Вертикальный UGC под ваш бренд — <br className="hidden md:block" />
+                        так, будто это органика в ленте.
                     </p>
                 </motion.div>
 
                 <div className="relative flex items-center justify-center w-full h-full">
-                    {IMAGES.slice(0, TOTAL_IMAGES).map((src, i) => {
+                    {TILES.map((i) => {
                         let target = { x: 0, y: 0, rotation: 0, scale: 1, opacity: 1 };
 
                         if (introPhase === "scatter") {
@@ -284,7 +273,7 @@ export default function IntroAnimation() {
                             };
                         }
 
-                        return <FlipCard key={i} src={src} index={i} total={TOTAL_IMAGES} phase={introPhase} target={target} />;
+                        return <FlipCard key={i} index={i} total={TOTAL_IMAGES} phase={introPhase} target={target} />;
                     })}
                 </div>
             </div>

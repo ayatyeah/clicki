@@ -920,7 +920,7 @@ function AnalyticsView({ authFetch, leads, businessLeads, creatorLeads }) {
     return () => clearInterval(id);
   }, [load]);
 
-  const maxDay = a && a.byDay.length ? Math.max(1, ...a.byDay.map((d) => d.visits)) : 1;
+  const maxDay = a?.byDay?.length ? Math.max(1, ...a.byDay.map((d) => d.visits || 0)) : 1;
   const dev = a?.device || { mobile: 0, desktop: 0 };
   const devTotal = (dev.mobile || 0) + (dev.desktop || 0);
   const mobilePct = devTotal ? Math.round((dev.mobile / devTotal) * 100) : 0;
@@ -937,14 +937,14 @@ function AnalyticsView({ authFetch, leads, businessLeads, creatorLeads }) {
       ) : (
         <>
           <div className="admin-stats">
-            <Stat label="Всего визитов" value={a.totals.visits.toLocaleString('ru-RU')} />
-            <Stat label="Уникальных" value={a.totals.uniques.toLocaleString('ru-RU')} />
-            <Stat label="Сегодня" value={a.today.visits.toLocaleString('ru-RU')} />
+            <Stat label="Всего визитов" value={(a.totals?.visits ?? 0).toLocaleString('ru-RU')} />
+            <Stat label="Уникальных" value={(a.totals?.uniques ?? 0).toLocaleString('ru-RU')} />
+            <Stat label="Сегодня" value={(a.today?.visits ?? 0).toLocaleString('ru-RU')} />
             <Stat label="Мобильных" value={`${mobilePct}%`} />
           </div>
 
           <h3 className="admin-block__title admin-subhead">Визиты за 14 дней</h3>
-          {a.byDay.length ? (
+          {a.byDay?.length ? (
             <div className="an-days">
               {a.byDay.map((d) => (
                 <div key={d.day} className="an-day" title={`${d.day}: ${d.visits} визитов`}>
@@ -964,10 +964,10 @@ function AnalyticsView({ authFetch, leads, businessLeads, creatorLeads }) {
                 <table className="admin-table">
                   <thead><tr><th>Страница</th><th>Визитов</th></tr></thead>
                   <tbody>
-                    {a.byPage.map((p) => (
+                    {(a.byPage || []).map((p) => (
                       <tr key={p.path}><td data-label="Страница">{p.path}</td><td className="muted-cell" data-label="Визитов">{p.visits}</td></tr>
                     ))}
-                    {!a.byPage.length && <tr><td colSpan={2} className="admin-table__empty">—</td></tr>}
+                    {!a.byPage?.length && <tr><td colSpan={2} className="admin-table__empty">—</td></tr>}
                   </tbody>
                 </table>
               </div>
@@ -978,10 +978,10 @@ function AnalyticsView({ authFetch, leads, businessLeads, creatorLeads }) {
                 <table className="admin-table">
                   <thead><tr><th>Источник</th><th>Визитов</th></tr></thead>
                   <tbody>
-                    {a.bySource.map((s) => (
+                    {(a.bySource || []).map((s) => (
                       <tr key={s.source}><td data-label="Источник">{s.source}</td><td className="muted-cell" data-label="Визитов">{s.visits}</td></tr>
                     ))}
-                    {!a.bySource.length && <tr><td colSpan={2} className="admin-table__empty">—</td></tr>}
+                    {!a.bySource?.length && <tr><td colSpan={2} className="admin-table__empty">—</td></tr>}
                   </tbody>
                 </table>
               </div>

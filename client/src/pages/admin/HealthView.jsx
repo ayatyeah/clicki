@@ -95,9 +95,14 @@ export default function HealthView({ authFetch }) {
     );
   }
 
-  const { creators, businesses, briefs, submissions, leads, payouts, traffic, referrals, onlineNow, system } = data;
+  const { creators, businesses, briefs, submissions, leads, payouts, traffic, referrals, onlineNow } = data;
+  // Default the nested system objects — a partial /health response must not crash
+  // the whole page (this view sits under the app-wide error boundary).
+  const system = data.system || {};
+  const pool = system.pool || {};
+  const features = system.features || {};
   const dbSlow = system.dbLatencyMs > 200;
-  const poolTight = system.pool.waiting > 0;
+  const poolTight = pool.waiting > 0;
 
   return (
     <>
@@ -203,7 +208,7 @@ export default function HealthView({ authFetch }) {
         <div className="admin-stats">
           <Stat variant="text" label="Аптайм" value={formatUptime(system.uptimeSec)} />
           <Stat variant="text" label="Отклик БД" value={`${system.dbLatencyMs} мс${dbSlow ? ' ⚠' : ''}`} />
-          <Stat variant="text" label="Пул соединений" value={`${system.pool.total}/${system.pool.max}${poolTight ? ` · ${system.pool.waiting} в очереди ⚠` : ''}`} />
+          <Stat variant="text" label="Пул соединений" value={`${pool.total}/${pool.max}${poolTight ? ` · ${pool.waiting} в очереди ⚠` : ''}`} />
           <Stat variant="text" label="Память (RSS)" value={`${system.rssMb} МБ`} />
           <Stat variant="text" label="Админ-сессий" value={num(system.adminSessions)} />
           <Stat variant="text" label="Окружение" value={`${system.env} · ${system.nodeVersion}`} />
@@ -219,12 +224,12 @@ export default function HealthView({ authFetch }) {
         <h3 className="admin-block__title" style={{ fontSize: '1rem', marginTop: 20 }}>Интеграции</h3>
         <div className="bp-cards">
           {[
-            ['Gemini (AI)', system.features.gemini],
-            ['TikTok автосинк', system.features.tiktok],
-            ['Spaces (медиа)', system.features.spaces],
-            ['reCAPTCHA', system.features.recaptcha],
-            ['Telegram', system.features.telegram],
-            ['Email (SMTP)', system.features.email],
+            ['Gemini (AI)', features.gemini],
+            ['TikTok автосинк', features.tiktok],
+            ['Spaces (медиа)', features.spaces],
+            ['reCAPTCHA', features.recaptcha],
+            ['Telegram', features.telegram],
+            ['Email (SMTP)', features.email],
           ].map(([label, on]) => (
             <div key={label} className="bp-card">
               <div className="bp-card__head">

@@ -18,8 +18,17 @@ export function ReviewView({ authFetch }) {
   const [syncMsg, setSyncMsg] = useState('');
   const [error, setError] = useState('');
   const load = async () => {
-    const r = await (await authFetch('/api/admin/submissions')).json();
-    setSubs(r.submissions || []);
+    // Never blank the table on a transient failure (the 20s poll would otherwise
+    // flash "Нет сдач видео" on one bad response) — keep the last good data.
+    try {
+      const res = await authFetch('/api/admin/submissions');
+      const r = await res.json();
+      if (!res.ok || r.ok === false) throw new Error(r.errors?.[0] || `Ошибка ${res.status}`);
+      setSubs(r.submissions || []);
+      setError('');
+    } catch (e) {
+      setError(`Не удалось обновить список: ${e.message}`);
+    }
   };
   useEffect(() => {
     load();

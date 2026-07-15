@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Seo from '../components/Seo.jsx';
 import Header from '../components/Header.jsx';
+import Footer from '../components/Footer.jsx';
 import IntroAnimation from '../components/ui/scroll-morph-hero';
 import { useLang } from '../i18n.jsx';
 import { useContent } from '../content.jsx';
@@ -205,6 +206,8 @@ export default function Hub() {
       <section className="hub__morph">
         <IntroAnimation />
       </section>
+
+      <Footer />
     </main>
   );
 }

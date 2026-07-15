@@ -733,15 +733,15 @@ function PrintableReport({ authFetch, business }) {
           </div>
 
           <div className="admin-stats">
-            <Stat label={t('Принято видео')} value={report.totals.videos} />
-            <Stat label={t('Суммарный охват')} value={report.totals.views.toLocaleString('ru-RU')} />
-            <Stat label={t('Потрачено')} value={`${report.totals.spend.toLocaleString('ru-RU')} ₸`} />
+            <Stat label={t('Принято видео')} value={report.totals?.videos ?? 0} />
+            <Stat label={t('Суммарный охват')} value={(report.totals?.views ?? 0).toLocaleString('ru-RU')} />
+            <Stat label={t('Потрачено')} value={`${(report.totals?.spend ?? 0).toLocaleString('ru-RU')} ₸`} />
           </div>
 
           <table className="admin-table" style={{ marginTop: 16 }}>
             <thead><tr><th>{t('Платформа')}</th><th>{t('Видео')}</th><th>{t('Просмотры')}</th><th>{t('Расход')}</th><th>{t('Цена за 1000 просм.')}</th></tr></thead>
             <tbody>
-              {report.byPlatform.map((p) => (
+              {(report.byPlatform || []).map((p) => (
                 <tr key={p.platform}>
                   <td data-label={t('Платформа')}>{p.platform}</td>
                   <td data-label={t('Видео')}>{p.videos}</td>
@@ -750,7 +750,7 @@ function PrintableReport({ authFetch, business }) {
                   <td data-label={t('Цена за 1000 просм.')}>{p.cost_per_1k_views.toLocaleString('ru-RU')} ₸</td>
                 </tr>
               ))}
-              {!report.byPlatform.length && <tr><td colSpan={5} className="admin-table__empty">{t('Пока нет принятых работ')}</td></tr>}
+              {!report.byPlatform?.length && <tr><td colSpan={5} className="admin-table__empty">{t('Пока нет принятых работ')}</td></tr>}
             </tbody>
           </table>
 

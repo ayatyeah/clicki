@@ -972,12 +972,12 @@ function ReferralsView({ authFetch, username }) {
       {/* Funnel: opens → leads → conversion. Numbers show once stats arrive. */}
       <div className="ref-stats">
         <div className="ref-stat">
-          <div className="ref-stat__value">{data ? data.clicks.toLocaleString('ru-RU') : '—'}</div>
+          <div className="ref-stat__value">{data ? (data.clicks ?? 0).toLocaleString('ru-RU') : '—'}</div>
           <div className="ref-stat__label">Открыли ссылку</div>
         </div>
         <div className="ref-stat__arrow" aria-hidden="true">→</div>
         <div className="ref-stat">
-          <div className="ref-stat__value">{data ? data.total.toLocaleString('ru-RU') : '—'}</div>
+          <div className="ref-stat__value">{data ? (data.total ?? 0).toLocaleString('ru-RU') : '—'}</div>
           <div className="ref-stat__label">Заявок от бизнеса</div>
         </div>
         <div className="ref-stat__arrow" aria-hidden="true">→</div>

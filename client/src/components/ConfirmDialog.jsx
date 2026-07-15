@@ -41,9 +41,11 @@ export function ConfirmProvider({ children }) {
 
   useEffect(() => {
     if (!state) return undefined;
+    // Only Escape is a global shortcut (→ cancel). Enter is NOT wired to confirm:
+    // the Cancel button is autoFocused, so a reflexive Enter cancels (safe) instead
+    // of firing a destructive action the user didn't mean to trigger.
     const onKey = (e) => {
       if (e.key === 'Escape') settle(false);
-      else if (e.key === 'Enter') settle(true);
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
