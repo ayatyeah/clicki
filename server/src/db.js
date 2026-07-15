@@ -1669,10 +1669,13 @@ export async function overrideSubmissionStatus(id, status, note) {
  *  Also appends a snapshot — the single `views` column only ever holds the
  *  latest reading, this is the history behind it (anti-fraud + growth chart). */
 export async function recordViews(id, views, final) {
-  const r = await pool.query('UPDATE submissions SET views=$1, views_final=$2 WHERE id=$3 RETURNING *', [views, !!final, id]);
+  // Never store a negative count — a stray minus (or a glitched API 0/null) must
+  // not push earnings/XP below zero. Views are whole numbers.
+  const v = Math.max(0, Math.round(Number(views) || 0));
+  const r = await pool.query('UPDATE submissions SET views=$1, views_final=$2 WHERE id=$3 RETURNING *', [v, !!final, id]);
   const sub = r.rows[0] || null;
   if (sub) {
-    await pool.query('INSERT INTO view_snapshots (submission_id, views) VALUES ($1,$2)', [id, views]);
+    await pool.query('INSERT INTO view_snapshots (submission_id, views) VALUES ($1,$2)', [id, v]);
     await recomputeXp(sub.creator_id);
   }
   return sub;

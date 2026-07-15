@@ -1515,7 +1515,9 @@ async function syncCreatorTikTokViews(creator) {
     const vid = parseTikTokVideoId(s.video_url);
     if (!vid || !viewsById.has(vid)) continue;
     const views = viewsById.get(vid);
-    if (views === s.views) continue; // unchanged — skip the write
+    // Only ratchet up: ignore an unchanged or lower reading (API glitch / a briefly
+    // private video) so a paid creator's count can't silently drop from a sync.
+    if (!(views > s.views)) continue;
     await recordViews(s.id, views, s.views_final);
     updated += 1;
   }
@@ -1568,7 +1570,8 @@ async function syncCreatorInstagramViews(creator) {
     const sc = parseInstagramShortcode(s.video_url);
     if (!sc || !bySc.has(sc)) continue;
     const views = bySc.get(sc);
-    if (views === s.views) continue;
+    // Only ratchet up (see the TikTok sync note) — never lower a paid count.
+    if (!(views > s.views)) continue;
     await recordViews(s.id, views, s.views_final);
     updated += 1;
   }
