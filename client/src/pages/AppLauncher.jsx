@@ -10,10 +10,15 @@ import { useNavigate } from 'react-router-dom';
 export default function AppLauncher() {
   const navigate = useNavigate();
   useEffect(() => {
+    // Route the installed PWA straight to the right cabinet by which session token
+    // is present: creator → /creator, business → /business-cabinet, admin → /admin,
+    // otherwise the login chooser. (An expired token just bounces to login there.)
     const creator = localStorage.getItem('clicki_creator_token');
     const business = localStorage.getItem('clicki_business_token');
+    const admin = sessionStorage.getItem('clicki_admin_token');
     if (creator) navigate('/creator', { replace: true });
     else if (business) navigate('/business-cabinet', { replace: true });
+    else if (admin) navigate('/admin', { replace: true });
     else navigate('/login', { replace: true });
   }, [navigate]);
 

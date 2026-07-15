@@ -1180,6 +1180,32 @@
 .cp-bottomnav__btn.is-active { color: #6d28d9; }
 .cp-bottomnav__btn.is-active .cp-bottomnav__icon { color: #6d28d9; background: rgba(124, 58, 237, 0.15); }
 
+/* "Забыли пароль?" success state */
+.cp-forgot-done { text-align: center; }
+.cp-forgot-done__icon {
+  width: 56px; height: 56px; margin: 4px auto 12px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(34, 197, 94, 0.15); color: #15803d; font-size: 1.7rem; font-weight: 700;
+}
+
+/* ---- Mobile ergonomics (phones + installed PWA) ---- */
+@media (max-width: 640px) {
+  /* 16px form controls so iOS Safari doesn't zoom the page on focus */
+  .app-light input, .app-light select, .app-light textarea { font-size: 16px; }
+  /* thumb-friendly tap targets */
+  .app-light .btn { min-height: 44px; }
+  .app-light .btn--sm { min-height: 38px; }
+  /* a touch more side breathing room on small screens */
+  .creator-portal__inner { padding-left: 14px; padding-right: 14px; }
+  /* stack admin action buttons so they don't overflow narrow rows */
+  .admin-row-actions { gap: 8px; }
+}
+/* Installed PWA: keep the top bar clear of the notch / status bar */
+@media (display-mode: standalone) {
+  .creator-portal__top { padding-top: calc(8px + env(safe-area-inset-top, 0px)); }
+  .admin-topbar { padding-top: env(safe-area-inset-top, 0px); }
+}
+
 /* "Мои видео" list rows */
 .cp-vids { display: flex; flex-direction: column; }
 .cp-vid { display: flex; gap: 14px; padding: 16px 0; border-bottom: 1px solid var(--line); }

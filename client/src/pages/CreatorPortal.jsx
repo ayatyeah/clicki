@@ -130,40 +130,100 @@ function Shell({ children, wide = false }) {
 
 /* ---------------- Auth: login + application tabs ---------------- */
 function AuthScreen({ onAuthed, refId }) {
-  const [mode, setMode] = useState('login'); // 'login' | 'apply'
+  const [mode, setMode] = useState('login'); // 'login' | 'apply' | 'forgot'
   const [applied, setApplied] = useState(false);
   return (
     <Shell>
       <div className="mascot-avatar"><img src="/mascot-hood.jpg" alt="CLICKI" /></div>
       <h1 className="creator-portal__title">Кабинет креатора</h1>
-      <p className="creator-portal__muted">
-        {mode === 'login'
-          ? 'Войди в аккаунт, который выдал оператор CLICKI.'
-          : 'Оставь заявку — оператор свяжется и выдаст доступ в кабинет.'}
-      </p>
-      <div className="creator-portal__tabs">
-        <button className={`creator-portal__tab ${mode === 'login' ? 'is-active' : ''}`} onClick={() => setMode('login')}>
-          Вход
-        </button>
-        <button
-          className={`creator-portal__tab ${mode === 'apply' ? 'is-active' : ''}`}
-          onClick={() => { setMode('apply'); setApplied(false); }}
-        >
-          Подать заявку
-        </button>
-      </div>
-      {mode === 'login' ? (
-        <LoginForm onAuthed={onAuthed} toApply={() => setMode('apply')} />
-      ) : applied ? (
-        <ApplyDone onToLogin={() => { setApplied(false); setMode('login'); }} />
+      {mode === 'forgot' ? (
+        <ForgotForm onBack={() => setMode('login')} />
       ) : (
-        <ApplyForm refId={refId} onDone={() => setApplied(true)} />
+        <>
+          <p className="creator-portal__muted">
+            {mode === 'login'
+              ? 'Войди в аккаунт, который выдал оператор CLICKI.'
+              : 'Оставь заявку — оператор свяжется и выдаст доступ в кабинет.'}
+          </p>
+          <div className="creator-portal__tabs">
+            <button className={`creator-portal__tab ${mode === 'login' ? 'is-active' : ''}`} onClick={() => setMode('login')}>
+              Вход
+            </button>
+            <button
+              className={`creator-portal__tab ${mode === 'apply' ? 'is-active' : ''}`}
+              onClick={() => { setMode('apply'); setApplied(false); }}
+            >
+              Подать заявку
+            </button>
+          </div>
+          {mode === 'login' ? (
+            <LoginForm onAuthed={onAuthed} toApply={() => setMode('apply')} onForgot={() => setMode('forgot')} />
+          ) : applied ? (
+            <ApplyDone onToLogin={() => { setApplied(false); setMode('login'); }} />
+          ) : (
+            <ApplyForm refId={refId} onDone={() => setApplied(true)} />
+          )}
+        </>
       )}
     </Shell>
   );
 }
 
-function LoginForm({ onAuthed, toApply }) {
+/** "Забыли пароль?" — collects the login + a contact so the operator can restore
+ *  access manually (there's no self-serve reset yet). Ends on a "we'll be in touch". */
+function ForgotForm({ onBack }) {
+  const [f, setF] = useState({ login: '', contact: '' });
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (!f.login.trim() || !f.contact.trim()) return setError('Укажи логин и Telegram для связи');
+    setBusy(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/creator/password-reset-request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ login: f.login.trim(), contact: f.contact.trim() }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((d.errors && d.errors[0]) || 'Ошибка');
+      setDone(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (done) {
+    return (
+      <div className="creator-portal__card cp-forgot-done">
+        <div className="cp-forgot-done__icon" aria-hidden="true">✓</div>
+        <h2 className="creator-portal__title" style={{ fontSize: '1.25rem', margin: 0 }}>Мы свяжемся с вами скоро</h2>
+        <p className="creator-portal__muted">Оператор восстановит доступ и напишет в Telegram, который ты указал.</p>
+        <button type="button" className="btn btn--ghost btn--block" onClick={onBack}>Вернуться ко входу</button>
+      </div>
+    );
+  }
+  return (
+    <form className="creator-portal__card" onSubmit={submit} noValidate>
+      <p className="creator-portal__muted">Укажи свой логин и Telegram — оператор восстановит доступ и свяжется с тобой.</p>
+      <input placeholder="Твой логин" value={f.login} onChange={(e) => set('login', e.target.value)} />
+      <input placeholder="Telegram для связи (@ник или телефон)" value={f.contact} onChange={(e) => set('contact', e.target.value)} />
+      {error && <p className="creator-portal__err">{error}</p>}
+      <button className="btn btn--primary btn--block" disabled={busy}>{busy ? 'Отправляю…' : 'Отправить'}</button>
+      <p className="creator-portal__muted creator-portal__switch">
+        <button type="button" className="creator-portal__link" onClick={onBack}>← Назад ко входу</button>
+      </p>
+    </form>
+  );
+}
+
+function LoginForm({ onAuthed, toApply, onForgot }) {
   const [f, setF] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -195,6 +255,9 @@ function LoginForm({ onAuthed, toApply }) {
       <input name="password" type="password" placeholder="Пароль" autoComplete="current-password" value={f.password} onChange={(e) => set('password', e.target.value)} />
       {error && <p className="creator-portal__err">{error}</p>}
       <button className="btn btn--primary btn--block" disabled={busy}>{busy ? 'Вхожу…' : 'Войти'}</button>
+      <p className="creator-portal__muted creator-portal__switch" style={{ marginBottom: 0 }}>
+        <button type="button" className="creator-portal__link" onClick={onForgot}>Забыли пароль?</button>
+      </p>
       <p className="creator-portal__muted creator-portal__switch">
         Нет аккаунта?{' '}
         <button type="button" className="creator-portal__link" onClick={toApply}>Подать заявку</button>
@@ -589,6 +652,7 @@ function AccountView({ c, authFetch, reload }) {
   const fileRef = useRef(null);
   const [avatar, setAvatar] = useState(c.avatar_url || '');
   const [city, setCity] = useState(c.city || '');
+  const [email, setEmail] = useState(c.email || '');
   const [socials, setSocials] = useState(c.socials || '');
   const [bio, setBio] = useState(c.bio || '');
   const [uploading, setUploading] = useState(false);
@@ -631,7 +695,7 @@ function AccountView({ c, authFetch, reload }) {
       const res = await authFetch('/api/creator/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bio, city, socials }),
+        body: JSON.stringify({ bio, city, socials, email }),
       });
       const d = await res.json();
       if (!res.ok || d.ok === false) throw new Error(d.errors?.[0] || 'Ошибка');
@@ -669,6 +733,9 @@ function AccountView({ c, authFetch, reload }) {
 
         <label className="cp-field-label">Город
           <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Например: Алматы" />
+        </label>
+        <label className="cp-field-label">Почта
+          <input type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
         </label>
         <label className="cp-field-label">Соцсети
           <input value={socials} onChange={(e) => setSocials(e.target.value)} placeholder="@ник в TikTok / Instagram" />

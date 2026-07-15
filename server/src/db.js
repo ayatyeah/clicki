@@ -301,6 +301,7 @@ export async function initDb() {
     await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS avatar_url TEXT');
     await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS bio TEXT');
     await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS topics TEXT');
+    await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS email VARCHAR(200)');
     await client.query('ALTER TABLE business_accounts ADD COLUMN IF NOT EXISTS logo_url TEXT');
     // Temporary bans: status='banned' + banned_until (NULL = permanent). Auth
     // auto-unbans once banned_until has passed.
@@ -902,7 +903,7 @@ export async function createCreator({ name, contact, socials, city, referred_by,
   return r.rows[0];
 }
 export async function updateCreator(id, fields) {
-  const allowed = ['account_open', 'onboarding_passed', 'status', 'trust_score', 'avatar_url', 'bio', 'topics', 'city', 'socials'];
+  const allowed = ['account_open', 'onboarding_passed', 'status', 'trust_score', 'avatar_url', 'bio', 'topics', 'city', 'socials', 'email'];
   const sets = [];
   const vals = [];
   for (const k of allowed) {

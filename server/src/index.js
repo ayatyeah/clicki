@@ -919,6 +919,19 @@ app.post(
   })
 );
 
+// "Забыли пароль?" — a creator can't reset it themselves (no email verification
+// yet), so this just alerts the operator to reset it manually and reach out. Public
+// + rate-limited; it never reveals whether the login exists.
+app.post('/api/creator/password-reset-request', loginLimiter, async (req, res) => {
+  const login = String(req.body?.login || '').trim().slice(0, 120);
+  const contact = String(req.body?.contact || '').trim().slice(0, 160);
+  if (!login || !contact) {
+    return res.status(400).json({ ok: false, errors: ['Укажите логин и телеграм для связи'] });
+  }
+  notifyOps(`🔑 Запрос сброса пароля\nЛогин: ${login}\nСвязь: ${contact}`);
+  res.json({ ok: true });
+});
+
 // Public self-service registration (shareable link → /registration_creators).
 // Creates an active account with a self-chosen login/password and logs them in;
 // onboarding_passed stays false, so the cabinet opens into the test → niche → guide.
@@ -1125,6 +1138,7 @@ app.post(
     if (typeof b.bio === 'string') fields.bio = b.bio.slice(0, 500);
     if (typeof b.city === 'string') fields.city = b.city.slice(0, 120);
     if (typeof b.socials === 'string') fields.socials = b.socials.slice(0, 300);
+    if (typeof b.email === 'string') fields.email = b.email.trim().slice(0, 200);
     if (Array.isArray(b.topics)) fields.topics = b.topics.filter((t) => typeof t === 'string').slice(0, 12).join(',');
     else if (typeof b.topics === 'string') fields.topics = b.topics.slice(0, 300);
     ok(res, { creator: publicCreator(await updateCreator(req.creator.id, fields)) });
