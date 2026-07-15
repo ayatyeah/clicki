@@ -700,14 +700,18 @@ function PresenceGroup({ title, people, render }) {
 function PresenceView({ authFetch }) {
   const [data, setData] = useState({ creators: [], businesses: [] });
   const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await (await authFetch('/api/admin/presence')).json();
-      if (r.ok !== false) setData({ creators: r.creators || [], businesses: r.businesses || [] });
-    } catch {
-      /* keep last snapshot */
+      const res = await authFetch('/api/admin/presence');
+      const r = await res.json();
+      if (!res.ok || r.ok === false) throw new Error(r.errors?.[0] || `Ошибка ${res.status}`);
+      setData({ creators: r.creators || [], businesses: r.businesses || [] });
+      setErr('');
+    } catch (e) {
+      setErr(e.message); // keep last snapshot
     } finally {
       setLoading(false);
     }
@@ -731,6 +735,7 @@ function PresenceView({ authFetch }) {
         </h2>
         <button className="btn btn--ghost btn--sm" onClick={load} disabled={loading}>{loading ? 'Обновляю…' : 'Обновить'}</button>
       </div>
+      {err && <p className="muted-note">Данные могли устареть: {err}</p>}
 
       <PresenceGroup
         title="Креаторы"
@@ -905,11 +910,17 @@ function AnalyticsByPage({ leads }) {
 function AnalyticsView({ authFetch, leads, businessLeads, creatorLeads }) {
   const [a, setA] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await (await authFetch('/api/admin/analytics')).json();
+      const res = await authFetch('/api/admin/analytics');
+      const r = await res.json();
+      if (!res.ok || r.ok === false) throw new Error(r.errors?.[0] || `Ошибка ${res.status}`);
       setA(r.analytics || null);
+      setErr('');
+    } catch (e) {
+      setErr(e.message); // keep the last good snapshot; don't blank the view
     } finally {
       setLoading(false);
     }
@@ -931,9 +942,16 @@ function AnalyticsView({ authFetch, leads, businessLeads, creatorLeads }) {
         <h2 className="admin-block__title">Аналитика посещаемости <span className="an-live">● live</span></h2>
         <button className="btn btn--ghost btn--sm" onClick={load} disabled={loading}>{loading ? 'Обновляю…' : 'Обновить'}</button>
       </div>
+      {err && a && <p className="muted-note" style={{ textAlign: 'left' }}>Данные могли устареть: {err}</p>}
 
       {!a ? (
-        <p className="muted-note" style={{ textAlign: 'left' }}>Загрузка…</p>
+        err ? (
+          <div className="admin-placeholder">Не удалось загрузить: {err}{' '}
+            <button className="btn btn--ghost btn--sm" onClick={load}>Повторить</button>
+          </div>
+        ) : (
+          <p className="muted-note" style={{ textAlign: 'left' }}>Загрузка…</p>
+        )
       ) : (
         <>
           <div className="admin-stats">
@@ -1034,11 +1052,17 @@ function AnalyticsView({ authFetch, leads, businessLeads, creatorLeads }) {
 function ReferralsView({ authFetch }) {
   const [r, setR] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await (await authFetch('/api/admin/referrals')).json();
-      setR(res.referrals || null);
+      const res = await authFetch('/api/admin/referrals');
+      const body = await res.json();
+      if (!res.ok || body.ok === false) throw new Error(body.errors?.[0] || `Ошибка ${res.status}`);
+      setR(body.referrals || null);
+      setErr('');
+    } catch (e) {
+      setErr(e.message);
     } finally {
       setLoading(false);
     }
@@ -1059,7 +1083,13 @@ function ReferralsView({ authFetch }) {
         Заявки бизнеса, пришедшие по персональной ссылке креатора (та, что он размещает у себя в шапке профиля). За каждую такую заявку креатор получает {r?.xpPerLead ?? 30} XP.
       </p>
       {!r ? (
-        <p className="muted-note" style={{ textAlign: 'left' }}>Загрузка…</p>
+        err ? (
+          <div className="admin-placeholder">Не удалось загрузить: {err}{' '}
+            <button className="btn btn--ghost btn--sm" onClick={load}>Повторить</button>
+          </div>
+        ) : (
+          <p className="muted-note" style={{ textAlign: 'left' }}>Загрузка…</p>
+        )
       ) : (
         <>
           <div className="kpi-grid">

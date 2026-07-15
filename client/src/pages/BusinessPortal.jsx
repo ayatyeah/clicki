@@ -87,6 +87,16 @@ export default function BusinessPortal() {
     if (token && !data) loadMe();
   }, [token, data, loadMe]);
 
+  // Keep the cabinet fresh (KPIs, "На приёмке", the "● live" analytics) without a
+  // manual reload — poll every 60s while the tab is visible, like the creator cabinet.
+  useEffect(() => {
+    if (!token) return undefined;
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') loadMe();
+    }, 60000);
+    return () => clearInterval(id);
+  }, [token, loadMe]);
+
   const onAuthed = (tok, payload) => {
     api.setToken(tok);
     setToken(tok);

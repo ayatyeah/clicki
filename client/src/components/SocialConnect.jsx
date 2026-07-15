@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 // TikTok note glyph (Font Awesome path, viewBox 448×512). Drawn three times with
 // a small offset for the signature cyan/magenta split; the top copy uses
@@ -34,14 +34,8 @@ export function InstagramLogo({ size = 20 }) {
 export function TikTokConnect({ c, authFetch, reload, compact = false }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
-
-  useEffect(() => {
-    const status = new URLSearchParams(window.location.search).get('tiktok');
-    if (!status) return;
-    setMsg(status === 'connected' ? 'TikTok подключён ✓' : 'Не удалось подключить TikTok — попробуй ещё раз.');
-    window.history.replaceState(null, '', window.location.pathname);
-    reload?.();
-  }, []); // eslint-disable-line
+  // Note: the OAuth return (?tiktok=connected) is handled once at the CreatorPortal
+  // level (toast + reload), since this card isn't mounted on every tab.
 
   const connect = async () => {
     setBusy(true);

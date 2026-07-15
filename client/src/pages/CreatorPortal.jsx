@@ -57,6 +57,7 @@ export default function CreatorPortal() {
     []
   );
   const { authFetch } = api;
+  const toast = useToast();
 
   const loadMe = useCallback(async () => {
     setLoading(true);
@@ -86,6 +87,20 @@ export default function CreatorPortal() {
     }, 60000);
     return () => clearInterval(id);
   }, [token, loadMe]);
+
+  // OAuth (TikTok/Instagram) returns to /creator?<provider>=connected|error. The
+  // connect cards only mount on some tabs, so surface the result here at the portal
+  // level: toast, refresh, and strip the query param.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tt = params.get('tiktok');
+    const ig = params.get('instagram');
+    if (!tt && !ig) return;
+    if (tt) toast[tt === 'connected' ? 'success' : 'error'](tt === 'connected' ? 'TikTok подключён ✓' : 'Не удалось подключить TikTok');
+    if (ig) toast[ig === 'connected' ? 'success' : 'error'](ig === 'connected' ? 'Instagram подключён ✓' : 'Не удалось подключить Instagram');
+    window.history.replaceState(null, '', window.location.pathname);
+    if (token) loadMe();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onAuthed = (tok, payload) => {
     api.setToken(tok);
@@ -589,7 +604,7 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
             <h2 className="cp-card__title">Мои видео</h2>
             {submissions.length ? (
               <div className="cp-vids">
-                {submissions.map((s) => <VideoRow key={s.id} s={s} authFetch={authFetch} />)}
+                {submissions.map((s) => <VideoRow key={s.id} s={s} authFetch={authFetch} reload={reload} />)}
               </div>
             ) : (
               <EmptyState
@@ -1255,7 +1270,7 @@ function FieldIcon({ name }) {
 
 /** One row in "Мои видео": brand avatar, title + status + views/AI, optional
  * AI feedback, and the daily stats-screenshots strip. */
-function VideoRow({ s, authFetch }) {
+function VideoRow({ s, authFetch, reload }) {
   const initial = (s.brief_title || s.platform || '?').trim().charAt(0).toUpperCase();
   return (
     <div className="cp-vid">
@@ -1291,6 +1306,7 @@ function VideoRow({ s, authFetch }) {
             today={s.screenshot_today}
             count={s.screenshots_count}
             lastAt={s.last_screenshot_at}
+            onUploaded={reload}
           />
         )}
       </div>
@@ -1358,7 +1374,7 @@ function SubmitForm({ c, authFetch, briefs, reload, initialBriefId = '' }) {
       <h2 className="cp-card__title">Сдать видео</h2>
       <div className="cp-field">
         <span className="cp-field__icon"><FieldIcon name="brief" /></span>
-        <select value={f.brief_id} onChange={(e) => set('brief_id', e.target.value)}>
+        <select aria-label="Заказ (бриф)" value={f.brief_id} onChange={(e) => set('brief_id', e.target.value)}>
           <option value="" disabled>Выбери заказ</option>
           {briefs.map((b) => (
             <option key={b.id} value={b.brief_id || b.id}>{b.title}</option>
@@ -1372,7 +1388,7 @@ function SubmitForm({ c, authFetch, briefs, reload, initialBriefId = '' }) {
       )}
       <div className="cp-field">
         <span className="cp-field__icon"><FieldIcon name="platform" /></span>
-        <select value={f.platform} onChange={(e) => set('platform', e.target.value)}>
+        <select aria-label="Платформа" value={f.platform} onChange={(e) => set('platform', e.target.value)}>
           {PLATFORMS.map((p) => <option key={p}>{p}</option>)}
         </select>
       </div>

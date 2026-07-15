@@ -55,7 +55,7 @@ const fmtLeft = (ms) => {
   return `${h ? `${h} ч ` : ''}${m} мин`;
 };
 
-export default function StatScreenshots({ submissionId, platform, basePath, authFetch, canUpload = false, today = false, count = 0, lastAt = null }) {
+export default function StatScreenshots({ submissionId, platform, basePath, authFetch, canUpload = false, today = false, count = 0, lastAt = null, onUploaded }) {
   const toast = useToast();
   const [open, setOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
@@ -113,6 +113,7 @@ export default function StatScreenshots({ submissionId, platform, basePath, auth
             setShots(d.screenshots || []);
             setOpen(true);
             toast.success('Скриншот загружен');
+            onUploaded?.(); // refresh the parent so the "нужен скрин сегодня" badge/counters update
             return;
           }
           // 5xx is transient → retry; 4xx (bad file, 429 cooldown) is final.
@@ -132,7 +133,7 @@ export default function StatScreenshots({ submissionId, platform, basePath, auth
       };
       attempt(1);
     },
-    [basePath, submissionId, toast]
+    [basePath, submissionId, toast, onUploaded]
   );
 
   const onDrop = (e) => {

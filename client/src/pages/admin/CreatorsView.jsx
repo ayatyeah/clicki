@@ -148,9 +148,17 @@ export function CreatorsView({ authFetch }) {
   const [statusFilter, setStatusFilter] = useState('all');
   const [ttFilter, setTtFilter] = useState('all');
   const [accessFilter, setAccessFilter] = useState('all');
+  const [loadErr, setLoadErr] = useState('');
   const load = async () => {
-    const r = await (await authFetch('/api/admin/creators')).json();
-    setCreators(r.creators || []);
+    try {
+      const res = await authFetch('/api/admin/creators');
+      const r = await res.json();
+      if (!res.ok || r.ok === false) throw new Error(r.errors?.[0] || `Ошибка ${res.status}`);
+      setCreators(r.creators || []);
+      setLoadErr('');
+    } catch (e) {
+      setLoadErr(e.message); // keep the last good list instead of blanking to "нет креаторов"
+    }
   };
   useEffect(() => {
     load();
@@ -226,6 +234,12 @@ export function CreatorsView({ authFetch }) {
         Создай аккаунт креатору (выдай логин и пароль) — под этими данными он войдёт в кабинет.
         Заявки с сайта приходят со статусом <b>pending</b>: выдай им доступ кнопкой «Выдать».
       </p>
+      {loadErr && (
+        <p className="creator-portal__err">
+          Не удалось обновить список: {loadErr}{' '}
+          <button className="btn btn--ghost btn--sm" onClick={load}>Повторить</button>
+        </p>
+      )}
 
       <BulkRegister authFetch={authFetch} onDone={load} />
 
@@ -249,19 +263,19 @@ export function CreatorsView({ authFetch }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+        <select aria-label="Фильтр по статусу" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="all">Все статусы</option>
           <option value="pending">pending</option>
           <option value="active">active</option>
           <option value="paused">paused</option>
           <option value="banned">banned</option>
         </select>
-        <select value={ttFilter} onChange={(e) => setTtFilter(e.target.value)}>
+        <select aria-label="Фильтр по TikTok" value={ttFilter} onChange={(e) => setTtFilter(e.target.value)}>
           <option value="all">TikTok: все</option>
           <option value="connected">TikTok: подключён</option>
           <option value="not">TikTok: не подключён</option>
         </select>
-        <select value={accessFilter} onChange={(e) => setAccessFilter(e.target.value)}>
+        <select aria-label="Фильтр по доступу" value={accessFilter} onChange={(e) => setAccessFilter(e.target.value)}>
           <option value="all">Доступ: все</option>
           <option value="has">Есть доступ</option>
           <option value="none">Нет доступа</option>
@@ -310,7 +324,7 @@ export function CreatorsView({ authFetch }) {
                   <Credentials creator={c} authFetch={authFetch} onSaved={load} />
                 </td>
                 <td data-label="Статус">
-                  <select value={c.status} onChange={(e) => toggle(c.id, 'status', e.target.value)}>
+                  <select aria-label={`Статус: ${c.name}`} value={c.status} onChange={(e) => toggle(c.id, 'status', e.target.value)}>
                     <option value="pending">pending</option>
                     <option value="active">active</option>
                     <option value="paused">paused</option>

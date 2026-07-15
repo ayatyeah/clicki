@@ -36,9 +36,13 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 // the new build automatically. We also actively check for an update on load and
 // whenever the tab regains focus.
 if ('serviceWorker' in navigator) {
+  // Only reload when a NEW sw replaces an existing one (a deploy) — not on the very
+  // first visit, where the freshly-installed sw claims the page and would otherwise
+  // trigger a pointless reload.
+  const hadController = !!navigator.serviceWorker.controller;
   let refreshing = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (refreshing) return;
+    if (refreshing || !hadController) return;
     refreshing = true;
     window.location.reload();
   });

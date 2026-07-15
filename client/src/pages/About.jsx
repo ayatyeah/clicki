@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import Seo from '../components/Seo.jsx';
 import Header from '../components/Header.jsx';
 import Footer from '../components/Footer.jsx';
@@ -90,9 +90,16 @@ export default function About({ forceLang }) {
   const lang = forceLang || ctxLang;
   const t = COPY[lang] || COPY.ru;
 
+  // /en/about (for the EN startup-review) flips the whole page (header/footer too)
+  // to English while it's open, but RESTORES the visitor's language on leave — so a
+  // shared /en/about link no longer permanently switches a RU user's site to EN.
+  const originalLang = useRef(ctxLang);
   useEffect(() => {
-    if (forceLang && forceLang !== ctxLang) setLang(forceLang);
-  }, [forceLang, ctxLang, setLang]);
+    if (!forceLang) return undefined;
+    const prev = originalLang.current;
+    setLang(forceLang);
+    return () => setLang(prev);
+  }, [forceLang, setLang]);
 
   return (
     <>

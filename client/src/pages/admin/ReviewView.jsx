@@ -235,7 +235,7 @@ function ReviewActions({ submission, onSend, onRework, onReject }) {
       <button className="btn btn--primary btn--sm" onClick={() => onSend(checks)}>Отправить бизнесу</button>
       <button className="btn btn--ghost btn--sm" onClick={() => onRework(checks)}>Доработка</button>
       <div className="pf-row">
-        <select value={code} onChange={(e) => setCode(e.target.value)}>
+        <select aria-label="Причина отклонения" value={code} onChange={(e) => setCode(e.target.value)}>
           {REJECT_CODES.map((r) => (
             <option key={r.code} value={r.code}>{r.label}</option>
           ))}
@@ -281,7 +281,7 @@ function StatusOverride({ submission, onSave }) {
   }
   return (
     <div className="status-override">
-      <select value={status} onChange={(e) => setStatus(e.target.value)}>
+      <select aria-label="Новый статус" value={status} onChange={(e) => setStatus(e.target.value)}>
         {OVERRIDE_STATUSES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
       <textarea

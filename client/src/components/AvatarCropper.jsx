@@ -33,6 +33,19 @@ export default function AvatarCropper({ file, onCancel, onConfirm, round = true 
     return () => URL.revokeObjectURL(u);
   }, [file]);
 
+  // Modal behavior: Escape closes it and body scroll is locked while it's open
+  // (consistent with the other dialogs).
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onCancel(); };
+    document.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [onCancel]);
+
   // Keep the image covering the whole box (no empty gaps).
   const clamp = (o, s) => {
     if (!img) return o;
@@ -83,7 +96,7 @@ export default function AvatarCropper({ file, onCancel, onConfirm, round = true 
   };
 
   return (
-    <div className="cropper__backdrop" onClick={onCancel}>
+    <div className="cropper__backdrop" onClick={onCancel} role="dialog" aria-modal="true" aria-label="Настрой фото">
       <div className="cropper" onClick={(e) => e.stopPropagation()}>
         <h3 className="cropper__title">Настрой фото</h3>
         <p className="cropper__hint">Перетащи и приблизь, чтобы выбрать область.</p>
