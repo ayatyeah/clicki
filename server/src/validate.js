@@ -13,6 +13,30 @@ function isPhone(value) {
   return digits.length >= 7 && digits.length <= 15;
 }
 
+/**
+ * A business account's contact — the one way we can actually reach a brand:
+ * a phone number or a Telegram handle. Returns the canonical form to store, or
+ * null when the value is neither (the caller turns that into a 400).
+ *
+ * Telegram is stored as `@handle` no matter how it was typed (@handle, t.me/…,
+ * https://t.me/…) so the admin table can build a link without re-parsing.
+ * Phones keep their leading `+` when given but lose spacing — we never infer a
+ * country code, because `8707…` and `+7707…` are both what someone meant to type.
+ *
+ * The client mirrors these rules in client/src/lib/contact.js for inline errors;
+ * this copy is the authority.
+ */
+export function normalizeContact(raw) {
+  const value = clean(raw);
+  if (!value) return null;
+  const tg = value.match(/^(?:(?:https?:\/\/)?(?:www\.)?t\.me\/|@)([a-zA-Z][a-zA-Z0-9_]{4,31})$/);
+  if (tg) return `@${tg[1]}`;
+  if (/^\+?[\d\s\-()]+$/.test(value) && isPhone(value)) {
+    return (value.startsWith('+') ? '+' : '') + value.replace(/[^\d]/g, '');
+  }
+  return null;
+}
+
 const CLIENT_FIELDS = {
   name: { label: 'Имя', required: true },
   company: { label: 'Компания', required: false },

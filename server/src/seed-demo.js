@@ -45,9 +45,9 @@ async function main() {
 
     // 1) Business account + its brief (active → visible in matching).
     const biz = (await client.query(
-      `INSERT INTO business_accounts (name, email, company, password_hash)
-       VALUES ($1,$2,$3,$4) RETURNING id`,
-      ['CLICKI · маркетинг', 'business@demo.kz', 'CLICKI', hashPassword(PW)]
+      `INSERT INTO business_accounts (name, email, company, contact, password_hash)
+       VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+      ['CLICKI · маркетинг', 'business@demo.kz', 'CLICKI', '@clicki_demo', hashPassword(PW)]
     )).rows[0];
 
     const spec = {

@@ -5,6 +5,7 @@ import Icon from '../components/Icon.jsx';
 import { API_BASE } from '../lib/config.js';
 import { createApiClient } from '../lib/apiClient.js';
 import { safeHref } from '../lib/safeHref.js';
+import { normalizeContact } from '../lib/contact.js';
 import Guide from '../components/Guide.jsx';
 import AvatarCropper from '../components/AvatarCropper.jsx';
 import { BUSINESS_GUIDE } from '../content/guides.js';
@@ -158,7 +159,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function AuthForm({ endpoint, onAuthed, register, toRegister }) {
   const { lang } = useLang();
   const t = (s) => bt(lang, s);
-  const [f, setF] = useState({ name: '', company: '', email: '', password: '' });
+  const [f, setF] = useState({ name: '', company: '', email: '', contact: '', password: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
@@ -172,6 +173,7 @@ function AuthForm({ endpoint, onAuthed, register, toRegister }) {
     // with a native tooltip that's easy to miss.
     if (register && !f.name.trim()) return setError(t('Укажите имя'));
     if (!EMAIL_RE.test(f.email)) return setError(t('Введите настоящий email (проверьте, не подставил ли браузер что-то другое)'));
+    if (register && !normalizeContact(f.contact)) return setError(t('Контакты: укажите телефон (+7 707 123 45 67) или Telegram (@username)'));
     if (register && f.password.length < 8) return setError(t('Пароль не короче 8 символов'));
     else if (!register && !f.password) return setError(t('Введите пароль'));
     setBusy(true);
@@ -200,6 +202,14 @@ function AuthForm({ endpoint, onAuthed, register, toRegister }) {
         </>
       )}
       <input name="email" type="email" placeholder={t('Email')} autoComplete="email" value={f.email} onChange={(e) => set('email', e.target.value)} />
+      {register && (
+        <>
+          <input name="tel" placeholder={t('Контакты — телефон или Telegram')} autoComplete="tel" value={f.contact} onChange={(e) => set('contact', e.target.value)} />
+          <p className="creator-portal__muted" style={{ margin: '-2px 0 0', fontSize: '0.78rem' }}>
+            {t('По этим контактам мы свяжемся по заказам и подбору креаторов. Например: +7 707 123 45 67 или @username')}
+          </p>
+        </>
+      )}
       <input name="password" type="password" placeholder={t('Пароль')} autoComplete={register ? 'new-password' : 'current-password'} value={f.password} onChange={(e) => set('password', e.target.value)} />
       {error && <p className="creator-portal__err">{error}</p>}
       <button className="btn btn--primary btn--block" disabled={busy}>{busy ? '…' : register ? t('Создать аккаунт') : t('Войти')}</button>
@@ -1009,6 +1019,7 @@ function Profile({ b, authFetch, reload, onLogout }) {
   const [logo, setLogo] = useState(b.logo_url || '');
   const [name, setName] = useState(b.name || '');
   const [company, setCompany] = useState(b.company || '');
+  const [contact, setContact] = useState(b.contact || '');
   const [uploading, setUploading] = useState(false);
   const [cropFile, setCropFile] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -1045,17 +1056,21 @@ function Profile({ b, authFetch, reload, onLogout }) {
   };
 
   const save = async () => {
-    setBusy(true);
     setMsg('');
     setErr('');
+    if (!normalizeContact(contact)) return setErr(t('Контакты: укажите телефон (+7 707 123 45 67) или Telegram (@username)'));
+    setBusy(true);
     try {
       const res = await authFetch('/api/business/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, company }),
+        body: JSON.stringify({ name, company, contact }),
       });
       const d = await res.json();
       if (!res.ok || d.ok === false) throw new Error(d.errors?.[0] || t('Ошибка'));
+      // Show the contact as stored (the server strips spacing, turns a t.me link
+      // into @handle) rather than leaving the raw text they typed in the field.
+      if (d.business?.contact) setContact(d.business.contact);
       reload();
       setMsg(`${t('Сохранено')} ✓`);
       setTimeout(() => setMsg(''), 2500);
@@ -1071,6 +1086,14 @@ function Profile({ b, authFetch, reload, onLogout }) {
       <h2 className="admin-block__title">{t('Профиль компании')}</h2>
 
       {cropFile && <AvatarCropper file={cropFile} round={false} onCancel={() => setCropFile(null)} onConfirm={uploadLogo} />}
+
+      {/* Accounts created before contacts became mandatory land here with an empty
+          field — say why it matters instead of just failing the save. */}
+      {!b.contact && (
+        <p className="muted-note" style={{ textAlign: 'left', marginTop: 0, maxWidth: 520 }}>
+          {t('Добавьте контакты — без них мы не сможем связаться с вами по заказам.')}
+        </p>
+      )}
 
       <div className="bp-card" style={{ maxWidth: 520 }}>
         <div className="bp-account__head">
@@ -1093,6 +1116,12 @@ function Profile({ b, authFetch, reload, onLogout }) {
         <label className="cp-field-label">{t('Компания')}
           <input value={company} onChange={(e) => setCompany(e.target.value)} />
         </label>
+        <label className="cp-field-label">{t('Контакты')}
+          <input placeholder={t('+7 707 123 45 67 или @username')} value={contact} onChange={(e) => setContact(e.target.value)} />
+        </label>
+        <p className="creator-portal__muted" style={{ margin: '-6px 0 0', fontSize: '0.78rem' }}>
+          {t('Телефон или Telegram — по ним с вами свяжется команда CLICKI. Креаторы их не видят.')}
+        </p>
         <div className="bp-profile__row"><span className="bp-profile__k">{t('Email')}</span><span>{b.email}</span></div>
 
         {err && <p className="creator-portal__err">{err}</p>}

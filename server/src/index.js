@@ -11,7 +11,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import multer from 'multer';
 
-import { validateLead } from './validate.js';
+import { validateLead, normalizeContact } from './validate.js';
 import { verifyRecaptcha } from './recaptcha.js';
 import { dispatchLead, notifyOps, telegramConfigured, telegramSelfTest } from './notify.js';
 import { saveLead, readLeads, migrateLegacyLeads } from './store.js';
@@ -1304,20 +1304,33 @@ async function businessPayload(b) {
   return { business: publicBusiness(b), briefs, submissions };
 }
 
+// Every brand must leave a way to reach it — phone or Telegram (see normalizeContact).
+const CONTACT_REQUIRED = 'Укажите контакты — телефон или Telegram';
+const CONTACT_INVALID = 'Контакты: укажите телефон (+7 707 123 45 67) или Telegram (@username)';
+
 // Self-service registration: a brand creates its own account.
 app.post(
   '/api/business/register',
   loginLimiter,
   wrap(async (req, res) => {
-    const { name, email, company, password } = req.body || {};
+    const { name, email, company, contact, password } = req.body || {};
     if (!name || !email || !password) return res.status(400).json({ ok: false, errors: ['Имя, email и пароль обязательны'] });
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) return res.status(400).json({ ok: false, errors: ['Некорректный email'] });
     if (String(password).length < 8) return res.status(400).json({ ok: false, errors: ['Пароль не короче 8 символов'] });
+    if (!contact) return res.status(400).json({ ok: false, errors: [CONTACT_REQUIRED] });
+    const normalizedContact = normalizeContact(contact);
+    if (!normalizedContact) return res.status(400).json({ ok: false, errors: [CONTACT_INVALID] });
     if (await getBusinessByEmail(email)) return res.status(409).json({ ok: false, errors: ['Аккаунт с таким email уже существует'] });
-    const b = await createBusiness({ name: String(name).trim(), email: String(email).trim(), company, password_hash: hashPassword(password) });
+    const b = await createBusiness({
+      name: String(name).trim(),
+      email: String(email).trim(),
+      company,
+      contact: normalizedContact,
+      password_hash: hashPassword(password),
+    });
     const token = newToken();
     await setBusinessToken(b.id, token);
-    notifyOps(`🏢 Новый бизнес-аккаунт: ${name} (${email})`);
+    notifyOps(`🏢 Новый бизнес-аккаунт: ${name} (${email})\nСвязь: ${normalizedContact}`);
     ok(res, { token, ...(await businessPayload({ ...b, session_token: token })) });
   })
 );
@@ -1338,12 +1351,20 @@ app.post(
 
 app.get('/api/business/me', requireBusiness, wrap(async (req, res) => ok(res, await businessPayload(req.business))));
 
-// Business "My account" — edit company/name; logo has its own multipart endpoint.
+// Business "My account" — edit company/name/contact; logo has its own multipart endpoint.
 app.post('/api/business/profile', requireBusiness, wrap(async (req, res) => {
   const b = req.body || {};
   const fields = {};
   if (typeof b.name === 'string' && b.name.trim()) fields.name = b.name.trim().slice(0, 160);
   if (typeof b.company === 'string') fields.company = b.company.slice(0, 200);
+  // The profile form always posts `contact`, so this is also where accounts made
+  // before contacts existed get theirs: they cannot save without filling it in.
+  if ('contact' in b) {
+    if (!b.contact) return res.status(400).json({ ok: false, errors: [CONTACT_REQUIRED] });
+    const contact = normalizeContact(b.contact);
+    if (!contact) return res.status(400).json({ ok: false, errors: [CONTACT_INVALID] });
+    fields.contact = contact;
+  }
   ok(res, { business: publicBusiness(await updateBusiness(req.business.id, fields)) });
 }));
 
@@ -1823,13 +1844,31 @@ app.post('/api/admin/creators/:id/unban', requireAdmin, wrap(async (req, res) =>
 app.get('/api/admin/businesses', requireAdmin, wrap(async (_req, res) => ok(res, { businesses: await listBusinesses() })));
 // Operator creates a business account directly (with email + password).
 app.post('/api/admin/businesses', requireAdmin, wrap(async (req, res) => {
-  const { name, email, company, password } = req.body || {};
+  const { name, email, company, contact, password } = req.body || {};
   if (!name || !String(name).trim()) return res.status(400).json({ ok: false, errors: ['Название обязательно'] });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || ''))) return res.status(400).json({ ok: false, errors: ['Некорректный email'] });
   if (!password || String(password).length < 8) return res.status(400).json({ ok: false, errors: ['Пароль не короче 8 символов'] });
+  if (!contact) return res.status(400).json({ ok: false, errors: [CONTACT_REQUIRED] });
+  const normalizedContact = normalizeContact(contact);
+  if (!normalizedContact) return res.status(400).json({ ok: false, errors: [CONTACT_INVALID] });
   if (await getBusinessByEmail(email)) return res.status(409).json({ ok: false, errors: ['Аккаунт с таким email уже существует'] });
-  const b = await createBusiness({ name: String(name).trim(), email: String(email).trim(), company, password_hash: hashPassword(password) });
-  ok(res, { business: { id: b.id, name: b.name, email: b.email, company: b.company, created_at: b.created_at, briefs: 0 } });
+  const b = await createBusiness({
+    name: String(name).trim(),
+    email: String(email).trim(),
+    company,
+    contact: normalizedContact,
+    password_hash: hashPassword(password),
+  });
+  ok(res, { business: { id: b.id, name: b.name, email: b.email, company: b.company, contact: b.contact, created_at: b.created_at, briefs: 0 } });
+}));
+// Operator fills in / fixes a business's contact — the way accounts created
+// before contacts existed get one without waiting for the brand to log in.
+app.post('/api/admin/businesses/:id/contact', requireAdmin, wrap(async (req, res) => {
+  const contact = normalizeContact((req.body || {}).contact);
+  if (!contact) return res.status(400).json({ ok: false, errors: [CONTACT_INVALID] });
+  const b = await updateBusiness(Number(req.params.id), { contact });
+  if (!b) return res.status(404).json({ ok: false, errors: ['Бизнес не найден'] });
+  ok(res, { business: publicBusiness(b) });
 }));
 // Operator resets a business's email/password.
 app.post('/api/admin/businesses/:id/credentials', requireAdmin, wrap(async (req, res) => {

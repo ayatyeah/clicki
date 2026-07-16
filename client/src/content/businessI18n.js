@@ -27,6 +27,11 @@ const EN = {
     'Enter a valid email (check your browser didn’t autofill something else)',
   'Пароль не короче 8 символов': 'Password must be at least 8 characters',
   'Введите пароль': 'Enter a password',
+  'Контакты — телефон или Telegram': 'Contacts — phone or Telegram',
+  'По этим контактам мы свяжемся по заказам и подбору креаторов. Например: +7 707 123 45 67 или @username':
+    'We use these to reach you about orders and creator matching. For example: +7 707 123 45 67 or @username',
+  'Контакты: укажите телефон (+7 707 123 45 67) или Telegram (@username)':
+    'Contacts: enter a phone (+7 707 123 45 67) or Telegram (@username)',
   Ошибка: 'Error',
 
   // Nav / shell
@@ -199,6 +204,12 @@ const EN = {
 
   // Profile
   Компания: 'Company',
+  Контакты: 'Contacts',
+  '+7 707 123 45 67 или @username': '+7 707 123 45 67 or @username',
+  'Телефон или Telegram — по ним с вами свяжется команда CLICKI. Креаторы их не видят.':
+    'Phone or Telegram — this is how the CLICKI team reaches you. Creators never see it.',
+  'Добавьте контакты — без них мы не сможем связаться с вами по заказам.':
+    'Add your contacts — without them we cannot reach you about orders.',
   'Выйти из аккаунта': 'Sign out',
   'Профиль компании': 'Company profile',
   'Логотип компании': 'Company logo',

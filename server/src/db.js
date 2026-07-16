@@ -303,6 +303,12 @@ export async function initDb() {
     await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS topics TEXT');
     await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS email VARCHAR(200)');
     await client.query('ALTER TABLE business_accounts ADD COLUMN IF NOT EXISTS logo_url TEXT');
+    // How we reach a brand: phone or Telegram handle. Required on every new
+    // account (register + admin create) and to save the profile, but the column
+    // stays nullable — accounts created before this shipped have no contact, and
+    // a NOT NULL would fail this migration on boot against the live database.
+    // Backfill happens as each brand saves its profile / an operator fills it in.
+    await client.query('ALTER TABLE business_accounts ADD COLUMN IF NOT EXISTS contact VARCHAR(200)');
     // Temporary bans: status='banned' + banned_until (NULL = permanent). Auth
     // auto-unbans once banned_until has passed.
     await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS banned_until TIMESTAMP');
@@ -1106,11 +1112,11 @@ export async function listAssignmentsForCreator(creatorId) {
 }
 
 /* ---------------- Platform: business accounts + their briefs ---------------- */
-export async function createBusiness({ name, email, company, password_hash }) {
+export async function createBusiness({ name, email, company, contact, password_hash }) {
   const r = await pool.query(
-    `INSERT INTO business_accounts (name, email, company, password_hash)
-     VALUES ($1,$2,$3,$4) RETURNING *`,
-    [name, email, company || null, password_hash]
+    `INSERT INTO business_accounts (name, email, company, contact, password_hash)
+     VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+    [name, email, company || null, contact || null, password_hash]
   );
   return r.rows[0];
 }
@@ -1133,7 +1139,7 @@ export async function getBusiness(id) {
 }
 // Self-service profile edits from the business "My account" screen (whitelisted).
 export async function updateBusiness(id, fields) {
-  const allowed = ['name', 'company', 'logo_url'];
+  const allowed = ['name', 'company', 'logo_url', 'contact'];
   const sets = [];
   const vals = [];
   for (const k of allowed) {
@@ -1176,7 +1182,7 @@ export async function createBusinessBrief(businessId, b) {
 // Admin: list all business accounts (never expose password_hash / session_token).
 export async function listBusinesses() {
   const r = await pool.query(
-    `SELECT b.id, b.name, b.email, b.company, b.created_at,
+    `SELECT b.id, b.name, b.email, b.company, b.contact, b.created_at,
             (SELECT COUNT(*) FROM briefs WHERE business_id = b.id)::int AS briefs
        FROM business_accounts b
        ORDER BY b.id DESC`
