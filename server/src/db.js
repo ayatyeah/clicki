@@ -1019,6 +1019,19 @@ export async function listBriefs() {
   const r = await pool.query('SELECT * FROM briefs ORDER BY id DESC');
   return r.rows;
 }
+/** Same list plus who sent it, for the admin moderation queue — an operator
+ *  publishing a brief to every creator should see whose brief it is.
+ *  Deliberately separate from listBriefs(): that one also feeds the public
+ *  /api/demo/admin/briefs, which must not learn real brand names. */
+export async function listBriefsForAdmin() {
+  const r = await pool.query(
+    `SELECT b.*, ba.name AS business_name, ba.company AS business_company
+       FROM briefs b
+       LEFT JOIN business_accounts ba ON ba.id = b.business_id
+      ORDER BY b.id DESC`
+  );
+  return r.rows;
+}
 export async function getBrief(id) {
   const r = await pool.query('SELECT * FROM briefs WHERE id = $1', [id]);
   return r.rows[0] || null;

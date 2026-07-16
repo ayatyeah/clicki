@@ -52,6 +52,7 @@ import {
   createCreator,
   updateCreator,
   listBriefs,
+  listBriefsForAdmin,
   getBrief,
   creatorCanSubmitToBrief,
   pingDb,
@@ -142,7 +143,7 @@ import {
 import { geminiGenerate, geminiEnabled } from './gemini.js';
 import { uploadToSpaces, spacesEnabled, spacesMediaHosts } from './storage.js';
 import { safeHttpUrl, fetchPageText, buildCspDirectives } from './security.js';
-import { maskName, maskContact, maskLeadFields, maskCreatorRow } from './mask.js';
+import { maskName, maskContact, maskLeadFields, maskCreatorRow, maskBriefRow } from './mask.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIST = path.join(__dirname, '..', '..', 'client', 'dist');
@@ -1498,7 +1499,7 @@ app.get('/api/demo/admin/referrals', wrap(async (_req, res) => {
   const referrals = await getReferralLeadStats(); // { total, xpPerLead, byCreator: [...] }
   ok(res, { referrals: { ...referrals, byCreator: referrals.byCreator.map(maskCreatorRow) } });
 }));
-app.get('/api/demo/admin/briefs', wrap(async (_req, res) => ok(res, { briefs: await listBriefs() })));
+app.get('/api/demo/admin/briefs', wrap(async (_req, res) => ok(res, { briefs: (await listBriefs()).map(maskBriefRow) })));
 app.get('/api/demo/admin/creators', wrap(async (_req, res) => ok(res, { creators: (await listCreators()).map(demoCreator) })));
 app.get('/api/demo/admin/submissions', wrap(async (req, res) => ok(res, { submissions: (await listSubmissions(req.query.status)).map(demoSubmission) })));
 app.get('/api/demo/admin/reports/monthly', wrap(async (req, res) => {
@@ -1896,7 +1897,7 @@ app.post('/api/admin/reset-data', requireAdmin, wrap(async (req, res) => {
   ok(res, {});
 }));
 
-app.get('/api/admin/briefs', requireAdmin, wrap(async (_req, res) => ok(res, { briefs: await listBriefs() })));
+app.get('/api/admin/briefs', requireAdmin, wrap(async (_req, res) => ok(res, { briefs: await listBriefsForAdmin() })));
 app.post('/api/admin/briefs', requireAdmin, wrap(async (req, res) => ok(res, { brief: await createBrief(req.body || {}) })));
 app.post('/api/admin/briefs/:id/status', requireAdmin, wrap(async (req, res) => ok(res, { brief: await setBriefStatus(Number(req.params.id), req.body?.status) })));
 // Delete a brief (e.g. leftover test briefs). Submissions survive (brief_id → NULL).

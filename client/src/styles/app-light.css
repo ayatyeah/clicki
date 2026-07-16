@@ -449,6 +449,25 @@
 .mod-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .mod-note { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 12px; padding: 10px 12px; font-size: 0.86rem; color: #92400e; }
 
+/* Full brief reader in the moderation queue. The card used to show only the
+   title, platform and hashtag, so an operator approved a brief for every creator
+   without being able to read it. pre-wrap because dos/donts come from textareas. */
+.brief-read { display: grid; gap: 12px; border: 1px solid var(--line); border-radius: 12px; padding: 14px; background: #faf9ff; }
+.brief-read__block { display: grid; gap: 3px; min-width: 0; }
+.brief-read__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px 14px; }
+.brief-read__k { color: var(--fog); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.brief-read__v { font-size: 0.9rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.brief-read__flags { display: flex; flex-wrap: wrap; gap: 6px; }
+.brief-read__flag { font-size: 0.76rem; border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; background: #fff; color: var(--stone); }
+.brief-read__empty { color: var(--fog); font-size: 0.86rem; font-style: italic; }
+
+/* Per-business brief history, expanded under its row in the Бизнесы table. */
+.biz-briefs { display: grid; gap: 10px; padding: 4px 0; }
+.biz-briefs__item { display: grid; gap: 10px; }
+.biz-briefs__head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.biz-briefs__head b { margin-right: auto; }
+.biz-briefs__row > td { background: #f6f5fb; }
+
 /* Pipeline statuses + helpers */
 .app-light .pf-status--ai_passed { background: rgba(124, 58, 237, 0.12); color: #6d28d9; }
 .app-light .pf-status--sent_to_business { background: rgba(37, 99, 235, 0.12); color: #1d4ed8; }

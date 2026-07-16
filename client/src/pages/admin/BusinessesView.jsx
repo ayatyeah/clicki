@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import ConfirmDelete from '../../components/ConfirmDelete.jsx';
 import { contactHref, normalizeContact } from '../../lib/contact.js';
+import { BriefRead, briefStatus } from './BriefsView.jsx';
 
 const EMPTY_FORM = { name: '', company: '', email: '', contact: '', password: '' };
 
@@ -9,12 +10,18 @@ const EMPTY_FORM = { name: '', company: '', email: '', contact: '', password: ''
 export function BusinessesView({ authFetch }) {
   const toast = useToast();
   const [businesses, setBusinesses] = useState([]);
+  const [briefs, setBriefs] = useState([]);
+  const [openId, setOpenId] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const load = async () => {
     const r = await (await authFetch('/api/admin/businesses')).json();
     setBusinesses(r.businesses || []);
+    // The brief history per business comes from the list the Брифы tab already
+    // serves — it carries every field, so no extra endpoint or query is needed.
+    const br = await (await authFetch('/api/admin/briefs')).json();
+    setBriefs(br.briefs || []);
   };
   useEffect(() => {
     load();
@@ -89,25 +96,80 @@ export function BusinessesView({ authFetch }) {
           </thead>
           <tbody>
             {businesses.map((b) => (
-              <tr key={b.id}>
-                <td data-label="Бизнес">
-                  <b>{b.company || b.name}</b>
-                  {b.company && <div style={{ fontSize: '0.8rem', color: 'var(--fog)' }}>{b.name}</div>}
-                </td>
-                <td data-label="Контакты"><BusinessContact business={b} authFetch={authFetch} onSaved={load} /></td>
-                <td data-label="Email"><BusinessCredentials business={b} authFetch={authFetch} onSaved={load} /></td>
-                <td data-label="Брифов">{b.briefs}</td>
-                <td className="muted-cell" data-label="Создан">{b.created_at ? new Date(b.created_at).toLocaleDateString('ru-RU') : '—'}</td>
-                <td data-label="Действия">
-                  <ConfirmDelete onConfirm={() => remove(b.id)} />
-                </td>
-              </tr>
+              <Fragment key={b.id}>
+                <tr>
+                  <td data-label="Бизнес">
+                    <b>{b.company || b.name}</b>
+                    {b.company && <div style={{ fontSize: '0.8rem', color: 'var(--fog)' }}>{b.name}</div>}
+                  </td>
+                  <td data-label="Контакты"><BusinessContact business={b} authFetch={authFetch} onSaved={load} /></td>
+                  <td data-label="Email"><BusinessCredentials business={b} authFetch={authFetch} onSaved={load} /></td>
+                  <td data-label="Брифов">
+                    {b.briefs
+                      ? (
+                        <button
+                          className="btn btn--ghost btn--sm"
+                          onClick={() => setOpenId((id) => (id === b.id ? null : b.id))}
+                          aria-expanded={openId === b.id}
+                        >
+                          {b.briefs} {openId === b.id ? '▲' : '▼'}
+                        </button>
+                      )
+                      : <span className="muted-cell">0</span>}
+                  </td>
+                  <td className="muted-cell" data-label="Создан">{b.created_at ? new Date(b.created_at).toLocaleDateString('ru-RU') : '—'}</td>
+                  <td data-label="Действия">
+                    <ConfirmDelete onConfirm={() => remove(b.id)} />
+                  </td>
+                </tr>
+                {openId === b.id && (
+                  <tr className="biz-briefs__row">
+                    <td colSpan={6}>
+                      <BusinessBriefs briefs={briefs.filter((x) => x.business_id === b.id)} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             ))}
             {!businesses.length && <tr><td colSpan={6} className="admin-table__empty">Бизнесов пока нет</td></tr>}
           </tbody>
         </table>
       </div>
     </section>
+  );
+}
+
+/**
+ * Everything this business ever sent us, newest first — what they asked for and
+ * how each one ended up. Reuses the moderation queue's reader so the full brief
+ * is one click away here too, rather than only next to the publish buttons.
+ */
+function BusinessBriefs({ briefs }) {
+  const [openId, setOpenId] = useState(null);
+  if (!briefs.length) return <p className="muted-note" style={{ textAlign: 'left', margin: 0 }}>Брифов пока нет.</p>;
+  return (
+    <div className="biz-briefs">
+      {briefs.map((b) => {
+        const { label, cls } = briefStatus(b.status);
+        const open = openId === b.id;
+        return (
+          <div className="biz-briefs__item" key={b.id}>
+            <div className="biz-briefs__head">
+              <b>{b.title}</b>
+              <span className={`pf-status pf-status--${cls}`}>{label}</span>
+              <span className="muted-cell">
+                {b.created_at ? new Date(b.created_at).toLocaleDateString('ru-RU') : '—'}
+                {b.ai_score != null ? ` · ИИ ${b.ai_score}/100` : ''}
+              </span>
+              <button className="btn btn--ghost btn--sm" onClick={() => setOpenId(open ? null : b.id)} aria-expanded={open}>
+                {open ? 'Свернуть' : 'Читать'}
+              </button>
+            </div>
+            {open && <BriefRead b={b} />}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

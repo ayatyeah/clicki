@@ -1,8 +1,119 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { useConfirm } from '../../components/ConfirmDialog.jsx';
+import { safeHref } from '../../lib/safeHref.js';
 
 const PLATFORMS = ['TikTok', 'Instagram Reels', 'YouTube Shorts', 'Threads', 'X (Twitter)'];
+
+/** Brief status → what an operator calls it, and the badge colour. Shared with
+ *  the per-business brief history in BusinessesView. */
+export function briefStatus(status) {
+  const label =
+    status === 'active' ? 'опубликован креаторам'
+      : status === 'revision' ? 'у бизнеса на доработке'
+      : status === 'new' ? 'на модерации'
+      : status;
+  const cls = status === 'active' ? 'accepted' : status === 'revision' ? 'rework' : 'pending';
+  return { label, cls };
+}
+
+/**
+ * The whole brief, read-only — everything the business filled in, including the
+ * `spec` from its brief builder. The card only ever showed the title, platform
+ * and hashtag, which meant an operator published a brief to every creator
+ * without being able to read what it asked for.
+ *
+ * Empty fields are dropped rather than rendered as "—": admin-created briefs
+ * legitimately have no goal/audience, and a wall of dashes hides the real
+ * content. `tone` already holds the human-readable style label (the business
+ * portal writes it there alongside the raw spec.style key), so no map is needed.
+ */
+export function BriefRead({ b }) {
+  const spec = b.spec || {};
+  const who = b.business_company || b.business_name;
+
+  const facts = [
+    ['Платформа', b.platform],
+    ['Ориентация', spec.orientation ? (spec.orientation === 'horizontal' ? 'Горизонтальное' : 'Вертикальное') : null],
+    ['Длительность', b.duration_max ? `${b.duration_min || 0}–${b.duration_max} сек` : null],
+    ['Стиль', b.tone || spec.style],
+    ['Слотов', b.slots || null],
+    ['Хэштег', b.req_hashtag],
+  ].filter(([, v]) => v != null && v !== '');
+
+  const texts = [
+    ['Цель', b.goal],
+    ['Аудитория', b.audience],
+    ['Ключевое сообщение', b.key_message],
+    ['Что нужно показать', b.dos],
+    ['Чего не делать', b.donts],
+    ['Референсы', b.refs],
+  ].filter(([, v]) => v && String(v).trim());
+
+  const flags = [
+    [b.req_mention, 'Упоминание бренда в первые 3 сек'],
+    [spec.cta_required, 'CTA обязателен'],
+    [spec.logo_first5, 'Логотип в первые 5 сек'],
+    [spec.brand_spoken, 'Бренд произносится вслух'],
+    [spec.product_in_frame, 'Продукт в кадре'],
+  ].filter(([on]) => on).map(([, label]) => label);
+
+  // A brand-supplied URL rendered as a link: safeHref returns undefined for
+  // anything that isn't http(s), and we then show it as inert text.
+  const cta = safeHref(b.req_cta_link);
+
+  return (
+    <div className="brief-read">
+      <div className="brief-read__block">
+        <span className="brief-read__k">Прислал</span>
+        <span className="brief-read__v">
+          {who ? `${who}${b.business_company && b.business_name ? ` · ${b.business_name}` : ''} (#${b.business_id})` : 'Создан в админке'}
+          {b.created_at ? ` · ${new Date(b.created_at).toLocaleString('ru-RU')}` : ''}
+        </span>
+      </div>
+
+      {!!facts.length && (
+        <div className="brief-read__grid">
+          {facts.map(([k, v]) => (
+            <div className="brief-read__block" key={k}>
+              <span className="brief-read__k">{k}</span>
+              <span className="brief-read__v">{v}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {b.req_cta_link && (
+        <div className="brief-read__block">
+          <span className="brief-read__k">CTA-ссылка</span>
+          <span className="brief-read__v">
+            {cta ? <a href={cta} target="_blank" rel="noopener noreferrer">{b.req_cta_link}</a> : b.req_cta_link}
+          </span>
+        </div>
+      )}
+
+      {texts.map(([k, v]) => (
+        <div className="brief-read__block" key={k}>
+          <span className="brief-read__k">{k}</span>
+          <span className="brief-read__v">{v}</span>
+        </div>
+      ))}
+
+      {!!flags.length && (
+        <div className="brief-read__block">
+          <span className="brief-read__k">Требования</span>
+          <div className="brief-read__flags">
+            {flags.map((f) => <span className="brief-read__flag" key={f}>{f}</span>)}
+          </div>
+        </div>
+      )}
+
+      {!facts.length && !texts.length && !flags.length && !b.req_cta_link && (
+        <p className="brief-read__empty" style={{ margin: 0 }}>В брифе заполнено только название.</p>
+      )}
+    </div>
+  );
+}
 
 /* ---------------- Briefs ----------------
    canManage=false (investor demo) hides mutating controls like delete. */
@@ -92,6 +203,7 @@ function BriefModCard({ b, authFetch, creators, onChange, canManage }) {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
   const [showNote, setShowNote] = useState(false);
+  const [showBrief, setShowBrief] = useState(false);
   const call = async (url, body) => {
     setBusy(true);
     try {
@@ -118,12 +230,7 @@ function BriefModCard({ b, authFetch, creators, onChange, canManage }) {
       setBusy(false);
     }
   };
-  const statusLabel =
-    b.status === 'active' ? 'опубликован креаторам'
-      : b.status === 'revision' ? 'у бизнеса на доработке'
-      : b.status === 'new' ? 'на модерации'
-      : b.status;
-  const statusCls = b.status === 'active' ? 'accepted' : b.status === 'revision' ? 'rework' : 'pending';
+  const { label: statusLabel, cls: statusCls } = briefStatus(b.status);
 
   return (
     <div className="bp-card">
@@ -141,7 +248,16 @@ function BriefModCard({ b, authFetch, creators, onChange, canManage }) {
           <div className="mod-ai"><span className="mod-ai__score">ИИ: {b.ai_score}/100.</span> {b.ai_feedback}</div>
         )}
         {b.revision_note && <div className="mod-note">Возвращён бизнесу: {b.revision_note}</div>}
+        {/* Admin only. This same view is the public, unauthenticated /demo-admin
+            page, and a brief is a paying client's campaign — not something to
+            put behind a button anyone can press. */}
+        {canManage && showBrief && <BriefRead b={b} />}
         <div className="mod-actions">
+          {canManage && (
+            <button className="btn btn--ghost btn--sm" onClick={() => setShowBrief((s) => !s)} aria-expanded={showBrief}>
+              {showBrief ? 'Свернуть бриф' : 'Читать бриф'}
+            </button>
+          )}
           <button className="btn btn--ghost btn--sm" disabled={busy} onClick={() => call(`/api/admin/briefs/${b.id}/ai`)}>ИИ-анализ</button>
           {b.status !== 'active' && (
             <button className="btn btn--primary btn--sm" disabled={busy} onClick={() => call(`/api/admin/briefs/${b.id}/status`, { status: 'active' })}>

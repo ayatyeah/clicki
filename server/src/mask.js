@@ -49,3 +49,19 @@ export function maskLeadFields(fields) {
 export function maskCreatorRow(row) {
   return { ...row, name: maskName(row.name), username: row.username ? maskName(row.username) : null };
 }
+
+/**
+ * A brief row for the demo queue. A brief is a paying client's campaign — its
+ * goal, audience, key message, do's and don'ts, and a live CTA link to their
+ * site — and all of it used to leave /api/demo/admin/briefs unmasked while every
+ * neighbouring endpoint masked what it served.
+ *
+ * The demo exists to show the moderation *flow*, so what stays is what the page
+ * actually renders: title, platform, format, slots, AI verdict, status. The
+ * creative itself is dropped rather than starred out — there is no shape worth
+ * preserving in a paragraph of someone's strategy.
+ */
+export function maskBriefRow(row) {
+  const { goal, audience, key_message, dos, donts, refs, req_cta_link, ...safe } = row || {};
+  return safe;
+}

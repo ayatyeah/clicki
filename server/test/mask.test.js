@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { maskName, maskContact, maskLeadFields, maskCreatorRow } from '../src/mask.js';
+import { maskName, maskContact, maskLeadFields, maskCreatorRow, maskBriefRow } from '../src/mask.js';
 
 /* The /demo-admin endpoints are public and unauthenticated. Nothing that leaves
    them may identify or let anyone contact a real person. */
@@ -76,4 +76,46 @@ test('maskCreatorRow masks name and login, preserves metrics', () => {
     leads: 12,
   });
   assert.equal(maskCreatorRow({ name: 'X', username: null }).username, null);
+});
+
+test('maskBriefRow drops a client campaign but keeps the moderation flow', () => {
+  const masked = maskBriefRow({
+    id: 7,
+    title: 'Жизнь за границей стала проще!',
+    status: 'new',
+    platform: 'TikTok',
+    duration_max: 25,
+    req_hashtag: '#relocate',
+    ai_score: 82,
+    spec: { style: 'youth', orientation: 'vertical' },
+    // The parts a competitor would actually want:
+    goal: 'заявки на релокацию',
+    audience: 'IT-специалисты 25-35',
+    key_message: 'виза за 3 недели без юриста',
+    dos: 'показать паспорт со штампом',
+    donts: 'не упоминать конкурентов',
+    refs: 'https://drive.google.com/секретная-папка',
+    req_cta_link: 'https://client.example/landing?utm=clicki',
+  });
+
+  for (const leaked of ['goal', 'audience', 'key_message', 'dos', 'donts', 'refs', 'req_cta_link']) {
+    assert.ok(!(leaked in masked), `${leaked} must not reach the public demo endpoint`);
+  }
+  // What the demo page renders survives untouched, so the queue still looks real.
+  assert.deepEqual(masked, {
+    id: 7,
+    title: 'Жизнь за границей стала проще!',
+    status: 'new',
+    platform: 'TikTok',
+    duration_max: 25,
+    req_hashtag: '#relocate',
+    ai_score: 82,
+    spec: { style: 'youth', orientation: 'vertical' },
+  });
+});
+
+test('maskBriefRow survives an empty or missing row', () => {
+  assert.deepEqual(maskBriefRow({}), {});
+  assert.deepEqual(maskBriefRow(null), {});
+  assert.deepEqual(maskBriefRow(undefined), {});
 });
