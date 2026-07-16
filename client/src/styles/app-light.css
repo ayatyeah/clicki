@@ -1163,7 +1163,13 @@
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-top: 1px solid var(--line);
-    padding: 9px 2px calc(9px + env(safe-area-inset-bottom, 0px));
+    /* Bottom inset clears the home indicator; the side ones matter only in
+       landscape, where the notch overlaps this bar (0 in portrait). */
+    padding:
+      9px
+      max(2px, env(safe-area-inset-right, 0px))
+      calc(9px + env(safe-area-inset-bottom, 0px))
+      max(2px, env(safe-area-inset-left, 0px));
     box-shadow: 0 -6px 22px rgba(24, 20, 48, 0.1);
   }
   .creator-portal__inner--wide { padding-bottom: 96px; }

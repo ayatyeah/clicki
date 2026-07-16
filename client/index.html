@@ -2,7 +2,11 @@
 <html lang="ru" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover is what makes env(safe-area-inset-*) resolve to real
+         values on iOS. Without it they are always 0, and the status-bar style
+         below (black-translucent) puts the app's own top bar under the clock /
+         Dynamic Island in the installed app. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <link rel="icon" type="image/png" href="/logo-adini.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#0b0a1c" />

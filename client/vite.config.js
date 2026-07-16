@@ -10,7 +10,14 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['apple-touch-icon.png', 'logo-mark.png'],
+      // main.jsx registers the SW itself (it also checks for updates on focus and
+      // reloads once a new one takes over). Without this the plugin emits its own
+      // registerSW.js and injects it into index.html, registering a second time.
+      injectRegister: null,
+      // The app shell's own images. Everything else in public/ (mascot art, guide
+      // screenshots) is fetched on demand — see globPatterns below. mascot-hood is
+      // here because it is the splash the PWA start_url (/app → AppLauncher) shows.
+      includeAssets: ['apple-touch-icon.png', 'logo-mark.png', 'logo-adini.png', 'mascot-hood.jpg'],
       manifest: {
         name: 'CLICKI — органические просмотры',
         short_name: 'CLICKI',
@@ -37,7 +44,13 @@ export default defineConfig({
         // SPA fallback, but never hijack the API or uploaded media.
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api/, /^\/uploads/],
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // No `png` here on purpose: it swept every image in public/ into the
+        // precache — ~3 MB of mascot art (mascot.png alone is 1.5 MB and only ever
+        // renders as a small button) plus 550 KB of guide screenshots, downloaded
+        // by every first-time visitor before they touch anything. The shell images
+        // we do want are listed in includeAssets; the rest load from the network,
+        // where they are already cached for an hour by the static handler.
+        globPatterns: ['**/*.{js,css,html,svg,woff2}'],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         // Activate a freshly-deployed SW immediately instead of waiting for all
