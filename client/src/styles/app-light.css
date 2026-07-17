@@ -1031,6 +1031,15 @@
 /* Social connect (creator account page + submit form) */
 .cp-social { margin-top: 16px; }
 .cp-social .cp-section-sub { margin-top: 4px; }
+
+/* "Установить приложение" (components/InstallApp.jsx) — hidden entirely unless
+   the browser can actually do something, so it never renders empty. */
+.cp-install { margin-top: 16px; display: grid; justify-items: start; gap: 10px; }
+.cp-install__lead { margin: 0; max-width: 52ch; }
+.cp-install__steps {
+  margin: 0; padding-left: 22px; display: grid; gap: 8px;
+  font-size: 0.88rem; line-height: 1.5; color: var(--stone);
+}
 .cp-social__row {
   display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
   padding: 14px 0; border-top: 1px solid var(--line, #eee);

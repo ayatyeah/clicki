@@ -12,6 +12,7 @@ import CopyButton from '../components/CopyButton.jsx';
 import EmptyState from '../components/EmptyState.jsx';
 import Guide from '../components/Guide.jsx';
 import Tour from '../components/Tour.jsx';
+import InstallApp from '../components/InstallApp.jsx';
 import { CREATOR_GUIDE, CREATOR_TOUR } from '../content/guides.js';
 import { useToast } from '../components/Toast.jsx';
 
@@ -832,6 +833,8 @@ function AccountView({ c, authFetch, reload }) {
         <TikTokConnect c={c} authFetch={authFetch} reload={reload} />
         <InstagramSoon />
       </div>
+
+      <InstallApp />
     </>
   );
 }

@@ -5,6 +5,7 @@ import Playground from './components/Playground.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { initAnalytics, trackPageview, trackVisit, trackEvent } from './lib/analytics.js';
 import { initAppleEmoji, parseAppleEmoji } from './lib/appleEmoji.js';
+import { initInstallPrompt } from './lib/installPrompt.js';
 
 // Landing (Hub) ships in the main bundle for instant first paint;
 // every other route is code-split and fetched on demand.
@@ -46,6 +47,10 @@ export default function App() {
   useEffect(() => {
     initAnalytics();
     initAppleEmoji();
+    // Chrome fires beforeinstallprompt once and early — catch it here, at app
+    // start, because the cabinet that offers the button is a lazy chunk that
+    // may not exist yet when it arrives.
+    initInstallPrompt();
     // Delegate clicks on any [data-track] element → click analytics.
     const onClick = (e) => {
       const el = e.target.closest?.('[data-track]');
