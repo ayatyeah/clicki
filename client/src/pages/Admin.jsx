@@ -18,7 +18,6 @@ import { CreatorsView } from './admin/CreatorsView.jsx';
 import { BusinessesView } from './admin/BusinessesView.jsx';
 import { PayoutsView } from './admin/PayoutsView.jsx';
 import { DecisionJournalView } from './admin/DecisionJournalView.jsx';
-import { ResetDataView } from './admin/ResetDataView.jsx';
 
 const TOKEN_KEY = 'clicki_admin_token';
 const EMPTY = { showcase: [], devices: { iphone: { image: '' }, laptop: { image: '' } }, creatorVideo: '', hubVideo: '' };
@@ -283,7 +282,6 @@ export default function Admin() {
     { key: 'hub-video', label: 'Видео на главной', icon: 'home' },
     { key: 'creator-page', label: 'Видео креаторов', icon: 'film' },
     { key: 'content', label: 'Контент сайта', icon: 'image' },
-    { key: 'reset', label: 'Очистка данных', icon: 'inbox' },
   ];
 
   return (
@@ -583,8 +581,6 @@ export default function Admin() {
               </div>
             </section>
           )}
-
-          {view === 'reset' && <ResetDataView authFetch={authFetch} />}
         </div>
       </div>
     </main>

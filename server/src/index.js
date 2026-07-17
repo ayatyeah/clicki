@@ -119,7 +119,6 @@ import {
   listBusinesses,
   setBusinessCredentials,
   deleteBusiness,
-  resetPlatformData,
   countLeads,
   deleteLead,
   deleteCreator,
@@ -1898,13 +1897,13 @@ app.post('/api/admin/businesses/:id/delete', requireAdmin, wrap(async (req, res)
   ok(res, {});
 }));
 
-// Danger zone: wipe all accounts + transactional data for a clean slate.
-// Double-guarded: admin-only + an explicit confirm phrase in the body.
-app.post('/api/admin/reset-data', requireAdmin, wrap(async (req, res) => {
-  if (req.body?.confirm !== 'ОЧИСТИТЬ') return res.status(400).json({ ok: false, errors: ['Подтверждение не совпало'] });
-  await resetPlatformData();
-  ok(res, {});
-}));
+// There is deliberately no "wipe everything" endpoint. It existed, admin-gated
+// and behind a confirm phrase, and neither guard was worth what it risked: one
+// mis-click — or one leaked admin token — against a live platform of 220+
+// creators, their videos, and their unpaid balances. Nothing about running the
+// business needs it. The capability still exists for a genuinely empty
+// environment, as `npm run reset-data --yes-i-am-sure`, which requires shell
+// access to the server rather than a browser and a session.
 
 app.get('/api/admin/briefs', requireAdmin, wrap(async (_req, res) => ok(res, { briefs: await listBriefsForAdmin() })));
 app.post('/api/admin/briefs', requireAdmin, wrap(async (req, res) => ok(res, { brief: await createBrief(req.body || {}) })));
