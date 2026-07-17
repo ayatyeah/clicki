@@ -92,3 +92,22 @@ export function parseTikTokVideoId(url) {
   const m = String(url || '').match(/\/video\/(\d+)/);
   return m ? m[1] : null;
 }
+
+/**
+ * Is TikTok actually feeding us this creator's views?
+ *
+ * MIRRORS the WHERE clause of listCreatorsWithTikTok() in db.js:
+ *   tiktok_access_token IS NOT NULL AND tiktok_refresh_expires_at > NOW()
+ * Change one, change the other. The pair matters because the creator cabinet
+ * stops asking for daily screenshots when this is true: if it ever says yes for
+ * someone the sync skips, that creator sends nothing, we collect nothing, and
+ * the hole only surfaces when they come asking to be paid.
+ *
+ * Note this is stricter than "has connected": an access token alone is not
+ * enough, since the sync gives up once the refresh token lapses.
+ */
+export function tiktokSyncing(creator) {
+  if (!creator?.tiktok_access_token || !creator.tiktok_refresh_expires_at) return false;
+  const until = new Date(creator.tiktok_refresh_expires_at).getTime();
+  return Number.isFinite(until) && until > Date.now();
+}

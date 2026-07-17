@@ -980,6 +980,11 @@ export async function clearTikTokConnection(creatorId) {
   );
 }
 /** Creators with a live TikTok connection (refresh token not expired) — sync targets. */
+/** Creators the TikTok view sync runs for.
+ *  The WHERE clause below is mirrored in JS by tiktokSyncing() (tiktok.js), which
+ *  is what tells the cabinet it can stop asking a creator for daily screenshots.
+ *  Narrow this and someone stops being asked for proof we no longer collect —
+ *  keep the two in step. */
 export async function listCreatorsWithTikTok() {
   const r = await pool.query(
     `SELECT id, tiktok_open_id, tiktok_username, tiktok_access_token, tiktok_refresh_token,

@@ -24,6 +24,7 @@ import {
   fetchTikTokUserInfo,
   fetchTikTokVideoViews,
   parseTikTokVideoId,
+  tiktokSyncing,
 } from './tiktok.js';
 import {
   instagramEnabled,
@@ -678,7 +679,15 @@ function publicCreator(c) {
     ig_access_token, ig_token_expires_at,
     ...safe
   } = c;
-  return { ...safe, tiktok_connected: !!tiktok_access_token, instagram_connected: !!ig_access_token };
+  return {
+    ...safe,
+    tiktok_connected: !!tiktok_access_token,
+    // Not the same as tiktok_connected: the cabinet drops the daily screenshot
+    // chore on this flag, so it has to mean the numbers really are arriving.
+    // See tiktokSyncing() — it mirrors the sync's own WHERE clause.
+    tiktok_syncing: tiktokSyncing({ tiktok_access_token, tiktok_refresh_expires_at }),
+    instagram_connected: !!ig_access_token,
+  };
 }
 // Bearer-token middleware — authorizes the caller as a specific creator (no IDOR).
 // Ban state for a creator row. Permanent when banned_until is null; temporary

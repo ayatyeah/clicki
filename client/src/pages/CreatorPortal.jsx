@@ -509,6 +509,22 @@ function NotificationBell({ authFetch }) {
   );
 }
 
+/**
+ * True when we already get this video's views from the platform itself, so
+ * asking the creator to photograph them daily is busywork.
+ *
+ * Only TikTok, and only while it is genuinely syncing: `tiktok_connected` just
+ * means a token exists, while the sync also needs an unexpired refresh token. A
+ * creator whose token lapsed still reads as "connected" — excusing them here
+ * would leave the video with no screenshots and no sync at all.
+ *
+ * Instagram stays on screenshots regardless: its connect button is still "в
+ * разработке", so nothing is arriving from there.
+ */
+function statsAreAutomatic(submission, creator) {
+  return submission.platform === 'TikTok' && !!creator?.tiktok_syncing;
+}
+
 function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview', autoTour = false }) {
   const { creator: c, wallet, briefs, openBriefs = [], submissions, level } = data;
   const [view, setView] = useState(initialView);
@@ -530,6 +546,7 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
   // still inside its 10h cooldown isn't counted (nothing to do yet).
   const COOLDOWN_MS = 24 * 60 * 60 * 1000;
   const needStatsToday = submissions.filter((s) => {
+    if (statsAreAutomatic(s, c)) return false;
     if (s.status === 'rejected' || s.screenshot_today) return false;
     if (s.last_screenshot_at && Date.now() - new Date(s.last_screenshot_at).getTime() < COOLDOWN_MS) return false;
     return true;
@@ -628,7 +645,7 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
             <h2 className="cp-card__title">Мои видео</h2>
             {submissions.length ? (
               <div className="cp-vids">
-                {submissions.map((s) => <VideoRow key={s.id} s={s} authFetch={authFetch} reload={reload} />)}
+                {submissions.map((s) => <VideoRow key={s.id} s={s} c={c} authFetch={authFetch} reload={reload} />)}
               </div>
             ) : (
               <EmptyState
@@ -1303,7 +1320,7 @@ function FieldIcon({ name }) {
 
 /** One row in "Мои видео": brand avatar, title + status + views/AI, optional
  * AI feedback, and the daily stats-screenshots strip. */
-function VideoRow({ s, authFetch, reload }) {
+function VideoRow({ s, c, authFetch, reload }) {
   const initial = (s.brief_title || s.platform || '?').trim().charAt(0).toUpperCase();
   return (
     <div className="cp-vid">
@@ -1328,19 +1345,40 @@ function VideoRow({ s, authFetch, reload }) {
         )}
         {s.review_note && <p className="cp-vid__note">📝 Комментарий модератора: {s.review_note}</p>}
 
-        {/* Daily stats reporting — only while the video is live (not after a reject). */}
+        {/* Daily stats reporting — only while the video is live (not after a reject),
+            and only when we can't read the numbers off the platform ourselves. */}
         {s.status !== 'rejected' && (
-          <StatScreenshots
-            submissionId={s.id}
-            platform={s.platform}
-            basePath="/api/creator/submissions"
-            authFetch={authFetch}
-            canUpload
-            today={s.screenshot_today}
-            count={s.screenshots_count}
-            lastAt={s.last_screenshot_at}
-            onUploaded={reload}
-          />
+          statsAreAutomatic(s, c) ? (
+            <>
+              <p className="cp-vid__auto">
+                ✓ Просмотры тянутся из TikTok автоматически — скриншот не нужен.
+              </p>
+              {/* Anything they sent before connecting stays on the card, read-only:
+                  it stops being their job, it doesn't stop being their record. */}
+              {s.screenshots_count > 0 && (
+                <StatScreenshots
+                  submissionId={s.id}
+                  platform={s.platform}
+                  basePath="/api/creator/submissions"
+                  authFetch={authFetch}
+                  count={s.screenshots_count}
+                  lastAt={s.last_screenshot_at}
+                />
+              )}
+            </>
+          ) : (
+            <StatScreenshots
+              submissionId={s.id}
+              platform={s.platform}
+              basePath="/api/creator/submissions"
+              authFetch={authFetch}
+              canUpload
+              today={s.screenshot_today}
+              count={s.screenshots_count}
+              lastAt={s.last_screenshot_at}
+              onUploaded={reload}
+            />
+          )
         )}
       </div>
     </div>

@@ -1000,6 +1000,12 @@
   margin: 6px 0 0; font-size: 0.85rem; color: #92400e; background: #fff7ed;
   border: 1px solid #fed7aa; border-radius: 8px; padding: 6px 10px;
 }
+/* Stands in for the daily uploader when TikTok reports the views for us. Green,
+   because it is good news — one less chore — not a warning. */
+.cp-vid__auto {
+  margin: 6px 0 0; font-size: 0.85rem; color: #15803d; background: #f0fdf4;
+  border: 1px solid #bbf7d0; border-radius: 8px; padding: 6px 10px;
+}
 
 /* Hidden /demo-test sandbox banner */
 .demo-banner {
