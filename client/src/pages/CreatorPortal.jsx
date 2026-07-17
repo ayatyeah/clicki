@@ -525,6 +525,25 @@ function statsAreAutomatic(submission, creator) {
   return submission.platform === 'TikTok' && !!creator?.tiktok_syncing;
 }
 
+const COOLDOWN_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Does this video still owe us today's screenshot?
+ *
+ * The single answer for the whole cabinet. It was inlined in two places that
+ * drifted apart the moment TikTok auto-sync landed: the reminder banner learned
+ * to skip auto-synced videos and the "Требуют внимания" card did not, so a
+ * creator with TikTok connected was told three videos wanted a screenshot,
+ * followed the link, and found three cards saying none was needed — a badge with
+ * no way to clear it.
+ */
+function needsScreenshotToday(s, creator) {
+  if (statsAreAutomatic(s, creator)) return false;
+  if (s.status === 'rejected' || s.screenshot_today) return false;
+  if (s.last_screenshot_at && Date.now() - new Date(s.last_screenshot_at).getTime() < COOLDOWN_MS) return false;
+  return true;
+}
+
 function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview', autoTour = false }) {
   const { creator: c, wallet, briefs, openBriefs = [], submissions, level } = data;
   const [view, setView] = useState(initialView);
@@ -542,15 +561,8 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
   const submitBriefs = openBriefs.length ? openBriefs : briefs;
   const firstName = (c.name || '').split(' ')[0] || c.name;
   // How many live videos still need today's stats screenshot — surfaced up here
-  // so the creator sees the daily task without opening each video card. A video
-  // still inside its 10h cooldown isn't counted (nothing to do yet).
-  const COOLDOWN_MS = 24 * 60 * 60 * 1000;
-  const needStatsToday = submissions.filter((s) => {
-    if (statsAreAutomatic(s, c)) return false;
-    if (s.status === 'rejected' || s.screenshot_today) return false;
-    if (s.last_screenshot_at && Date.now() - new Date(s.last_screenshot_at).getTime() < COOLDOWN_MS) return false;
-    return true;
-  }).length;
+  // so the creator sees the daily task without opening each video card.
+  const needStatsToday = submissions.filter((s) => needsScreenshotToday(s, c)).length;
   const avatarNode = c.avatar_url
     ? <img src={mediaUrl(c.avatar_url)} alt="" />
     : <span>{(firstName || '?').charAt(0).toUpperCase()}</span>;
@@ -872,7 +884,7 @@ function OverviewHome({ c, wallet, submissions, briefs, forecast, go }) {
   const payoutPct = threshold ? Math.min(100, Math.round((wallet.balance / threshold) * 100)) : 0;
   const accepted = submissions.filter((s) => s.status === 'accepted');
   const totalViews = accepted.reduce((a, s) => a + (s.views || 0), 0);
-  const needStats = submissions.filter((s) => s.status !== 'rejected' && !s.screenshot_today).length;
+  const needStats = submissions.filter((s) => needsScreenshotToday(s, c)).length;
   const inReview = submissions.filter((s) => ['ai_passed', 'sent_to_business'].includes(s.status)).length;
   const activeOrders = [...briefs, ...submissions.filter((s) => s.status !== 'rejected')].slice(0, 6);
 

@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { maskName, maskContact, maskLeadFields, maskCreatorRow, maskBriefRow } from '../src/mask.js';
+import {
+  maskName, maskContact, maskLeadFields, maskCreatorRow, maskBriefRow,
+  maskCreatorForDemo, maskSubmissionRow,
+} from '../src/mask.js';
 
 /* The /demo-admin endpoints are public and unauthenticated. Nothing that leaves
    them may identify or let anyone contact a real person. */
@@ -118,4 +121,80 @@ test('maskBriefRow survives an empty or missing row', () => {
   assert.deepEqual(maskBriefRow({}), {});
   assert.deepEqual(maskBriefRow(null), {});
   assert.deepEqual(maskBriefRow(undefined), {});
+});
+
+/* The demo row maskers are allowlists. These tests feed them a row shaped like
+   the real `SELECT *` — including the columns that actually leaked — and assert
+   on the whole output, so a future column has to be added to the test before it
+   can reach the public endpoint. */
+
+test('maskCreatorForDemo sends an id and a masked name, and nothing else', () => {
+  const masked = maskCreatorForDemo({
+    id: 42,
+    name: 'Аружан Кимова',
+    // Everything below reached anonymous callers of /api/demo/admin/creators:
+    email: 'aruzhan.kimova@gmail.com',
+    tiktok_username: 'Аружан Кимова', // TikTok's display_name — the real name
+    ig_username: 'aruzhan.official',
+    contact: '+7 707 123 45 67',
+    username: 'aruzhan',
+    bio: 'Снимаю про кофе',
+    city: 'Астана',
+    avatar_url: 'https://cdn.example.com/42.jpg',
+    tg_id: '123456789',
+    earned: 184000,
+    paid: 120000,
+    trust_score: 100,
+  });
+
+  assert.deepEqual(masked, { id: 42, name: 'А***** К*****' });
+});
+
+test('maskSubmissionRow keeps the review queue working without the client campaign', () => {
+  const row = {
+    id: 9,
+    brief_id: 3,
+    brief_title: 'Жизнь за границей стала проще!',
+    creator_id: 42,
+    creator_name: 'Аружан Кимова',
+    platform: 'TikTok',
+    status: 'accepted',
+    views: 61000,
+    views_history: [{ at: '2026-07-16', views: 61000 }],
+    video_url: 'https://www.tiktok.com/@aruzhan/video/123',
+    published_at: '2026-07-14',
+    rights_confirmed: true,
+    ai_score: 88,
+    ai_feedback: 'Отличный хук',
+    coach_feedback: 'Добавь CTA',
+    review_note: 'ок',
+    reject_code: null,
+    fraud: false,
+    screenshots_count: 3,
+    last_screenshot_at: '2026-07-16T10:00:00Z',
+    // The parts that must not leave:
+    req_cta_link: 'https://client.example/landing?utm=clicki',
+    screenshot_url: 'https://cdn.example.com/stats-with-account-name.jpg',
+    req_hashtag: '#relocate',
+    req_mention: true,
+    duration_min: 15,
+    duration_max: 25,
+  };
+  const masked = maskSubmissionRow(row);
+
+  assert.equal(masked.creator_name, 'А***** К*****');
+  for (const leaked of ['req_cta_link', 'screenshot_url', 'req_hashtag', 'req_mention', 'duration_min', 'duration_max']) {
+    assert.ok(!(leaked in masked), `${leaked} must not reach the public demo endpoint`);
+  }
+  // The review queue still has everything it renders.
+  assert.equal(masked.views, 61000);
+  assert.equal(masked.brief_title, 'Жизнь за границей стала проще!');
+  assert.equal(masked.ai_score, 88);
+});
+
+test('the demo maskers ignore columns nobody has allowed yet', () => {
+  // The failure mode being locked out: a column added to the table tomorrow.
+  assert.ok(!('secret_new_column' in maskCreatorForDemo({ id: 1, name: 'X', secret_new_column: 'oops' })));
+  assert.ok(!('secret_new_column' in maskSubmissionRow({ id: 1, secret_new_column: 'oops' })));
+  assert.ok(!('secret_new_column' in maskBriefRow({ id: 1, secret_new_column: 'oops' })));
 });

@@ -82,7 +82,10 @@ export function PayoutsView({ authFetch }) {
                 <td data-label="Креатор">{p.creator_name || `#${p.creator_id}`}</td>
                 <td data-label="Сумма">{Number(p.amount).toLocaleString('ru-RU')} ₸</td>
                 <td data-label="Статус"><span className={`pf-status pf-status--${p.status}`}>{p.status}</span></td>
-                <td data-label="">{p.status !== 'paid' && <button className="btn btn--ghost btn--sm" onClick={() => markPaid(p.id)}>Отметить оплату</button>}</td>
+                {/* Only a pending payout can be paid. This used to be `!== 'paid'`,
+                    which offered the button on cancelled ones too — those belong to
+                    a rejected video, and paying one drives the wallet negative. */}
+                <td data-label="">{p.status === 'pending' && <button className="btn btn--ghost btn--sm" onClick={() => markPaid(p.id)}>Отметить оплату</button>}</td>
               </tr>
             ))}
             {!payouts.length && <tr><td colSpan={4} className="admin-table__empty">Выплат пока нет</td></tr>}

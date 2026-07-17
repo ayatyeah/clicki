@@ -2049,9 +2049,20 @@ export async function hasActivePayoutForSubmission(submissionId) {
 export async function cancelPendingPayout(submissionId) {
   await pool.query("UPDATE payouts SET status='cancelled' WHERE submission_id=$1 AND status='pending'", [submissionId]);
 }
+/**
+ * Only a payout that is still pending can be paid. Without the status guard this
+ * also "paid" cancelled ones — and cancelled is exactly what a payout becomes
+ * when its video is rejected (cancelPendingPayout, just above). The wallet then
+ * counts the money as paid while no longer counting it as earned, so the balance
+ * goes negative by the amount and the creator cannot be paid again until they
+ * re-earn a sum that only exists as a bookkeeping error.
+ *
+ * Returns null when nothing matched — an already-paid or cancelled row — so the
+ * caller can say so instead of reporting a success that never happened.
+ */
 export async function markPayoutPaid(id) {
   const r = await pool.query(
-    "UPDATE payouts SET status='paid', paid_at=CURRENT_TIMESTAMP WHERE id=$1 RETURNING *",
+    "UPDATE payouts SET status='paid', paid_at=CURRENT_TIMESTAMP WHERE id=$1 AND status='pending' RETURNING *",
     [id]
   );
   return r.rows[0] || null;

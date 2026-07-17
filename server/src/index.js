@@ -144,7 +144,9 @@ import {
 import { geminiGenerate, geminiEnabled } from './gemini.js';
 import { uploadToSpaces, spacesEnabled, spacesMediaHosts } from './storage.js';
 import { safeHttpUrl, fetchPageText, buildCspDirectives } from './security.js';
-import { maskName, maskContact, maskLeadFields, maskCreatorRow, maskBriefRow } from './mask.js';
+import {
+  maskLeadFields, maskCreatorRow, maskBriefRow, maskCreatorForDemo, maskSubmissionRow,
+} from './mask.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIST = path.join(__dirname, '..', '..', 'client', 'dist');
@@ -1486,13 +1488,11 @@ app.post(
 // ---------------------------------------------------------------------------
 
 const demoLead = (l) => ({ ...l, fields: maskLeadFields(l.fields) });
-const demoCreator = (c) => {
-  const { contact, username, socials, ...safe } = publicCreator(c);
-  return { ...safe, name: maskName(safe.name), contact: maskContact(contact), username: username ? maskName(username) : null };
-};
+const demoCreator = (c) => maskCreatorForDemo(c);
 // video_url is attacker-controlled free text — never hand a `javascript:` URL to
-// an anonymous visitor's browser, even on the demo page.
-const demoSubmission = (s) => ({ ...s, creator_name: maskName(s.creator_name), video_url: safeHttpUrl(s.video_url) });
+// an anonymous visitor's browser, even on the demo page. The rest of the row is
+// allowlisted in maskSubmissionRow.
+const demoSubmission = (s) => ({ ...maskSubmissionRow(s), video_url: safeHttpUrl(s.video_url) });
 
 // The demo hits the same aggregate queries as the admin dashboard but has no
 // auth in front of it — cap it so an anonymous caller can't hammer Postgres.
@@ -2018,7 +2018,13 @@ app.post('/api/admin/payouts', requireAdmin, wrap(async (req, res) => {
   }
   ok(res, { payout: await createPayout(creatorId, amount) });
 }));
-app.post('/api/admin/payouts/:id/paid', requireAdmin, wrap(async (req, res) => ok(res, { payout: await markPayoutPaid(Number(req.params.id)) })));
+app.post('/api/admin/payouts/:id/paid', requireAdmin, wrap(async (req, res) => {
+  const payout = await markPayoutPaid(Number(req.params.id));
+  // Null means the row wasn't pending — already paid, or cancelled when its video
+  // was rejected. Saying so beats silently reporting a payment that didn't happen.
+  if (!payout) return res.status(409).json({ ok: false, errors: ['Выплату нельзя провести: она уже оплачена или отменена'] });
+  ok(res, { payout });
+}));
 
 // Ops Copilot: structured, rule-based flags (behind-schedule briefs, at-risk
 // creators) — separate from the free-text AI analysis below since these are

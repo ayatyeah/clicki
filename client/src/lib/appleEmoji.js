@@ -22,6 +22,18 @@ function toFilename(emoji) {
   return cps.join('-');
 }
 
+/**
+ * Emoji whose image we already failed to load — missing from the sprite set, or
+ * blocked outright. Remembering them is what makes the fallback terminal.
+ *
+ * Restoring the glyph on error looks harmless, but the restored text node is new
+ * content as far as the MutationObserver is concerned: it re-parsed it, built the
+ * same doomed <img>, and the page spun at the refresh rate — measured at ~60
+ * images a second, indefinitely, per emoji. It stayed invisible because the alt
+ * text renders the same glyph, so the page looked right while the tab burned.
+ */
+const failed = new Set();
+
 function makeImg(emoji) {
   const img = document.createElement('img');
   img.className = 'ae';
@@ -30,6 +42,7 @@ function makeImg(emoji) {
   img.src = `${BASE}${toFilename(emoji)}.png`;
   // Unknown / unmapped emoji → restore the native glyph rather than a broken icon.
   img.onerror = () => {
+    failed.add(emoji);
     img.replaceWith(document.createTextNode(emoji));
   };
   return img;
@@ -38,16 +51,21 @@ function makeImg(emoji) {
 function replaceInTextNode(node) {
   const text = node.nodeValue;
   EMOJI_RE.lastIndex = 0;
-  if (!EMOJI_RE.test(text)) return;
-  EMOJI_RE.lastIndex = 0;
+  const matches = [];
+  let m;
+  while ((m = EMOJI_RE.exec(text))) matches.push(m);
+  if (!matches.length) return;
+  // Nothing here can be improved — every emoji in this node has already failed.
+  // Rewriting it would put the same text back and wake the observer for nothing,
+  // which is the loop itself.
+  if (matches.every((x) => failed.has(x[0]))) return;
 
   const frag = document.createDocumentFragment();
   let last = 0;
-  let m;
-  while ((m = EMOJI_RE.exec(text))) {
-    if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
-    frag.appendChild(makeImg(m[0]));
-    last = m.index + m[0].length;
+  for (const x of matches) {
+    if (x.index > last) frag.appendChild(document.createTextNode(text.slice(last, x.index)));
+    frag.appendChild(failed.has(x[0]) ? document.createTextNode(x[0]) : makeImg(x[0]));
+    last = x.index + x[0].length;
   }
   if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
   node.parentNode?.replaceChild(frag, node);

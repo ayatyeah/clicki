@@ -114,6 +114,12 @@ test('CSP allows exactly the third parties the client loads', () => {
   assert.ok(d.styleSrc.includes('https://fonts.googleapis.com'));
   assert.ok(d.fontSrc.includes('https://fonts.gstatic.com'));
   assert.ok(d.frameSrc.includes('https://www.google.com')); // reCAPTCHA
+  // This test claimed "exactly" while never looking at img-src, and the omission
+  // it missed was not cosmetic: lib/appleEmoji.js swaps every emoji on the public
+  // pages for a jsdelivr sprite, and a blocked one rebuilt itself ~60×/second
+  // forever. Anything the client fetches belongs in here.
+  assert.ok(d.imgSrc.includes('https://cdn.jsdelivr.net'), 'emoji sprites (lib/appleEmoji.js)');
+  assert.ok(d.imgSrc.includes('https://images.unsplash.com'));
 });
 
 test('CSP folds the configured object-storage host into img/media', () => {
