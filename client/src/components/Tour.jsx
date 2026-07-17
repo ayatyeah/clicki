@@ -20,8 +20,8 @@ import { createPortal } from 'react-dom';
 
 const PAD = 8; // breathing room between the element and the edge of the hole
 const GAP = 12; // hole → tooltip
-const TIP_W = 320;
 const EDGE = 12; // smallest gap the card may leave to the edge of the screen
+const MIN_TIP_H = 120; // never squeeze the card to nothing, even beside a huge target
 
 /**
  * First match that has a real box — display:none collapses to 0×0, which is
@@ -41,7 +41,7 @@ export default function Tour({ steps, open, onClose }) {
   const [i, setI] = useState(0);
   const [rect, setRect] = useState(null);
   const tipRef = useRef(null);
-  const [tipH, setTipH] = useState(0);
+  const [tipW, setTipW] = useState(0);
   // Steps carry onEnter closures that the caller rebuilds on every render;
   // holding them in a ref keeps them out of the effect deps, which would
   // otherwise re-fire the step (and its tab switch) forever.
@@ -52,6 +52,11 @@ export default function Tour({ steps, open, onClose }) {
     const el = visibleTarget(stepsRef.current[i]?.target);
     if (!el) return setRect(null);
     const r = el.getBoundingClientRect();
+    // A target that has scrolled out of the viewport gets no spotlight: a hole cut
+    // off-screen points at nothing and drags the card out with it. Falling back to
+    // the centred card at least keeps the step readable.
+    const onScreen = r.bottom > 0 && r.top < window.innerHeight && r.right > 0 && r.left < window.innerWidth;
+    if (!onScreen) return setRect(null);
     return setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
   }, [i]);
 
@@ -63,20 +68,19 @@ export default function Tour({ steps, open, onClose }) {
     if (open) setI(0);
   }, [open]);
 
-  // Measure the card rather than assume a height. Steps differ in length, and a
-  // guess is what let a long one slide off the top of a short window: it was
-  // pinned by its bottom edge to sit above the target, with nothing stopping the
-  // other end.
+  // Only the width, and only because centring needs a number. The height is
+  // deliberately never measured: see the placement below.
   //
-  // An observer rather than a measure-on-render: the height changes for reasons a
-  // dependency list doesn't see — a new step's text, a narrower window rewrapping
-  // it, a late font. Setting the same height again is a no-op, so it settles.
+  // An observer rather than a measure-on-render, because the width belongs to CSS
+  // (there is a full-width rule for phones) and changes on a resize that no
+  // dependency list would catch. Re-setting the same width is a no-op.
   useLayoutEffect(() => {
     const el = tipRef.current;
     if (!el) return undefined;
-    const ro = new ResizeObserver(() => setTipH(el.offsetHeight));
+    const read = () => setTipW((w) => (w === el.offsetWidth ? w : el.offsetWidth));
+    const ro = new ResizeObserver(read);
     ro.observe(el);
-    setTipH(el.offsetHeight);
+    read();
     return () => ro.disconnect();
   }, [open]);
 
@@ -88,9 +92,18 @@ export default function Tour({ steps, open, onClose }) {
     const step = stepsRef.current[i];
     if (!step) return undefined;
     step.onEnter?.();
-    visibleTarget(step.target)?.scrollIntoView({ block: 'center' });
-    measure();
-    const t = setTimeout(measure, 260);
+    const reveal = () => {
+      visibleTarget(step.target)?.scrollIntoView({ block: 'center' });
+      measure();
+    };
+    reveal();
+    // onEnter usually swaps the tab, and React renders that after this effect —
+    // so the scroll above was aimed at the old layout, and by the time the new one
+    // lands the target can be somewhere else entirely (off-screen, on a short
+    // window). Scrolling again once it has settled is what keeps the spotlight on
+    // something the creator can actually see. Measuring alone was not enough: it
+    // faithfully reported a target that had scrolled away.
+    const t = setTimeout(reveal, 260);
     return () => clearTimeout(t);
   }, [open, i, measure]);
 
@@ -117,19 +130,28 @@ export default function Tour({ steps, open, onClose }) {
   if (!step) return null;
   const last = i === total - 1;
 
-  // Under the element when it fits, over it otherwise, centred with no element —
-  // but clamped to the screen either way, so a tall card in a short window (a
-  // phone turned sideways) gives up its position before it gives up its title.
+  // Whichever side of the element has more room, capped to that room — centred
+  // when there is no element.
+  //
+  // Anchored by the near edge (top below the element, bottom above it) and never
+  // by a computed height: the card's height is the browser's business, and asking
+  // for it first is what broke this. A step's text changes its height, so for one
+  // frame the new, taller card was still positioned by the old card's height and
+  // hung off the screen; the measurement only caught up afterwards. Anchoring the
+  // near edge plus max-height means the layout is right in a single pass, and a
+  // card with nowhere to fit scrolls its text instead of leaving the screen.
   const clamp = (v, min, max) => Math.min(Math.max(v, min), Math.max(min, max));
   let tipStyle = {};
   if (rect) {
-    const fitsBelow = rect.top + rect.height + PAD + GAP + tipH < window.innerHeight - EDGE;
-    const wanted = fitsBelow
-      ? rect.top + rect.height + PAD + GAP
-      : rect.top - PAD - GAP - tipH;
+    const roomAbove = rect.top - PAD - GAP - EDGE;
+    const roomBelow = window.innerHeight - (rect.top + rect.height + PAD + GAP) - EDGE;
+    const below = roomBelow >= roomAbove;
     tipStyle = {
-      left: clamp(rect.left + rect.width / 2 - TIP_W / 2, EDGE, window.innerWidth - TIP_W - EDGE),
-      top: clamp(wanted, EDGE, window.innerHeight - tipH - EDGE),
+      left: clamp(rect.left + rect.width / 2 - tipW / 2, EDGE, window.innerWidth - tipW - EDGE),
+      maxHeight: Math.max(MIN_TIP_H, below ? roomBelow : roomAbove),
+      ...(below
+        ? { top: rect.top + rect.height + PAD + GAP }
+        : { bottom: window.innerHeight - rect.top + PAD + GAP }),
     };
   }
 
@@ -150,7 +172,9 @@ export default function Tour({ steps, open, onClose }) {
           <p className="tour__text" key={j}>{line}</p>
         ))}
         <div className="tour__actions">
-          <button type="button" className="btn btn--ghost btn--sm" onClick={onClose}>Пропустить</button>
+          {/* A quiet link, not a third pill: three buttons of equal weight did not
+              fit the card, and skipping was never the equal of Далее anyway. */}
+          <button type="button" className="tour__skip" onClick={onClose}>Пропустить</button>
           <div className="tour__navbtns">
             {i > 0 && <button type="button" className="btn btn--ghost btn--sm" onClick={prev}>Назад</button>}
             <button type="button" className="btn btn--primary btn--sm" onClick={last ? onClose : next}>

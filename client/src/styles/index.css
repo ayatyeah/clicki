@@ -3846,12 +3846,21 @@ canvas {
 .toast--info { background: #4f46e5; }
 
 /* Onboarding tour / coach marks (components/Tour.jsx).
-   Colours are literal, not var(--ink) & co: the tour portals into <body>, where
-   :root's dark palette applies — the light one only exists inside .page-light,
-   which is the cabinet it sits on top of. Vars here would paint white on white.
+   The tour portals into <body>, where :root's dark palette applies — the light
+   one only exists inside .page-light, which is the cabinet it sits on top of. So
+   re-declare those tokens here: without them the shared .btn--ghost renders as a
+   dark pill on the white card. Copied rather than reusing .page-light itself,
+   which also paints a full-page gradient. Keep in step with funnel-shinta.css.
    The dimming is the spotlight's own ring-shaped shadow, so the hole needs no
    mask; it glides between steps because top/left/width/height transition. */
-.tour { position: fixed; inset: 0; z-index: 1040; }
+.tour {
+  position: fixed; inset: 0; z-index: 1040;
+  --paper: #ffffff;
+  --ink: #181430;
+  --stone: #5f5b78;
+  --fog: #8f8ba6;
+  --line: rgba(124, 58, 237, 0.14);
+}
 .tour__scrim { position: fixed; inset: 0; background: rgba(10, 8, 25, 0.62); animation: lbFade 140ms ease; }
 .tour__spot {
   position: fixed;
@@ -3864,7 +3873,9 @@ canvas {
 }
 .tour__tip {
   position: fixed;
-  width: 320px; max-width: calc(100vw - 24px);
+  /* 320 left the three actions 26px short of fitting. Tour.jsx measures this
+     rather than carrying its own copy, so the width can change here alone. */
+  width: 344px; max-width: calc(100vw - 24px);
   /* Last resort for a window shorter than the card itself: scroll the text
      instead of hanging off the screen. Tour.jsx clamps the position using the
      measured height, so this only ever bites in the pathological case. */
@@ -3879,8 +3890,17 @@ canvas {
 .tour__count { font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase; color: #8f8ba6; }
 .tour__title { margin: 0; font-size: 1.05rem; color: #181430; }
 .tour__text { margin: 0; font-size: 0.9rem; line-height: 1.5; color: #5f5b78; }
-.tour__actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+/* Wraps as a guarantee: the labels are translated and the fit depends on the
+   font, so the row must degrade to two lines instead of clipping a button — the
+   card's own overflow is not visible (max-height above forces overflow-x too). */
+.tour__actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .tour__navbtns { display: flex; gap: 8px; }
+.tour__skip {
+  background: none; border: 0; padding: 4px 2px;
+  color: var(--fog); font: inherit; font-size: 0.85rem;
+  text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
+}
+.tour__skip:hover { color: var(--stone); }
 @media (max-width: 480px) {
   /* Phone: a 320px card centred on a nav icon would hang off the screen, so go
      full width and ignore the computed left. Whether the card sits above or
