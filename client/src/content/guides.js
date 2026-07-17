@@ -158,3 +158,75 @@ export const BUSINESS_GUIDE = {
     ],
   },
 };
+
+/**
+ * Coach-mark tour for the creator cabinet — the walkable twin of CREATOR_GUIDE
+ * above, rendered by components/Tour.jsx.
+ *
+ * `target` is a CSS selector resolved at runtime. The nav buttons carry
+ * data-tour="nav-<tab>" and exist twice over (desktop sidebar + mobile bottom
+ * bar); the tour spotlights whichever one is on screen.
+ *
+ * `view` is the tab to open before the step, so the section being explained is
+ * actually behind the spotlight rather than described in the abstract. The
+ * portal turns it into the step's onEnter — keeping this file plain data, the
+ * way the guides above stayed translatable.
+ *
+ * It ends on the guide tab on purpose: that is where the "Смотреть тур" button
+ * lives, so the last step leaves you looking at how to replay it — and it is
+ * also where a creator who just finished onboarding already lands.
+ */
+export const CREATOR_TOUR = [
+  {
+    title: 'Привет! Это твой кабинет',
+    body: [
+      'Покажу за минуту, где что лежит — семь коротких шагов.',
+      'Можно пропустить в любой момент и вернуться к туру из раздела «Как это работает».',
+    ],
+  },
+  {
+    view: 'overview',
+    target: '[data-tour="nav-overview"]',
+    title: 'Обзор',
+    body: 'Главный экран: баланс, уровень, стрик и XP. Здесь сразу видно, что ждёт действия — например, какие видео просят скриншот статистики.',
+  },
+  {
+    view: 'briefs',
+    target: '[data-tour="nav-briefs"]',
+    title: 'Заказы',
+    body: [
+      'Открытые брифы брендов — они доступны всем креаторам.',
+      'Открой бриф, прочитай требования и нажми «Взять заказ». Рядом показан ориентировочный заработок по средним просмотрам на этой платформе.',
+    ],
+  },
+  {
+    view: 'videos',
+    target: '[data-tour="nav-videos"]',
+    title: 'Мои видео',
+    body: [
+      'Здесь сдаёшь готовое видео по заказу и следишь за его статусом.',
+      'Каждый день загружай скриншот статистики из TikTok или Instagram — именно по нему считаются просмотры и выплата. Это главная ежедневная задача.',
+    ],
+  },
+  {
+    view: 'referrals',
+    target: '[data-tour="nav-referrals"]',
+    title: 'Рефералы',
+    body: 'Твоя личная ссылка. Приводишь бизнес — получаешь XP и бонус, когда он становится клиентом.',
+  },
+  {
+    view: 'account',
+    target: '[data-tour="nav-account"]',
+    title: 'Мой аккаунт',
+    body: 'Аватар, ниши и подключение TikTok / Instagram. Подключённые соцсети подтягивают просмотры автоматически, без ручных скриншотов.',
+  },
+  {
+    view: 'guide',
+    target: '[data-tour="nav-guide"]',
+    title: 'Как это работает',
+    body: [
+      'Подробный разбор каждого шага со скриншотами и ответами на частые вопросы.',
+      'Отсюда же можно запустить этот тур заново — кнопка «Смотреть тур» вверху раздела.',
+    ],
+  },
+];

@@ -461,6 +461,9 @@
 .brief-read__flag { font-size: 0.76rem; border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; background: #fff; color: var(--stone); }
 .brief-read__empty { color: var(--fog); font-size: 0.86rem; font-style: italic; }
 
+/* Guide tab header: title on the left, "Смотреть тур" on the right. */
+.cp-guide__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+
 /* Per-business brief history, expanded under its row in the Бизнесы table. */
 .biz-briefs { display: grid; gap: 10px; padding: 4px 0; }
 .biz-briefs__item { display: grid; gap: 10px; }

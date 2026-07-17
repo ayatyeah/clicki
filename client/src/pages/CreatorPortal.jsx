@@ -11,7 +11,8 @@ import AvatarCropper from '../components/AvatarCropper.jsx';
 import CopyButton from '../components/CopyButton.jsx';
 import EmptyState from '../components/EmptyState.jsx';
 import Guide from '../components/Guide.jsx';
-import { CREATOR_GUIDE } from '../content/guides.js';
+import Tour from '../components/Tour.jsx';
+import { CREATOR_GUIDE, CREATOR_TOUR } from '../content/guides.js';
 import { useToast } from '../components/Toast.jsx';
 
 const KEY = 'clicki_creator_token';
@@ -123,7 +124,20 @@ export default function CreatorPortal() {
   const c = data.creator;
   if (!c.onboarding_passed) return <Onboarding authFetch={authFetch} onDone={() => { setOpenGuide(true); loadMe(); }} />;
 
-  return <Dashboard data={data} authFetch={authFetch} reload={loadMe} onLogout={logout} initialView={openGuide ? 'guide' : 'overview'} />;
+  // openGuide is set the moment onboarding is completed, so it doubles as "this
+  // creator is brand new" — which is exactly who the tour should auto-run for.
+  // The 220+ creators already using the cabinet never hit that transition again,
+  // so it never ambushes them; they start it from the button in the guide.
+  return (
+    <Dashboard
+      data={data}
+      authFetch={authFetch}
+      reload={loadMe}
+      onLogout={logout}
+      initialView={openGuide ? 'guide' : 'overview'}
+      autoTour={openGuide}
+    />
+  );
 }
 
 function Shell({ children, wide = false }) {
@@ -495,9 +509,17 @@ function NotificationBell({ authFetch }) {
   );
 }
 
-function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview' }) {
+function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview', autoTour = false }) {
   const { creator: c, wallet, briefs, openBriefs = [], submissions, level } = data;
   const [view, setView] = useState(initialView);
+  const [tourOpen, setTourOpen] = useState(autoTour);
+  // guides.js stays plain data; the behaviour of a step ("open this tab") is
+  // wired here. Memoised so Tour's step effect isn't handed new closures every
+  // render. setView from useState is stable, hence the empty deps.
+  const tourSteps = useMemo(
+    () => CREATOR_TOUR.map((s) => ({ ...s, onEnter: s.view ? () => setView(s.view) : undefined })),
+    []
+  );
   // Brief pre-selected in the "Сдать видео" form after tapping "Взять в работу".
   const [takeBriefId, setTakeBriefId] = useState('');
   // A published brief is an open order for every creator; anyone can submit to it.
@@ -526,6 +548,7 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
               <button
                 key={tab.key}
                 type="button"
+                data-tour={`nav-${tab.key}`}
                 className={`cp-side__link ${view === tab.key ? 'is-active' : ''}`}
                 onClick={() => setView(tab.key)}
               >
@@ -570,6 +593,7 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
               <button
                 key={tab.key}
                 type="button"
+                data-tour={`nav-${tab.key}`}
                 aria-current={view === tab.key ? 'page' : undefined}
                 className={`cp-bottomnav__btn ${view === tab.key ? 'is-active' : ''}`}
                 onClick={() => setView(tab.key)}
@@ -649,7 +673,15 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
 
       {view === 'guide' && (
         <>
-          <h2 className="creator-portal__h2">Как это работает</h2>
+          <div className="cp-guide__head">
+            <h2 className="creator-portal__h2" style={{ margin: 0 }}>Как это работает</h2>
+            <button type="button" className="btn btn--primary btn--sm" onClick={() => setTourOpen(true)}>
+              Смотреть тур
+            </button>
+          </div>
+          <p className="creator-portal__muted" style={{ marginTop: 0 }}>
+            Тур проведёт по кабинету и покажет, где что находится. Ниже — тот же путь текстом и скриншотами.
+          </p>
           <Guide content={CREATOR_GUIDE} />
         </>
       )}
@@ -657,6 +689,7 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
           {view === 'account' && <AccountView c={c} authFetch={authFetch} reload={reload} />}
         </div>
       </div>
+      <Tour steps={tourSteps} open={tourOpen} onClose={() => setTourOpen(false)} />
     </Shell>
   );
 }
