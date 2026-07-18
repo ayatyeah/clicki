@@ -2061,6 +2061,14 @@ img.ae {
 .admin-sidebar__logout {
   margin-top: 12px;
 }
+/* Build stamp at the foot of the admin sidebar — quiet, just enough to read. */
+.admin-build {
+  margin-top: 14px;
+  font-size: 0.72rem;
+  color: var(--fog);
+  opacity: 0.75;
+  letter-spacing: 0.02em;
+}
 .admin-main {
   min-width: 0;
 }

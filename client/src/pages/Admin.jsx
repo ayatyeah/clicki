@@ -22,6 +22,23 @@ import { DecisionJournalView } from './admin/DecisionJournalView.jsx';
 const TOKEN_KEY = 'clicki_admin_token';
 const EMPTY = { showcase: [], devices: { iphone: { image: '' }, laptop: { image: '' } }, creatorVideo: '', hubVideo: '' };
 
+/**
+ * Which build is actually live. Stamped by Vite `define` at build time, so after
+ * a deploy the operator can see whether their change is on the server yet instead
+ * of guessing and hard-refreshing. Degrades to nothing if the values are absent.
+ */
+function BuildStamp() {
+  const time = typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : '';
+  const commit = typeof __BUILD_COMMIT__ !== 'undefined' ? __BUILD_COMMIT__ : '';
+  if (!time) return null;
+  const when = new Date(time).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  return (
+    <div className="admin-build" title={`Сборка ${time}${commit ? ` · ${commit}` : ''}`}>
+      Версия: {when}{commit ? ` · ${commit}` : ''}
+    </div>
+  );
+}
+
 export default function Admin() {
   const [token, setToken] = useState(() => sessionStorage.getItem(TOKEN_KEY) || '');
   const [username, setUsername] = useState('');
@@ -338,6 +355,7 @@ export default function Admin() {
           <button className="btn btn--ghost btn--sm admin-sidebar__logout" onClick={logout}>
             Выйти
           </button>
+          <BuildStamp />
         </aside>
 
         <div className="admin-main">

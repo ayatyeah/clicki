@@ -1,10 +1,22 @@
+import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// Stamped into the bundle at build time so the admin can tell at a glance whether
+// a deploy has actually gone live — instead of guessing and hammering Ctrl+F5.
+// The commit is best-effort: absent (empty) if the build env has no git.
+const BUILD_TIME = new Date().toISOString();
+let BUILD_COMMIT = '';
+try { BUILD_COMMIT = execSync('git rev-parse --short HEAD').toString().trim(); } catch { /* no git in build env */ }
+
 export default defineConfig({
+  define: {
+    __BUILD_TIME__: JSON.stringify(BUILD_TIME),
+    __BUILD_COMMIT__: JSON.stringify(BUILD_COMMIT),
+  },
   plugins: [
     react(),
     tailwindcss(),
