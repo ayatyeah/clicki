@@ -560,6 +560,36 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
   );
   // Brief pre-selected in the "Сдать видео" form after tapping "Взять в работу".
   const [takeBriefId, setTakeBriefId] = useState('');
+  const [takingId, setTakingId] = useState(null);
+  const toast = useToast();
+
+  // Take an open order: reserve a slot server-side, then open the submit form.
+  // A limited brief can fill up, so this can be refused ("мест больше нет") —
+  // surface that instead of silently sending the creator to a form they can't use.
+  const takeBrief = async (id) => {
+    if (!id || takingId) return;
+    setTakingId(id);
+    try {
+      const res = await authFetch('/api/creator/take', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brief_id: Number(id) }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok || d.ok === false) {
+        toast.error((d.errors && d.errors[0]) || 'Не удалось взять заказ');
+        reload(); // counts may have changed — refresh so a full brief drops off
+        return;
+      }
+      setTakeBriefId(String(id));
+      reload();
+      setView('videos');
+    } catch {
+      toast.error('Ошибка сети — попробуйте ещё раз');
+    } finally {
+      setTakingId(null);
+    }
+  };
   // What a creator can submit against: every open (published) order PLUS the
   // briefs assigned personally to them, deduped by brief id. The old
   // `openBriefs.length ? openBriefs : briefs` hid assigned briefs the moment any
@@ -662,7 +692,9 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
         <OrdersView
           openBriefs={openBriefs}
           briefs={briefs}
-          onTake={(id) => { setTakeBriefId(String(id || '')); setView('videos'); }}
+          onTake={takeBrief}
+          takingId={takingId}
+          onOpenMine={(id) => { setTakeBriefId(String(id || '')); setView('videos'); }}
           goProfile={() => setView('overview')}
         />
       )}
@@ -1170,7 +1202,7 @@ function ReferralsView({ authFetch, username }) {
 /** The Заказы tab: open orders (available to everyone) + orders personally
  * assigned to this creator, with a lightweight client-side sort and a
  * "how to get more orders" tip at the bottom. */
-function OrdersView({ openBriefs, briefs, onTake, goProfile }) {
+function OrdersView({ openBriefs, briefs, onTake, takingId, onOpenMine, goProfile }) {
   const [sort, setSort] = useState('new');
   // Mark the single most profitable open order as "Топ по выгоде".
   const topPayout = Math.max(0, ...openBriefs.map((b) => b.est_payout || 0));
@@ -1192,7 +1224,7 @@ function OrdersView({ openBriefs, briefs, onTake, goProfile }) {
       </div>
 
       {sorted.length ? (
-        sorted.map((b) => <BriefCard key={b.id} b={b} top={b.id === topId} onTake={onTake} />)
+        sorted.map((b) => <BriefCard key={b.id} b={b} top={b.id === topId} onTake={onTake} takingId={takingId} />)
       ) : (
         <p className="creator-portal__muted">Открытых заказов пока нет — менеджер скоро опубликует.</p>
       )}
@@ -1200,7 +1232,8 @@ function OrdersView({ openBriefs, briefs, onTake, goProfile }) {
       {briefs.length > 0 && (
         <>
           <h2 className="creator-portal__h2">Назначенные тебе</h2>
-          {briefs.map((b) => <BriefCard key={b.id} b={b} onTake={onTake} />)}
+          {/* Already taken/assigned — the button opens the submit form, not a re-take. */}
+          {briefs.map((b) => <BriefCard key={b.id} b={b} mine onTake={onOpenMine} />)}
         </>
       )}
 
@@ -1233,8 +1266,9 @@ function TileIcon({ name }) {
   );
 }
 
-function BriefCard({ b, top = false, onTake }) {
+function BriefCard({ b, top = false, onTake, takingId, mine = false }) {
   const [open, setOpen] = useState(false);
+  const taking = takingId === (b.brief_id || b.id);
   const spec = b.spec || {};
   const rows = [];
   if (b.goal) rows.push(['Цель', b.goal]);
@@ -1271,6 +1305,11 @@ function BriefCard({ b, top = false, onTake }) {
           <div className="cp-brief__badges">
             <span className="pf-badge">{b.platform === ANY_PLATFORM ? 'Любая площадка' : b.platform}</span>
             {top && <span className="pf-badge pf-badge--accent">Топ по выгоде</span>}
+            {b.slots_left != null && (
+              <span className="pf-badge pf-badge--slots">
+                {b.slots_left > 0 ? `Осталось мест: ${b.slots_left}` : 'Мест нет'}
+              </span>
+            )}
           </div>
         </div>
         {b.est_payout > 0 && (
@@ -1321,7 +1360,14 @@ function BriefCard({ b, top = false, onTake }) {
         <button type="button" className="creator-portal__link" onClick={() => setOpen((o) => !o)}>
           {open ? 'Свернуть ↑' : 'Читать весь бриф →'}
         </button>
-        <button type="button" className="btn btn--primary btn--sm cp-brief__take" onClick={() => onTake?.(b.brief_id || b.id)}>Взять в работу</button>
+        <button
+          type="button"
+          className="btn btn--primary btn--sm cp-brief__take"
+          disabled={taking}
+          onClick={() => onTake?.(b.brief_id || b.id)}
+        >
+          {mine ? 'Сдать видео →' : taking ? 'Беру…' : 'Взять в работу'}
+        </button>
       </div>
     </div>
   );

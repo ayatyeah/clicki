@@ -65,6 +65,7 @@ import {
   updateBusinessBrief,
   assignBrief,
   assignBriefMany,
+  takeBrief,
   listAssignmentsForCreator,
   createSubmission,
   listSubmissions,
@@ -1213,16 +1214,22 @@ app.post('/api/creator/upload', uploadLimiter, requireCreator, uploadImage.singl
   }
 });
 
-// Take a published order (pipeline step 4): creator self-assigns to an active brief.
+// Take a published order (pipeline step 4): creator reserves a slot on an active
+// brief. If the brief has a slot limit and it's full, the take is refused —
+// atomically, so the last slot can't be handed to two creators at once.
 app.post(
   '/api/creator/take',
   requireCreator,
   wrap(async (req, res) => {
     const briefId = Number(req.body?.brief_id);
     if (!briefId) return res.status(400).json({ ok: false, errors: ['Не указан заказ'] });
-    const brief = await getBrief(briefId);
-    if (!brief || brief.status !== 'active') return res.status(400).json({ ok: false, errors: ['Заказ недоступен'] });
-    await assignBrief(briefId, req.creator.id);
+    const result = await takeBrief(briefId, req.creator.id);
+    if (!result.ok) {
+      const msg = result.reason === 'full'
+        ? 'Мест на этот заказ больше нет — его уже взяли максимум креаторов'
+        : 'Заказ недоступен';
+      return res.status(409).json({ ok: false, errors: [msg] });
+    }
     ok(res, await creatorPayload(req.creator));
   })
 );

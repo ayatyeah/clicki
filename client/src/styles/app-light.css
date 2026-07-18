@@ -155,6 +155,8 @@
   background: rgba(124, 58, 237, 0.1);
   color: #6d28d9;
 }
+/* Slots-left badge on an order card — amber, a mild "hurry, limited" cue. */
+.app-light .pf-badge--slots { background: rgba(245, 158, 11, 0.14); color: #b45309; }
 .app-light .pf-status--pending { background: rgba(245, 158, 11, 0.14); color: #b45309; }
 .app-light .pf-status--accepted,
 .app-light .pf-status--paid { background: rgba(22, 163, 74, 0.14); color: #15803d; }

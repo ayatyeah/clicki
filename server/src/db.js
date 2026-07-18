@@ -1068,11 +1068,15 @@ export async function getBrief(id) {
  * or they were specifically assigned to it — prevents submitting against an
  * arbitrary brief_id (someone else's, or one still in moderation). */
 export async function creatorCanSubmitToBrief(creatorId, briefId) {
+  // Holding a slot (assignment) always lets you submit. Otherwise you may submit
+  // only to an active brief that is unlimited (slots = 0): a limited brief
+  // requires taking a slot first, which is what makes "only these N work on it"
+  // hold — a non-holder can't slip a video into a capped brief.
   const r = await pool.query(
     `SELECT 1 FROM briefs b
       WHERE b.id = $2 AND (
-        b.status = 'active'
-        OR EXISTS (SELECT 1 FROM assignments a WHERE a.brief_id = b.id AND a.creator_id = $1)
+        EXISTS (SELECT 1 FROM assignments a WHERE a.brief_id = b.id AND a.creator_id = $1)
+        OR (b.status = 'active' AND COALESCE(b.slots, 0) = 0)
       )`,
     [creatorId, briefId]
   );
@@ -1146,6 +1150,52 @@ export async function assignBrief(briefId, creatorId) {
     [briefId, creatorId]
   );
   return r.rows[0] || null;
+}
+
+/**
+ * A creator takes an open brief, reserving one of its slots. When slots > 0 the
+ * brief closes to everyone else once that many creators have taken it; slots = 0
+ * (or null) means unlimited — the old behaviour, unchanged.
+ *
+ * The count-then-insert runs inside a transaction under a per-brief advisory
+ * lock, so two creators racing for the last slot can't both get in — without it
+ * a 10-slot brief could hand out 11+. Returns:
+ *   { ok:true }            slot reserved
+ *   { ok:true, already }   they already held a slot (idempotent)
+ *   { ok:false, reason }   'unavailable' (not active) | 'full' (no slots left)
+ */
+export async function takeBrief(briefId, creatorId) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock(88, $1)', [briefId]); // 88 = "brief take"
+    const brief = (await client.query('SELECT status, slots FROM briefs WHERE id=$1', [briefId])).rows[0];
+    if (!brief || brief.status !== 'active') {
+      await client.query('ROLLBACK');
+      return { ok: false, reason: 'unavailable' };
+    }
+    const mine = await client.query('SELECT 1 FROM assignments WHERE brief_id=$1 AND creator_id=$2', [briefId, creatorId]);
+    if (mine.rowCount) {
+      await client.query('COMMIT');
+      return { ok: true, already: true };
+    }
+    const slots = Number(brief.slots) || 0;
+    if (slots > 0) {
+      const taken = (await client.query('SELECT COUNT(*)::int AS n FROM assignments WHERE brief_id=$1', [briefId])).rows[0].n;
+      if (taken >= slots) {
+        await client.query('ROLLBACK');
+        return { ok: false, reason: 'full' };
+      }
+    }
+    await client.query('INSERT INTO assignments (brief_id, creator_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [briefId, creatorId]);
+    await client.query('COMMIT');
+    return { ok: true };
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw e;
+  } finally {
+    client.release();
+  }
 }
 
 /**
@@ -1435,7 +1485,7 @@ export async function listActiveBriefsRanked(creatorId) {
   if (!briefs.length) return briefs;
   const settings = await getSettings();
   const minViews = settings.min_views_per_video || 2000;
-  const [ratesQ, ownAvgQ, marketAvgQ] = await Promise.all([
+  const [ratesQ, ownAvgQ, marketAvgQ, countsQ, mineQ] = await Promise.all([
     pool.query('SELECT platform, creator_rate FROM rates'),
     pool.query(
       `SELECT platform, AVG(views)::float AS avg_views, COUNT(*)::int AS n FROM submissions
@@ -1449,22 +1499,37 @@ export async function listActiveBriefsRanked(creatorId) {
         GROUP BY platform`,
       [minViews]
     ),
+    pool.query('SELECT brief_id, COUNT(*)::int AS n FROM assignments GROUP BY brief_id'),
+    pool.query('SELECT brief_id FROM assignments WHERE creator_id=$1', [creatorId]),
   ]);
   const rateByPlatform = Object.fromEntries(ratesQ.rows.map((r) => [r.platform, Number(r.creator_rate)]));
   const ownByPlatform = Object.fromEntries(ownAvgQ.rows.map((r) => [r.platform, r]));
   const marketAvgByPlatform = Object.fromEntries(marketAvgQ.rows.map((r) => [r.platform, r.avg_views]));
-  const ranked = briefs.map((b) => {
-    const rate = rateByPlatform[b.platform] || 0;
-    const own = ownByPlatform[b.platform];
-    const ownReliable = own && own.n >= MIN_SAMPLE_FOR_OWN_CREATOR_DATA;
-    const avgViews = ownReliable ? own.avg_views : marketAvgByPlatform[b.platform] || minViews;
-    return {
-      ...b,
-      est_payout: Math.round(avgViews * rate),
-      est_basis: ownReliable ? 'own' : marketAvgByPlatform[b.platform] ? 'market' : 'baseline',
-      est_sample_size: own?.n || 0,
-    };
-  });
+  const takenByBrief = Object.fromEntries(countsQ.rows.map((r) => [r.brief_id, r.n]));
+  const mine = new Set(mineQ.rows.map((r) => r.brief_id));
+  const ranked = briefs
+    // Drop briefs this creator already took (they show under "Назначенные тебе")
+    // and limited briefs that are already full — those are closed to newcomers.
+    .filter((b) => {
+      if (mine.has(b.id)) return false;
+      const slots = Number(b.slots) || 0;
+      return slots === 0 || (takenByBrief[b.id] || 0) < slots;
+    })
+    .map((b) => {
+      const rate = rateByPlatform[b.platform] || 0;
+      const own = ownByPlatform[b.platform];
+      const ownReliable = own && own.n >= MIN_SAMPLE_FOR_OWN_CREATOR_DATA;
+      const avgViews = ownReliable ? own.avg_views : marketAvgByPlatform[b.platform] || minViews;
+      const slots = Number(b.slots) || 0;
+      return {
+        ...b,
+        est_payout: Math.round(avgViews * rate),
+        est_basis: ownReliable ? 'own' : marketAvgByPlatform[b.platform] ? 'market' : 'baseline',
+        est_sample_size: own?.n || 0,
+        // slots_left = null when unlimited; a number the creator can see counting down.
+        slots_left: slots > 0 ? Math.max(0, slots - (takenByBrief[b.id] || 0)) : null,
+      };
+    });
   ranked.sort((a, b) => b.est_payout - a.est_payout);
   return ranked;
 }

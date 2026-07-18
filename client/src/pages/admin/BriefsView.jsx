@@ -122,7 +122,7 @@ export function BriefRead({ b }) {
 export function BriefsView({ authFetch, canManage = false }) {
   const [briefs, setBriefs] = useState([]);
   const [creators, setCreators] = useState([]);
-  const [form, setForm] = useState({ title: '', platform: 'TikTok', duration_min: 15, duration_max: 90, slots: 5 });
+  const [form, setForm] = useState({ title: '', platform: 'TikTok', duration_min: 15, duration_max: 90, slots: 0 });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -154,7 +154,7 @@ export function BriefsView({ authFetch, canManage = false }) {
     });
     setBusy(false);
     if (!(await check(res))) return;
-    setForm({ title: '', platform: 'TikTok', duration_min: 15, duration_max: 90, slots: 5 });
+    setForm({ title: '', platform: 'TikTok', duration_min: 15, duration_max: 90, slots: 0 });
     load();
   };
   const setF = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -185,9 +185,13 @@ export function BriefsView({ authFetch, canManage = false }) {
             <input type="number" value={form.duration_max} onChange={(e) => setF('duration_max', +e.target.value)} />
           </label>
           <label className="pf-num">Слотов
-            <input type="number" value={form.slots} onChange={(e) => setF('slots', +e.target.value)} />
+            <input type="number" min="0" value={form.slots} onChange={(e) => setF('slots', +e.target.value)} />
           </label>
         </div>
+        <p className="muted-note" style={{ textAlign: 'left', margin: 0 }}>
+          Слотов — сколько креаторов могут взять бриф в работу. Как только столько наберётся,
+          заказ закрывается для остальных. <b>0 — без лимита.</b>
+        </p>
         <button className="btn btn--primary btn--sm" onClick={create} disabled={busy}>
           {busy ? 'Создаю…' : 'Создать бриф'}
         </button>
