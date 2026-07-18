@@ -1530,13 +1530,16 @@ async function applyStreak(creatorId) {
   await pool.query('UPDATE creators SET streak=$1, freeze_tokens=$2, last_streak_date=CURRENT_DATE WHERE id=$3', [streak, freeze, creatorId]);
 }
 // Referral bonus on the referred creator's FIRST accepted video (ТЗ §4.5)
+// XP the inviter earns when a creator they referred gets their first video
+// accepted. One constant so the accrual and the analytics can't drift apart.
+const FRIEND_REFERRAL_XP = 500;
 async function handleReferralFirstAccept(creatorId) {
   const c = (await pool.query('SELECT referred_by, referral_qualified FROM creators WHERE id=$1', [creatorId])).rows[0];
   if (!c || !c.referred_by || c.referral_qualified) return;
   const n = (await pool.query(`SELECT COUNT(*)::int AS n FROM submissions WHERE creator_id=$1 AND status='accepted'`, [creatorId])).rows[0].n;
   if (n === 1) {
     await pool.query('UPDATE creators SET referral_qualified=TRUE WHERE id=$1', [creatorId]);
-    await pool.query('UPDATE creators SET xp = xp + 500, bonus_xp = bonus_xp + 500 WHERE id=$1', [c.referred_by]);
+    await pool.query('UPDATE creators SET xp = xp + $1, bonus_xp = bonus_xp + $1 WHERE id=$2', [FRIEND_REFERRAL_XP, c.referred_by]);
   }
 }
 
@@ -1566,16 +1569,27 @@ export async function getReferralLeadStats() {
 }
 /** A creator's own referral performance — leads/clients brought in via their link, with dates. */
 export async function getReferralLeadsForCreator(creatorId) {
-  const [leadsQ, clicksQ] = await Promise.all([
+  const [leadsQ, clicksQ, friendsQ] = await Promise.all([
     pool.query(
       `SELECT id, funnel, to_char(created_at,'YYYY-MM-DD HH24:MI') AS at
          FROM referral_leads WHERE creator_id=$1 ORDER BY created_at DESC`,
       [creatorId]
     ),
     pool.query('SELECT COUNT(*)::int AS people FROM ref_visits WHERE creator_id=$1', [creatorId]),
+    // Friend-referral outcomes — invited creators and how many have "qualified"
+    // (their first video accepted, which is what pays the inviter). This data
+    // always existed on creators.referred_by / referral_qualified; it just was
+    // never surfaced, so the friend link looked like it counted nothing.
+    pool.query(
+      `SELECT COUNT(*)::int AS invited,
+              COUNT(*) FILTER (WHERE referral_qualified)::int AS qualified
+         FROM creators WHERE referred_by = $1`,
+      [creatorId]
+    ),
   ]);
   const clicks = clicksQ.rows[0].people;
   const leadCount = leadsQ.rowCount;
+  const friends = friendsQ.rows[0];
   return {
     total: leadCount,
     xpPerLead: REFERRAL_LEAD_XP,
@@ -1583,6 +1597,13 @@ export async function getReferralLeadsForCreator(creatorId) {
     clicks, // unique people who opened the bio/ref link
     // Simple funnel read for the cabinet: what share of clicks turned into leads.
     conversion: clicks ? Math.round((leadCount / clicks) * 100) : null,
+    // Friend link: invited → qualified (first video accepted) → XP actually earned.
+    friends: {
+      invited: friends.invited,
+      qualified: friends.qualified,
+      xpPerFriend: FRIEND_REFERRAL_XP,
+      xpEarned: friends.qualified * FRIEND_REFERRAL_XP,
+    },
   };
 }
 

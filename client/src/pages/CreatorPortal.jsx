@@ -1130,12 +1130,36 @@ function ReferralsView({ authFetch, username }) {
           </div>
         </div>
         <p className="creator-portal__muted">
-          Отправь эту ссылку другу. <b>+500 XP</b>, когда у него засчитают первое видео.
+          Отправь эту ссылку другу. <b>+{data?.friends?.xpPerFriend ?? 500} XP</b>, когда у него засчитают первое видео.
         </p>
+
+        {/* Friend funnel: invited → snял первое видео (qualified) → XP earned. */}
+        <div className="ref-stats">
+          <div className="ref-stat">
+            <div className="ref-stat__value">{data ? (data.friends?.invited ?? 0) : '—'}</div>
+            <div className="ref-stat__label">Приглашено</div>
+          </div>
+          <div className="ref-stat__arrow" aria-hidden="true">→</div>
+          <div className="ref-stat">
+            <div className="ref-stat__value">{data ? (data.friends?.qualified ?? 0) : '—'}</div>
+            <div className="ref-stat__label">Сняли первое видео</div>
+          </div>
+          <div className="ref-stat__arrow" aria-hidden="true">→</div>
+          <div className="ref-stat">
+            <div className="ref-stat__value">{data ? (data.friends?.xpEarned ?? 0).toLocaleString('ru-RU') : '—'}</div>
+            <div className="ref-stat__label">XP заработано</div>
+          </div>
+        </div>
+
         <div className="ref-link__row">
           <input className="ref-link__input" readOnly value={friendLink} onFocus={(e) => e.target.select()} />
           <CopyButton value={friendLink} />
         </div>
+        {data?.friends?.invited > 0 && data.friends.qualified < data.friends.invited && (
+          <p className="creator-portal__muted" style={{ margin: '8px 0 0', fontSize: '0.82rem' }}>
+            {data.friends.invited - data.friends.qualified} приглашённых ещё не сняли первое видео — XP начислится, когда снимут.
+          </p>
+        )}
       </div>
     </>
   );
