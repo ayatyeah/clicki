@@ -449,6 +449,16 @@
 .mod-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .mod-note { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 12px; padding: 10px 12px; font-size: 0.86rem; color: #92400e; }
 
+/* Multi-select creator assignment (admin BriefsView → "Назначить креаторам"). */
+.assign-panel { border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 10px; background: #faf9ff; }
+.assign-panel__bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.assign-panel__search { flex: 1; min-width: 180px; }
+.assign-panel__count { font-size: 0.85rem; color: var(--stone); white-space: nowrap; }
+.assign-panel__list { max-height: 240px; overflow-y: auto; display: grid; gap: 2px; }
+.assign-panel__item { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 8px; font-size: 0.9rem; cursor: pointer; }
+.assign-panel__item:hover { background: #fff; }
+.assign-panel__actions { display: flex; gap: 8px; }
+
 /* Full brief reader in the moderation queue. The card used to show only the
    title, platform and hashtag, so an operator approved a brief for every creator
    without being able to read it. pre-wrap because dos/donts come from textareas. */

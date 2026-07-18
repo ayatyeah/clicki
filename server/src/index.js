@@ -64,6 +64,7 @@ import {
   setBriefRevision,
   updateBusinessBrief,
   assignBrief,
+  assignBriefMany,
   listAssignmentsForCreator,
   createSubmission,
   listSubmissions,
@@ -1927,6 +1928,15 @@ app.post('/api/admin/briefs/:id/revision', requireAdmin, wrap(async (req, res) =
   ok(res, { brief: await setBriefRevision(Number(req.params.id), String(req.body?.note || '').slice(0, 500)) })
 ));
 app.post('/api/admin/briefs/:id/assign', requireAdmin, wrap(async (req, res) => ok(res, { assignment: await assignBrief(Number(req.params.id), Number(req.body?.creator_id)) })));
+// Assign one brief to several creators in a single action (the "5 creators on one
+// brief" soft-launch). Capped so a fat-fingered "select all" can't assign the
+// whole roster by accident.
+app.post('/api/admin/briefs/:id/assign-many', requireAdmin, wrap(async (req, res) => {
+  const ids = Array.isArray(req.body?.creator_ids) ? req.body.creator_ids : [];
+  if (!ids.length) return res.status(400).json({ ok: false, errors: ['Выберите хотя бы одного креатора'] });
+  if (ids.length > 50) return res.status(400).json({ ok: false, errors: ['За раз можно назначить максимум 50 креаторов'] });
+  ok(res, await assignBriefMany(Number(req.params.id), ids));
+}));
 
 app.get('/api/admin/submissions', requireAdmin, wrap(async (req, res) => ok(res, { submissions: await listSubmissions(req.query.status) })));
 // CSV export for client/internal reports (ТЗ §13)

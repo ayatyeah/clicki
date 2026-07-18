@@ -1117,6 +1117,24 @@ export async function assignBrief(briefId, creatorId) {
   );
   return r.rows[0] || null;
 }
+
+/**
+ * Assign one brief to several creators at once. Returns how many assignments were
+ * actually created versus asked for — re-picking someone already assigned is a
+ * no-op (ON CONFLICT), so `assigned` can be less than `requested`, which the
+ * caller reports honestly ("3 назначено, 2 уже были").
+ */
+export async function assignBriefMany(briefId, creatorIds) {
+  const ids = [...new Set((creatorIds || []).map(Number).filter((n) => Number.isInteger(n) && n > 0))];
+  if (!ids.length) return { assigned: 0, requested: 0 };
+  const r = await pool.query(
+    `INSERT INTO assignments (brief_id, creator_id)
+     SELECT $1, x FROM unnest($2::int[]) AS x
+     ON CONFLICT (brief_id, creator_id) DO NOTHING`,
+    [briefId, ids]
+  );
+  return { assigned: r.rowCount, requested: ids.length };
+}
 export async function listAssignmentsForCreator(creatorId) {
   const r = await pool.query(
     `SELECT a.*, b.title, b.platform, b.req_hashtag, b.req_mention, b.req_cta_link,

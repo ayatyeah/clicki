@@ -204,6 +204,7 @@ function BriefModCard({ b, authFetch, creators, onChange, canManage }) {
   const [note, setNote] = useState('');
   const [showNote, setShowNote] = useState(false);
   const [showBrief, setShowBrief] = useState(false);
+  const [showAssign, setShowAssign] = useState(false);
   const call = async (url, body) => {
     setBusy(true);
     try {
@@ -265,16 +266,21 @@ function BriefModCard({ b, authFetch, creators, onChange, canManage }) {
             </button>
           )}
           <button className="btn btn--ghost btn--sm" disabled={busy} onClick={() => setShowNote((s) => !s)}>Вернуть бизнесу</button>
-          <select defaultValue="" onChange={(e) => { if (e.target.value) { call(`/api/admin/briefs/${b.id}/assign`, { creator_id: Number(e.target.value) }); e.target.value = ''; } }}>
-            <option value="">— назначить вручную —</option>
-            {creators.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+          <button className="btn btn--ghost btn--sm" disabled={busy} onClick={() => setShowAssign((s) => !s)} aria-expanded={showAssign}>
+            Назначить креаторам
+          </button>
           {canManage && (
             <button className="btn btn--danger btn--sm" disabled={busy} onClick={remove}>Удалить</button>
           )}
         </div>
+        {showAssign && (
+          <AssignCreators
+            briefId={b.id}
+            creators={creators}
+            authFetch={authFetch}
+            onDone={() => { setShowAssign(false); onChange(); }}
+          />
+        )}
         {showNote && (
           <div className="mod-actions">
             <input placeholder="Что исправить бизнесу" value={note} onChange={(e) => setNote(e.target.value)} style={{ flex: 1, minWidth: 200 }} />
@@ -282,6 +288,82 @@ function BriefModCard({ b, authFetch, creators, onChange, canManage }) {
               Отправить на доработку
             </button>
           </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Assign one brief to several creators at once — the picker behind "Назначить
+ * креаторам". A search box (220+ creators is too many to scan), a checkbox list,
+ * a running count, and one submit. Re-assigning someone already on the brief is
+ * harmless server-side, so the result is reported as "N назначено" including how
+ * many were already there.
+ */
+function AssignCreators({ briefId, creators, authFetch, onDone }) {
+  const toast = useToast();
+  const [q, setQ] = useState('');
+  const [picked, setPicked] = useState(() => new Set());
+  const [busy, setBusy] = useState(false);
+
+  const toggle = (id) => setPicked((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+
+  const needle = q.trim().toLowerCase();
+  const shown = needle
+    ? creators.filter((c) => (c.name || '').toLowerCase().includes(needle))
+    : creators;
+
+  const submit = async () => {
+    if (!picked.size || busy) return;
+    setBusy(true);
+    try {
+      const res = await authFetch(`/api/admin/briefs/${briefId}/assign-many`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ creator_ids: [...picked] }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok || d.ok === false) { toast.error((d.errors && d.errors[0]) || 'Не удалось назначить'); return; }
+      const already = (d.requested || 0) - (d.assigned || 0);
+      toast.success(`Назначено: ${d.assigned}${already > 0 ? ` (ещё ${already} уже были на брифе)` : ''}`);
+      onDone();
+    } catch {
+      toast.error('Ошибка сети — попробуйте ещё раз');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="assign-panel">
+      <div className="assign-panel__bar">
+        <input
+          className="assign-panel__search"
+          placeholder="Поиск креатора…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        <span className="assign-panel__count">Выбрано: {picked.size}</span>
+      </div>
+      <div className="assign-panel__list">
+        {shown.length ? shown.map((c) => (
+          <label key={c.id} className="assign-panel__item">
+            <input type="checkbox" checked={picked.has(c.id)} onChange={() => toggle(c.id)} />
+            <span>{c.name}{c.username ? ` · @${c.username}` : ''}</span>
+          </label>
+        )) : <p className="muted-note" style={{ margin: 0 }}>Никого не найдено</p>}
+      </div>
+      <div className="assign-panel__actions">
+        <button className="btn btn--primary btn--sm" disabled={!picked.size || busy} onClick={submit}>
+          {busy ? 'Назначаю…' : `Назначить${picked.size ? ` (${picked.size})` : ''}`}
+        </button>
+        {picked.size > 0 && (
+          <button className="btn btn--ghost btn--sm" disabled={busy} onClick={() => setPicked(new Set())}>Сбросить</button>
         )}
       </div>
     </div>

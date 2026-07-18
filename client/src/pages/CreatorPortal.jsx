@@ -558,8 +558,23 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
   );
   // Brief pre-selected in the "Сдать видео" form after tapping "Взять в работу".
   const [takeBriefId, setTakeBriefId] = useState('');
-  // A published brief is an open order for every creator; anyone can submit to it.
-  const submitBriefs = openBriefs.length ? openBriefs : briefs;
+  // What a creator can submit against: every open (published) order PLUS the
+  // briefs assigned personally to them, deduped by brief id. The old
+  // `openBriefs.length ? openBriefs : briefs` hid assigned briefs the moment any
+  // broadcast order existed — so a creator assigned one brief among five couldn't
+  // pick it in the submit form. Both list shapes resolve their brief id the same
+  // way the <option> does: brief_id (assignments) or id (open briefs).
+  const submitBriefs = (() => {
+    const seen = new Set();
+    const out = [];
+    for (const x of [...openBriefs, ...briefs]) {
+      const key = x.brief_id || x.id;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(x);
+    }
+    return out;
+  })();
   const firstName = (c.name || '').split(' ')[0] || c.name;
   // How many live videos still need today's stats screenshot — surfaced up here
   // so the creator sees the daily task without opening each video card.
