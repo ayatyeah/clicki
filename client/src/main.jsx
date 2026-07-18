@@ -30,6 +30,45 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>
 );
 
+// Stale-client self-recovery. Hundreds of people visited before the service
+// worker was fixed (mid-July) and may carry an old, stubborn worker that serves
+// a stale shell — the kind that only "clear site data" fixed by hand. This makes
+// it fix itself: compare the running build id to the one the server reports; on a
+// mismatch, tear down the old worker + caches once and reload onto the fresh
+// build. Guarded so it can reload at most once per session (no loop), and clears
+// the guard when versions match so a later deploy in the same session still heals.
+async function ensureFreshBuild() {
+  const mine = typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : '';
+  if (!mine) return;
+  try {
+    const res = await fetch('/version.json', { cache: 'no-store' });
+    if (!res.ok) return;
+    const { build } = await res.json();
+    if (!build) return;
+    if (build === mine) {
+      sessionStorage.removeItem('clicki_stale_reload');
+      return;
+    }
+    if (sessionStorage.getItem('clicki_stale_reload')) return; // already tried this session
+    sessionStorage.setItem('clicki_stale_reload', '1');
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+    }
+    if (window.caches) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    }
+    window.location.reload();
+  } catch {
+    /* offline or no endpoint (dev) — leave the app as is */
+  }
+}
+ensureFreshBuild();
+window.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') ensureFreshBuild();
+});
+
 // Service worker: keep the app self-updating so users never need a hard reload.
 // A freshly deployed SW skips waiting and claims control (see vite.config PWA);
 // when that new SW takes over we reload the page once so the running tab swaps to

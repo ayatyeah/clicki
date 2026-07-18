@@ -50,7 +50,7 @@ export default [
       ecmaVersion: 2023,
       sourceType: 'module',
       // __BUILD_TIME__ / __BUILD_COMMIT__ are replaced at build by Vite `define`.
-      globals: { ...globals.browser, __BUILD_TIME__: 'readonly', __BUILD_COMMIT__: 'readonly' },
+      globals: { ...globals.browser, __BUILD_TIME__: 'readonly', __BUILD_COMMIT__: 'readonly', __BUILD_ID__: 'readonly' },
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
     plugins: { react, 'react-hooks': reactHooks },

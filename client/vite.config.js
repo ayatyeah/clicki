@@ -1,4 +1,5 @@
 import { execSync } from 'node:child_process';
+import { writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
@@ -11,15 +12,33 @@ import { VitePWA } from 'vite-plugin-pwa';
 const BUILD_TIME = new Date().toISOString();
 let BUILD_COMMIT = '';
 try { BUILD_COMMIT = execSync('git rev-parse --short HEAD').toString().trim(); } catch { /* no git in build env */ }
+// One id per build for the stale-client self-recovery: the running bundle carries
+// it baked in, and dist/version.json serves the current one — a mismatch means
+// the client is stale. Commit when git is available, else the build timestamp;
+// either way it changes every deploy.
+const BUILD_ID = BUILD_COMMIT || String(Date.parse(BUILD_TIME));
 
 export default defineConfig({
   define: {
     __BUILD_TIME__: JSON.stringify(BUILD_TIME),
     __BUILD_COMMIT__: JSON.stringify(BUILD_COMMIT),
+    __BUILD_ID__: JSON.stringify(BUILD_ID),
   },
   plugins: [
     react(),
     tailwindcss(),
+    // Emit dist/version.json — the current build id, served fresh (no-cache) so a
+    // stale client can compare it to its own baked id and self-heal.
+    {
+      name: 'clicki-version-json',
+      closeBundle() {
+        try {
+          const dir = fileURLToPath(new URL('./dist', import.meta.url));
+          mkdirSync(dir, { recursive: true });
+          writeFileSync(`${dir}/version.json`, JSON.stringify({ build: BUILD_ID }));
+        } catch { /* non-fatal */ }
+      },
+    },
     VitePWA({
       registerType: 'autoUpdate',
       // main.jsx registers the SW itself (it also checks for updates on focus and

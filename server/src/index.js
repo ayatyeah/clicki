@@ -2160,7 +2160,9 @@ if (existsSync(CLIENT_DIST)) {
         // Update-critical files must always revalidate, otherwise the browser (or
         // the DO edge) keeps serving a stale service worker / HTML and users are
         // stuck on an old build until a manual hard reload.
-        if (name === 'sw.js' || name === 'index.html' || name.endsWith('.webmanifest')) {
+        if (name === 'sw.js' || name === 'index.html' || name.endsWith('.webmanifest') || name === 'version.json') {
+          // version.json drives the stale-client check — it must never be cached
+          // by the browser or the DO edge, or a stuck client can't learn it's stale.
           res.setHeader('Cache-Control', 'no-cache');
         } else if (/-[A-Za-z0-9_-]{8,}\.[a-z0-9]+$/i.test(name)) {
           // Content-hashed build assets (JS/CSS/workbox) — safe to cache forever.
