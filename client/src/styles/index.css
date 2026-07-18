@@ -2125,6 +2125,18 @@ img.ae {
   flex: 1 1 72px;
   min-width: 0;
 }
+/* Labelled numeric field in a pf-row: caption above the input (мин.сек / макс.сек
+   / слотов), so a pre-filled number isn't a mystery once its placeholder is gone. */
+.pf-num {
+  flex: 1 1 72px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.74rem;
+  color: var(--fog);
+}
+.pf-num input { flex: 0 0 auto; width: 100%; }
 /* Stacked grid form: each control fills the column (prevents mobile overflow) */
 .pf-form:not(.pf-form--row) > input,
 .pf-form:not(.pf-form--row) > select {

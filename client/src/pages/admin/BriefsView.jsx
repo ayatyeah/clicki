@@ -178,9 +178,15 @@ export function BriefsView({ authFetch, canManage = false }) {
           <input type="checkbox" checked={!!form.req_mention} onChange={(e) => setF('req_mention', e.target.checked)} /> упоминание бренда в первые 3 сек
         </label>
         <div className="pf-row">
-          <input type="number" placeholder="мин сек" value={form.duration_min} onChange={(e) => setF('duration_min', +e.target.value)} />
-          <input type="number" placeholder="макс сек" value={form.duration_max} onChange={(e) => setF('duration_max', +e.target.value)} />
-          <input type="number" placeholder="слотов" value={form.slots} onChange={(e) => setF('slots', +e.target.value)} />
+          <label className="pf-num">Мин. сек
+            <input type="number" value={form.duration_min} onChange={(e) => setF('duration_min', +e.target.value)} />
+          </label>
+          <label className="pf-num">Макс. сек
+            <input type="number" value={form.duration_max} onChange={(e) => setF('duration_max', +e.target.value)} />
+          </label>
+          <label className="pf-num">Слотов
+            <input type="number" value={form.slots} onChange={(e) => setF('slots', +e.target.value)} />
+          </label>
         </div>
         <button className="btn btn--primary btn--sm" onClick={create} disabled={busy}>
           {busy ? 'Создаю…' : 'Создать бриф'}
