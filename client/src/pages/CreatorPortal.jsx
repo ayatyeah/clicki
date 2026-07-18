@@ -1038,7 +1038,6 @@ function OverviewHome({ c, wallet, submissions, briefs, forecast, go }) {
                 <b>{o.title || o.brief_title || o.platform}</b>
                 <span className="cp-order__sub">{o.platform} · {o._kind === 'submission' ? orderLabel(o) : 'назначен вам'}</span>
               </div>
-              {o.est_payout > 0 && <span className="cp-order__pay">≈ {nfmt(o.est_payout)} ₸</span>}
               <span className="cp-order__chev" aria-hidden="true">→</span>
             </button>
           ))}
@@ -1312,22 +1311,8 @@ function BriefCard({ b, top = false, onTake, takingId, mine = false }) {
             )}
           </div>
         </div>
-        {b.est_payout > 0 && (
-          <div className="cp-brief__price">
-            <span className="cp-brief__price-val">≈ {b.est_payout.toLocaleString('ru-RU')} ₸</span>
-            <span className="cp-brief__price-unit">за видео</span>
-          </div>
-        )}
       </div>
 
-      {b.est_payout > 0 && (
-        <p className="cp-brief__est">
-          Ожидаемо ~<b>{b.est_payout.toLocaleString('ru-RU')} ₸</b> за видео
-          {b.est_basis === 'own' && ` (по твоим ${b.est_sample_size} видео на этой площадке)`}
-          {b.est_basis === 'market' && ' (по среднему охвату на платформе)'}
-          {b.est_basis === 'baseline' && ' (ориентир, данных пока нет)'}
-        </p>
-      )}
       {b.platform === ANY_PLATFORM && (
         <p className="cp-brief__msg">📱 Снимай на любой площадке — TikTok, Reels, Shorts. Платформу выберешь, когда будешь сдавать видео.</p>
       )}
