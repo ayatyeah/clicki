@@ -372,6 +372,22 @@ export async function initDb() {
       )`);
     await client.query('CREATE INDEX IF NOT EXISTS ref_visits_creator_idx ON ref_visits (creator_id)');
 
+    // A lead clicking through from a creator's mini-page to a brand's own site
+    // (the brand plaque → req_cta_link). Attributed to the brief (hence the
+    // business) and the creator who sent them, deduped per visitor per day so a
+    // refresh doesn't inflate it. This is what will let us tell a business, later,
+    // "N creators promoted your brief and M leads clicked through to you."
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS brand_clicks (
+        brief_id INTEGER NOT NULL REFERENCES briefs(id) ON DELETE CASCADE,
+        creator_id INTEGER NOT NULL REFERENCES creators(id) ON DELETE CASCADE,
+        visitor VARCHAR(64) NOT NULL,
+        day_key DATE NOT NULL DEFAULT CURRENT_DATE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (brief_id, creator_id, visitor, day_key)
+      )`);
+    await client.query('CREATE INDEX IF NOT EXISTS brand_clicks_brief_idx ON brand_clicks (brief_id)');
+
     // Presence: last authenticated request per account. Powers "online now" on
     // the admin health page. Written at most once a minute per account (see
     // touchSeen), so it costs effectively nothing on the hot path.
@@ -889,7 +905,7 @@ export async function getCreatorPublicPage(username) {
     id: creator.id,
     name: creator.name,
     socials: creator.socials || '',
-    brandLinks: r.rows.map((row) => ({ title: row.title, url: row.req_cta_link, brand: row.company || row.business_name || null })),
+    brandLinks: r.rows.map((row) => ({ briefId: row.id, title: row.title, url: row.req_cta_link, brand: row.company || row.business_name || null })),
   };
 }
 export async function getCreatorByToken(token) {
@@ -1613,6 +1629,16 @@ export async function recordRefVisit(creatorId, visitor) {
   await pool.query(
     'INSERT INTO ref_visits (creator_id, visitor) VALUES ($1, $2) ON CONFLICT (creator_id, visitor, day_key) DO NOTHING',
     [creatorId, visitor]
+  );
+}
+
+/** Count one lead click-through from a creator's page to a brand's site, deduped
+ *  per visitor per day. Attributed to the brief (→ business) and the creator. */
+export async function recordBrandClick(briefId, creatorId, visitor) {
+  if (!briefId || !creatorId || !visitor) return;
+  await pool.query(
+    'INSERT INTO brand_clicks (brief_id, creator_id, visitor) VALUES ($1, $2, $3) ON CONFLICT (brief_id, creator_id, visitor, day_key) DO NOTHING',
+    [briefId, creatorId, visitor]
   );
 }
 

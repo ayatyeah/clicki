@@ -135,6 +135,7 @@ import {
   listStatScreenshots,
   getLastScreenshotAt,
   recordRefVisit,
+  recordBrandClick,
   createAnnouncement,
   listAnnouncements,
   deleteAnnouncement,
@@ -377,6 +378,34 @@ app.get('/api/creator-page/:login', async (req, res) => {
   } catch (err) {
     console.error('[creator-page]', err.message);
     res.status(500).json({ ok: false, errors: ['Ошибка'] });
+  }
+});
+
+// Brand plaque on a creator's mini-page → the brand's own site, counted on the
+// way through. The destination comes from the brief in the DB (not the query),
+// validated with safeHttpUrl, so this can't be turned into an open redirect.
+// ?ref=<creatorId> is attribution only. Best-effort recording never blocks the
+// redirect. GET so a plain <a href> works with no JS.
+app.get('/api/go/brand/:briefId', async (req, res) => {
+  try {
+    const briefId = Number(req.params.briefId);
+    const brief = briefId ? await getBrief(briefId) : null;
+    const dest = brief ? safeHttpUrl(brief.req_cta_link) : null;
+    if (!dest) return res.redirect(302, '/'); // unknown brief / no valid link → home
+    const creatorId = Number(req.query.ref) || null;
+    if (creatorId) {
+      const dayKey = new Date().toISOString().slice(0, 10);
+      const visitor = crypto
+        .createHash('sha256')
+        .update((req.ip || '') + (req.headers['user-agent'] || '') + dayKey)
+        .digest('hex')
+        .slice(0, 32);
+      recordBrandClick(briefId, creatorId, visitor).catch((err) => console.error('[brand-click]', err.message));
+    }
+    return res.redirect(302, dest);
+  } catch (err) {
+    console.error('[brand-go]', err.message);
+    return res.redirect(302, '/');
   }
 });
 

@@ -84,10 +84,12 @@ export default function CreatorMiniPage({ legacyRedirect = false }) {
 
         {page.brandLinks.length > 0 && (
           <div className="creator-page__brands">
-            {page.brandLinks.map((b) => (
+            {/* Через наш трекинг-редирект: он засчитает переход и перекинет на сайт
+                бренда. Показываем плашку только если у брифа есть валидная ссылка. */}
+            {page.brandLinks.filter((b) => safeHref(b.url)).map((b) => (
               <a
-                key={b.id}
-                href={safeHref(b.url)}
+                key={b.briefId}
+                href={`${API_BASE}/api/go/brand/${b.briefId}?ref=${page.id}`}
                 target="_blank"
                 rel="noreferrer"
                 className="creator-page__brand"
