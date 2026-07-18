@@ -1079,15 +1079,22 @@ export async function creatorCanSubmitToBrief(creatorId, briefId) {
   return r.rowCount > 0;
 }
 export async function createBrief(b) {
+  // Born as a draft ('new'), NOT live. Previously this hardcoded 'active', so a
+  // brief was public to every creator the instant "Создать бриф" was clicked —
+  // there was no moment to assign it to a chosen few first. The operator now
+  // decides after creating: "Опубликовать всем" or "Назначить выбранным". Only an
+  // explicit status:'active' from the caller publishes on create.
+  const status = b.status === 'active' ? 'active' : 'new';
   const r = await pool.query(
     `INSERT INTO briefs
       (title, goal, audience, key_message, platform, duration_min, duration_max,
        req_hashtag, req_mention, req_cta_link, dos, donts, tone, refs, slots, status)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'active') RETURNING *`,
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
     [
       b.title, b.goal || null, b.audience || null, b.key_message || null, b.platform,
       b.duration_min || 15, b.duration_max || 90, b.req_hashtag || null, !!b.req_mention,
       b.req_cta_link || null, b.dos || null, b.donts || null, b.tone || null, b.refs || null, b.slots || 0,
+      status,
     ]
   );
   return r.rows[0];

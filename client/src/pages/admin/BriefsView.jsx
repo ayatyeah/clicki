@@ -185,6 +185,10 @@ export function BriefsView({ authFetch, canManage = false }) {
         <button className="btn btn--primary btn--sm" onClick={create} disabled={busy}>
           {busy ? 'Создаю…' : 'Создать бриф'}
         </button>
+        <p className="muted-note" style={{ textAlign: 'left', margin: 0 }}>
+          Бриф создаётся черновиком — он не виден креаторам, пока в списке ниже вы не нажмёте
+          «🌐 Опубликовать всем» или «👥 Назначить выбранным».
+        </p>
       </div>
 
       <p className="muted-note" style={{ textAlign: 'left', marginTop: 16 }}>
