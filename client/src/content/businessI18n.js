@@ -146,6 +146,8 @@ const EN = {
   'Принять работу': 'Accept work',
   'Принимаю…': 'Accepting…',
   'Не удалось принять работу': 'Couldn’t accept the work',
+  'Не удалось принять работу — проверьте связь и попробуйте ещё раз.':
+    'Couldn’t accept the work — check your connection and try again.',
   'Работ на приёмке пока нет.': 'Nothing to review yet.',
   'Принятых работ пока нет.': 'No accepted work yet.',
   ссылка: 'link',

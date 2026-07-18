@@ -589,6 +589,11 @@ function ReviewView({ incoming, accepted, authFetch, reload }) {
         return;
       }
       reload();
+    } catch {
+      // Without this a dropped connection threw silently: the button reset to its
+      // idle label with no error, so the brand thought the work was accepted while
+      // no payout was ever created and the creator went unpaid. Say it failed.
+      setError(t('Не удалось принять работу — проверьте связь и попробуйте ещё раз.'));
     } finally {
       setAcceptingId(null);
     }
