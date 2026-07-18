@@ -891,14 +891,20 @@ export async function getCreatorByUsername(username) {
 export async function getCreatorPublicPage(username) {
   const creator = await getCreatorByUsername(username);
   if (!creator) return null;
+  // Show a brand plaque from the moment the creator submits a video for the
+  // brief — not only once it's accepted. The gap between submitting and our
+  // confirmation (plus views accruing) can be days, and the ref link lives
+  // permanently in the creator's bio, so a lead clicking during that window must
+  // still see the brand and reach its site. `status <> 'rejected'` covers the
+  // whole in-flight lifecycle; a rejected video drops off.
   const r = await pool.query(
-    `SELECT b.id, b.title, b.req_cta_link, ba.company, ba.name AS business_name, MAX(s.reviewed_at) AS last_accepted
+    `SELECT b.id, b.title, b.req_cta_link, ba.company, ba.name AS business_name, MAX(s.id) AS recency
        FROM submissions s
        JOIN briefs b ON b.id = s.brief_id
        LEFT JOIN business_accounts ba ON ba.id = b.business_id
-      WHERE s.creator_id = $1 AND s.status = 'accepted' AND b.req_cta_link IS NOT NULL AND b.req_cta_link <> ''
+      WHERE s.creator_id = $1 AND s.status <> 'rejected' AND b.req_cta_link IS NOT NULL AND b.req_cta_link <> ''
       GROUP BY b.id, b.title, b.req_cta_link, ba.company, ba.name
-      ORDER BY last_accepted DESC NULLS LAST`,
+      ORDER BY recency DESC`,
     [creator.id]
   );
   return {
