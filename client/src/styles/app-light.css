@@ -288,6 +288,9 @@
   box-shadow: var(--shadow-soft);
 }
 .bp-card__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+/* Long brief title must wrap and let the status badge keep its place, not shove
+   it off the card — min-width:0 lets the flex title shrink below its content. */
+.bp-card__head b { min-width: 0; overflow-wrap: anywhere; }
 .bp-card--skeleton {
   height: 140px;
   background: linear-gradient(90deg, var(--veil, #f1eefb) 25%, var(--line) 37%, var(--veil, #f1eefb) 63%);
@@ -447,7 +450,7 @@
 .mod-ai { background: rgba(124, 58, 237, 0.07); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-size: 0.88rem; }
 .mod-ai__score { font-weight: 600; color: #6d28d9; }
 .mod-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.mod-note { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 12px; padding: 10px 12px; font-size: 0.86rem; color: #92400e; }
+.mod-note { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 12px; padding: 10px 12px; font-size: 0.86rem; color: #92400e; overflow-wrap: anywhere; }
 
 /* Who a brief currently reaches (admin BriefsView). "Всем" is amber on purpose —
    it's the broad, careful action; targeted/none are calm. */
@@ -547,6 +550,7 @@
   background: rgba(245, 158, 11, 0.1);
   color: #92400e;
   font-size: 0.9rem;
+  overflow-wrap: anywhere;
 }
 .creator-portal__row-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .creator-portal__chip {
@@ -569,7 +573,11 @@
   border-top: 1px solid var(--line);
   padding-top: 14px;
 }
-.brief-detail__row { display: grid; grid-template-columns: 160px 1fr; gap: 14px; align-items: baseline; }
+/* minmax(0,1fr), not the default minmax(auto,1fr): without the 0-min, a long
+   unbreakable value (a CTA URL) sets the track's min width to its own min-content
+   and blows the whole grid — and every row with it — far past the screen, cutting
+   off text. Paired with overflow-wrap:anywhere on dd, the value breaks and fits. */
+.brief-detail__row { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 14px; align-items: baseline; }
 .brief-detail dt {
   margin: 0;
   font-family: var(--font-mono);
@@ -578,7 +586,7 @@
   text-transform: uppercase;
   color: var(--fog);
 }
-.brief-detail dd { margin: 0; color: var(--ink); }
+.brief-detail dd { margin: 0; color: var(--ink); min-width: 0; overflow-wrap: anywhere; }
 @media (max-width: 520px) {
   .brief-detail__row { grid-template-columns: 1fr; gap: 3px; }
 }
@@ -647,7 +655,7 @@
   letter-spacing: -0.02em;
 }
 .cp-brief__heading { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
-.cp-brief__title { color: var(--ink); font-weight: 600; font-size: 1.05rem; line-height: 1.25; }
+.cp-brief__title { color: var(--ink); font-weight: 600; font-size: 1.05rem; line-height: 1.25; overflow-wrap: anywhere; }
 .cp-brief__badges { display: flex; flex-wrap: wrap; gap: 6px; }
 .cp-brief__price { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
 .cp-brief__price-val { color: #7c3aed; font-weight: 700; font-size: 1.15rem; white-space: nowrap; }
@@ -655,7 +663,7 @@
 
 .cp-brief__est { color: var(--stone); font-size: 0.9rem; margin: 12px 0 0; }
 .cp-brief__est b { color: var(--ink); }
-.cp-brief__msg { color: var(--ink); margin: 8px 0 0; }
+.cp-brief__msg { color: var(--ink); margin: 8px 0 0; overflow-wrap: anywhere; }
 
 .cp-brief__tiles {
   display: grid;
@@ -1016,6 +1024,7 @@
 .cp-vid__note {
   margin: 6px 0 0; font-size: 0.85rem; color: #92400e; background: #fff7ed;
   border: 1px solid #fed7aa; border-radius: 8px; padding: 6px 10px;
+  overflow-wrap: anywhere;
 }
 /* Stands in for the daily uploader when TikTok reports the views for us. Green,
    because it is good news — one less chore — not a warning. */
@@ -1299,4 +1308,5 @@
   margin: 10px 0 0; padding: 10px 12px; border-radius: 10px;
   background: rgba(124, 58, 237, 0.06); border: 1px solid var(--line);
   color: var(--stone); font-size: 0.88rem; line-height: 1.5;
+  overflow-wrap: anywhere;
 }
