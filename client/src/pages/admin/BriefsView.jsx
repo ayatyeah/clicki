@@ -178,14 +178,18 @@ export function BriefsView({ authFetch, canManage = false }) {
           <input type="checkbox" checked={!!form.req_mention} onChange={(e) => setF('req_mention', e.target.checked)} /> упоминание бренда в первые 3 сек
         </label>
         <div className="pf-row">
+          {/* `value={x || ''}` + empty→0 so the field can actually be cleared on a
+             phone. A raw controlled number input snaps an empty value back to "0"
+             (+'' === 0), which is the stuck zero you couldn't delete. Server
+             backfills sane defaults (duration 15/90, slots 0). */}
           <label className="pf-num">Мин. сек
-            <input type="number" value={form.duration_min} onChange={(e) => setF('duration_min', +e.target.value)} />
+            <input type="number" min="0" inputMode="numeric" value={form.duration_min || ''} onChange={(e) => setF('duration_min', e.target.value === '' ? 0 : Math.max(0, +e.target.value))} />
           </label>
           <label className="pf-num">Макс. сек
-            <input type="number" value={form.duration_max} onChange={(e) => setF('duration_max', +e.target.value)} />
+            <input type="number" min="0" inputMode="numeric" value={form.duration_max || ''} onChange={(e) => setF('duration_max', e.target.value === '' ? 0 : Math.max(0, +e.target.value))} />
           </label>
           <label className="pf-num">Слотов
-            <input type="number" min="0" value={form.slots} onChange={(e) => setF('slots', +e.target.value)} />
+            <input type="number" min="0" inputMode="numeric" placeholder="0" value={form.slots || ''} onChange={(e) => setF('slots', e.target.value === '' ? 0 : Math.max(0, +e.target.value))} />
           </label>
         </div>
         <p className="muted-note" style={{ textAlign: 'left', margin: 0 }}>
