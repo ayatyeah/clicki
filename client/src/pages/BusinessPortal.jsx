@@ -229,7 +229,6 @@ function AuthForm({ endpoint, onAuthed, register, toRegister }) {
 const NAV = [
   { key: 'home', label: 'Главная', short: 'Главная', icon: 'home' },
   { key: 'briefs', label: 'Брифы', short: 'Брифы', icon: 'briefs' },
-  { key: 'review', label: 'Приёмка', short: 'Приёмка', icon: 'check' },
   { key: 'analytics', label: 'Аналитика', short: 'Стата', icon: 'chart' },
   { key: 'guide', label: 'Как это работает', short: 'Гайд', icon: 'help' },
   { key: 'profile', label: 'Профиль', short: 'Профиль', icon: 'user' },
@@ -242,7 +241,6 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
   const b = data.business;
   const briefs = data.briefs || [];
   const submissions = data.submissions || [];
-  const incoming = submissions.filter((s) => s.status === 'sent_to_business');
   const accepted = submissions.filter((s) => s.status === 'accepted');
   const go = (key) => setView(key);
 
@@ -301,10 +299,9 @@ function Dashboard({ data, authFetch, reload, onLogout }) {
             </nav>
 
             {view === 'home' && (
-              <Home briefs={briefs} submissions={submissions} incoming={incoming} accepted={accepted} go={go} />
+              <Home briefs={briefs} submissions={submissions} accepted={accepted} go={go} />
             )}
             {view === 'briefs' && <BriefsView briefs={briefs} authFetch={authFetch} reload={reload} />}
-            {view === 'review' && <ReviewView incoming={incoming} accepted={accepted} authFetch={authFetch} reload={reload} />}
             {view === 'analytics' && <Analytics accepted={accepted} authFetch={authFetch} b={b} />}
             {view === 'guide' && (
               <section className="admin-block">
@@ -333,48 +330,67 @@ function Stat({ label, value, hint }) {
 const sumViews = (subs) => subs.reduce((a, s) => a + (s.views || 0), 0);
 
 /* ---------------- Home ---------------- */
-function Home({ briefs, submissions, incoming, accepted, go }) {
+function Home({ briefs, submissions, accepted, go }) {
   const { lang } = useLang();
   const t = (s) => bt(lang, s);
   const activeBriefs = briefs.filter((x) => x.status === 'active').length;
   const recent = submissions.slice(0, 6);
+  const totalViews = sumViews(accepted);
+  // Compact platform breakdown — the same shape Analytics shows in full, surfaced
+  // here so the brand lands straight on its numbers.
+  const byPlatform = {};
+  for (const s of accepted) byPlatform[s.platform] = (byPlatform[s.platform] || 0) + (s.views || 0);
+  const platformRows = Object.entries(byPlatform).sort((a, b) => b[1] - a[1]);
   return (
     <section className="admin-block">
       <p className="muted-note" style={{ textAlign: 'left', marginTop: 0 }}>
-        {t('запускайте брифы и принимайте готовые работы.')}
+        {t('ваши охваты и работы — сразу здесь, подробности в разделе «Аналитика».')}
       </p>
 
       <div className="cp-kpis">
         <div className="cp-kpi">
-          <div className="cp-kpi__label">{t('Активные брифы')}</div>
-          <div className="cp-kpi__value">{activeBriefs}</div>
-          <div className="cp-kpi__sub">{t('всего')} {briefs.length}</div>
-        </div>
-        <div className="cp-kpi">
-          <div className="cp-kpi__label">{t('На приёмке')}</div>
-          <div className="cp-kpi__value">{incoming.length}</div>
-          {incoming.length > 0 && <button className="btn btn--primary btn--sm cp-kpi__btn" onClick={() => go('review')}>{t('Открыть приёмку')}</button>}
+          <div className="cp-kpi__label">{t('Суммарный охват')}</div>
+          <div className="cp-kpi__value">{totalViews.toLocaleString('ru-RU')}</div>
+          <div className="cp-kpi__sub">{t('просмотров')}</div>
         </div>
         <div className="cp-kpi">
           <div className="cp-kpi__label">{t('Принято работ')}</div>
           <div className="cp-kpi__value">{accepted.length}</div>
         </div>
         <div className="cp-kpi">
-          <div className="cp-kpi__label">{t('Суммарный охват')}</div>
-          <div className="cp-kpi__value">{sumViews(accepted).toLocaleString('ru-RU')}</div>
-          <div className="cp-kpi__sub">{t('просмотров')}</div>
+          <div className="cp-kpi__label">{t('Площадок')}</div>
+          <div className="cp-kpi__value">{platformRows.length}</div>
+        </div>
+        <div className="cp-kpi">
+          <div className="cp-kpi__label">{t('Активные брифы')}</div>
+          <div className="cp-kpi__value">{activeBriefs}</div>
+          <div className="cp-kpi__sub">{t('всего')} {briefs.length}</div>
         </div>
       </div>
+
+      <div className="admin-panel__head">
+        <h3 className="admin-block__title admin-subhead">{t('Просмотры по платформам')}</h3>
+        <button className="btn btn--ghost btn--sm" onClick={() => go('analytics')}>{t('Вся аналитика')} →</button>
+      </div>
+      {platformRows.length ? (
+        <div className="bp-bars">
+          {platformRows.map(([p, v]) => (
+            <div key={p} className="bp-bar">
+              <span className="bp-bar__label">{p}</span>
+              <span className="bp-bar__track"><span className="bp-bar__fill" style={{ width: `${totalViews ? Math.round((v / totalViews) * 100) : 0}%` }} /></span>
+              <span className="bp-bar__val">{v.toLocaleString('ru-RU')}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="muted-note" style={{ textAlign: 'left' }}>{t('Данных пока нет — появятся после принятых работ.')}</p>
+      )}
 
       <h3 className="admin-block__title admin-subhead">{t('Быстрый доступ')}</h3>
       <div className="bp-quick">
         <button className="bp-quick__tile" onClick={() => go('briefs')}>
           <span className="bp-quick__icon" aria-hidden="true"><Icon name="briefs" /></span>
           <span><b>{t('Создать бриф')}</b><span className="bp-quick__sub">{t('структурированное ТЗ')}</span></span>
-        </button>
-        <button className="bp-quick__tile" onClick={() => go('review')}>
-          <span className="bp-quick__icon" aria-hidden="true"><Icon name="check" /></span>
-          <span><b>{t('Приёмка')}</b><span className="bp-quick__sub">{incoming.length} {t('на проверке')}</span></span>
         </button>
         <button className="bp-quick__tile" onClick={() => go('analytics')}>
           <span className="bp-quick__icon" aria-hidden="true"><Icon name="chart" /></span>
@@ -575,89 +591,6 @@ function BriefConstructor({ authFetch, onUseDraft }) {
   );
 }
 
-/* ---------------- Acceptance ---------------- */
-function ReviewView({ incoming, accepted, authFetch, reload }) {
-  const { lang } = useLang();
-  const t = (s) => bt(lang, s);
-  const [acceptingId, setAcceptingId] = useState(null);
-  const [error, setError] = useState('');
-  const accept = async (id) => {
-    if (acceptingId) return; // one in flight at a time — blocks a rapid double-click double-accept
-    setAcceptingId(id);
-    setError('');
-    try {
-      const res = await authFetch(`/api/business/submissions/${id}/accept`, { method: 'POST' });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError((data.errors && data.errors[0]) || t('Не удалось принять работу'));
-        return;
-      }
-      reload();
-    } catch {
-      // Without this a dropped connection threw silently: the button reset to its
-      // idle label with no error, so the brand thought the work was accepted while
-      // no payout was ever created and the creator went unpaid. Say it failed.
-      setError(t('Не удалось принять работу — проверьте связь и попробуйте ещё раз.'));
-    } finally {
-      setAcceptingId(null);
-    }
-  };
-  return (
-    <>
-      <section className="admin-block">
-        <h2 className="admin-block__title">{t('На приёмку')} ({incoming.length})</h2>
-        {error && <p className="creator-portal__err">{error}</p>}
-        {incoming.length ? (
-          <div className="bp-cards">
-            {incoming.map((s) => (
-              <div key={s.id} className="bp-card">
-                <div className="bp-card__head">
-                  <b>{s.brief_title || s.platform}</b>
-                  <span className="pf-status pf-status--sent_to_business">{t('готово к приёмке')}</span>
-                </div>
-                <p className="creator-portal__muted" style={{ margin: '0 0 12px' }}>
-                  {t('Креатор')}: {s.creator_name || `#${s.creator_id}`} · {s.platform}
-                  {s.ai_score != null ? ` · AI ${s.ai_score}/100` : ''}
-                </p>
-                <div className="creator-portal__row-actions">
-                  <a className="btn btn--ghost btn--sm" href={safeHref(s.video_url)} target="_blank" rel="noreferrer">{t('Смотреть видео')}</a>
-                  <button className="btn btn--primary btn--sm" onClick={() => accept(s.id)} disabled={acceptingId === s.id}>
-                    {acceptingId === s.id ? t('Принимаю…') : t('Принять работу')}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="muted-note" style={{ textAlign: 'left' }}>{t('Работ на приёмке пока нет.')}</p>
-        )}
-      </section>
-
-      <section className="admin-block">
-        <h2 className="admin-block__title">{t('Принятые')} ({accepted.length})</h2>
-        {accepted.length ? (
-          <div className="admin-table-wrap">
-            <table className="admin-table">
-              <thead><tr><th>{t('Бриф')}</th><th>{t('Креатор')}</th><th>{t('Видео')}</th><th>{t('Просмотры')}</th></tr></thead>
-              <tbody>
-                {accepted.map((s) => (
-                  <tr key={s.id}>
-                    <td data-label={t('Бриф')}>{s.brief_title || s.platform}</td>
-                    <td className="muted-cell" data-label={t('Креатор')}>{s.creator_name || `#${s.creator_id}`}</td>
-                    <td data-label={t('Видео')}><a href={safeHref(s.video_url)} target="_blank" rel="noreferrer">{t('ссылка')}</a></td>
-                    <td className="muted-cell" data-label={t('Просмотры')}>{(s.views || 0).toLocaleString('ru-RU')}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="muted-note" style={{ textAlign: 'left' }}>{t('Принятых работ пока нет.')}</p>
-        )}
-      </section>
-    </>
-  );
-}
 
 /* ---------------- Analytics ---------------- */
 function Analytics({ accepted, authFetch, b }) {

@@ -71,8 +71,10 @@ export function ReviewView({ authFetch }) {
   const override = async (id, status, note) => {
     if (await post(`/api/admin/submissions/${id}/override`, { status, note })) load();
   };
-  const sendToBusiness = async (id, checklist) => {
-    if (await post(`/api/admin/submissions/${id}/send-to-business`, checklist ? { checklist } : undefined)) load();
+  // Final acceptance lives here now (the business cabinet no longer accepts) —
+  // this is what queues the creator's payout.
+  const accept = async (id) => {
+    if (await post(`/api/admin/submissions/${id}/accept`)) load();
   };
   const exportCsv = async () => {
     const res = await authFetch('/api/admin/submissions/export');
@@ -143,7 +145,7 @@ export function ReviewView({ authFetch }) {
                 <td data-label="Чек-лист">
                   <ReviewActions
                     submission={s}
-                    onSend={(cl) => sendToBusiness(s.id, cl)}
+                    onAccept={() => accept(s.id)}
                     onRework={(cl) => review(s.id, 'rework', null, cl)}
                     onReject={(code, cl) => review(s.id, 'rejected', code, cl)}
                   />
@@ -204,7 +206,7 @@ const STATUS_RU = {
   paid: 'оплачено',
 };
 
-function ReviewActions({ submission, onSend, onRework, onReject }) {
+function ReviewActions({ submission, onAccept, onRework, onReject }) {
   // Structured checklist from the brief's binary requirements (ТЗ §9.2)
   const reqs = [];
   if (submission.req_hashtag) reqs.push(['hashtag', `Хэштег ${submission.req_hashtag}`]);
@@ -232,7 +234,7 @@ function ReviewActions({ submission, onSend, onRework, onReject }) {
           </label>
         ))}
       </div>
-      <button className="btn btn--primary btn--sm" onClick={() => onSend(checks)}>Отправить бизнесу</button>
+      <button className="btn btn--primary btn--sm" onClick={onAccept}>Принять и оплатить</button>
       <button className="btn btn--ghost btn--sm" onClick={() => onRework(checks)}>Доработка</button>
       <div className="pf-row">
         <select aria-label="Причина отклонения" value={code} onChange={(e) => setCode(e.target.value)}>

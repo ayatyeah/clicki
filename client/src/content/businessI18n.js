@@ -234,6 +234,9 @@ const EN = {
   Привет: 'Hi',
   Бренд: 'Brand',
   'запускайте брифы и принимайте готовые работы.': 'launch briefs and accept finished work.',
+  'ваши охваты и работы — сразу здесь, подробности в разделе «Аналитика».':
+    'your reach and work at a glance — full detail in the Analytics tab.',
+  'Вся аналитика': 'Full analytics',
   'На приёмке': 'In review',
   'Принято работ': 'Work accepted',
   всего: 'total',

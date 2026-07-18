@@ -80,7 +80,7 @@ import {
   getAutopilotRecommendations,
   listOpenBriefsForCreator,
   listBusinessSubmissions,
-  acceptSubmissionByBusiness,
+  acceptSubmissionByOperator,
   reviewSubmission,
   overrideSubmissionStatus,
   recordViews,
@@ -1418,37 +1418,24 @@ app.get('/api/business/view-calculator', requireBusiness, wrap(async (req, res) 
   ok(res, { estimate: await getViewEstimate(budget, platform) });
 }));
 
-// Pipeline step 12-13: business accepts the work → final accept + create payout.
-app.post(
-  '/api/business/submissions/:id/accept',
-  requireBusiness,
-  wrap(async (req, res) => {
-    // Atomic, conditional transition — a double-click or a re-sent submission
-    // can only win this once; a second concurrent/later call gets null back
-    // instead of silently creating a second payout for the same video.
-    const sub = await acceptSubmissionByBusiness(Number(req.params.id), req.business.id);
-    if (!sub) return res.status(400).json({ ok: false, errors: ['Работа не найдена или уже обработана'] });
-    // Auto-create a pending payout (manager finalizes it in the payouts view).
-    // Respects the same min-views threshold the wallet balance is computed
-    // from, so a below-threshold submission can't create a payout the wallet
-    // calculation never counted (which would push balance negative).
-    try {
-      const [rates, settings] = await Promise.all([getRates(), getSettings()]);
-      const minViews = settings.min_views_per_video || 2000;
-      const rate = rates.find((r) => r.platform === sub.platform)?.creator_rate || 0;
-      const amount = (sub.views || 0) >= minViews ? Math.round((sub.views || 0) * rate) : 0;
-      // Only if this video doesn't already have a live payout — a re-opened then
-      // re-accepted submission must not spawn a second payout for the same work.
-      if (amount > 0 && !(await hasActivePayoutForSubmission(sub.id))) {
-        await createPayout(sub.creator_id, amount, sub.id);
-      }
-    } catch (err) {
-      console.error('[payout]', err.message);
+// Queue the creator's pending payout for a just-accepted submission (an operator
+// finalizes it in the payouts view). Respects the same min-views threshold the
+// wallet balance is computed from — a below-threshold video must not create a
+// payout the wallet never counted, which would push the balance negative — and
+// never doubles up, so a re-accepted video can't spawn a second payout.
+async function queuePayoutForAccepted(sub) {
+  try {
+    const [rates, settings] = await Promise.all([getRates(), getSettings()]);
+    const minViews = settings.min_views_per_video || 2000;
+    const rate = rates.find((r) => r.platform === sub.platform)?.creator_rate || 0;
+    const amount = (sub.views || 0) >= minViews ? Math.round((sub.views || 0) * rate) : 0;
+    if (amount > 0 && !(await hasActivePayoutForSubmission(sub.id))) {
+      await createPayout(sub.creator_id, amount, sub.id);
     }
-    notifyOps(`✅ Бизнес принял работу #${sub.id}`);
-    ok(res, await businessPayload(req.business));
-  })
-);
+  } catch (err) {
+    console.error('[payout]', err.message);
+  }
+}
 
 // AI Brief Constructor 2.0: URL/description -> 3 brief drafts + input-clarity score.
 app.post('/api/business/brief-constructor', requireBusiness, wrap(async (req, res) => {
@@ -2016,6 +2003,16 @@ app.post('/api/admin/submissions/:id/send-to-business', requireAdmin, wrap(async
   const submission = await sendSubmissionToBusiness(Number(req.params.id), req.body?.checklist);
   if (!submission) return res.status(400).json({ ok: false, errors: ['Видео уже принято или отклонено'] });
   ok(res, { submission });
+}));
+// Final acceptance moved here from the business cabinet: the operator accepts the
+// work and the creator's payout is queued. Atomic (acceptSubmissionByOperator) so
+// a double-click can't double-pay.
+app.post('/api/admin/submissions/:id/accept', requireAdmin, wrap(async (req, res) => {
+  const sub = await acceptSubmissionByOperator(Number(req.params.id));
+  if (!sub) return res.status(400).json({ ok: false, errors: ['Видео не найдено или уже обработано'] });
+  await queuePayoutForAccepted(sub);
+  notifyOps(`✅ Оператор принял работу #${sub.id}`);
+  ok(res, { submission: sub });
 }));
 app.post('/api/admin/submissions/:id/views', requireAdmin, wrap(async (req, res) => ok(res, { submission: await recordViews(Number(req.params.id), Number(req.body?.views) || 0, !!req.body?.final) })));
 // Operator views a submission's daily stats-screenshot series.

@@ -1470,16 +1470,20 @@ export async function listBusinessSubmissions(businessId) {
  * each trigger their own payout. Only the request that actually flips
  * sent_to_business → accepted gets a non-null row back.
  */
-export async function acceptSubmissionByBusiness(submissionId, businessId) {
+/**
+ * Operator makes the final acceptance — the business no longer does. Accepts a
+ * submission that is either through AI ('ai_passed') or already waiting in the
+ * legacy 'sent_to_business' queue, so this also drains work that was in flight
+ * when acceptance moved to the operator. Same conditional-UPDATE shape as the
+ * business path: a double-click can win only once, so the caller can't queue a
+ * second payout for the same video. Mirrors the accrual (streak/XP/referral).
+ */
+export async function acceptSubmissionByOperator(submissionId) {
   const r = await pool.query(
     `UPDATE submissions SET status='accepted', reviewed_at=CURRENT_TIMESTAMP
-       FROM briefs
-      WHERE submissions.id = $1
-        AND submissions.brief_id = briefs.id
-        AND briefs.business_id = $2
-        AND submissions.status = 'sent_to_business'
-      RETURNING submissions.*`,
-    [submissionId, businessId]
+      WHERE id = $1 AND status IN ('ai_passed', 'sent_to_business')
+      RETURNING *`,
+    [submissionId]
   );
   const sub = r.rows[0] || null;
   if (sub) {
