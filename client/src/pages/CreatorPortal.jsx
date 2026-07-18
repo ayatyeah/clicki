@@ -18,6 +18,8 @@ import { useToast } from '../components/Toast.jsx';
 
 const KEY = 'clicki_creator_token';
 const PLATFORMS = ['TikTok', 'Instagram Reels', 'YouTube Shorts', 'Threads', 'X (Twitter)'];
+// A brief can accept any platform; the creator picks the real one at submit time.
+const ANY_PLATFORM = 'Любая';
 
 // Screenshots/avatars may live in Spaces (absolute URL) or Postgres (relative /api/media/:id).
 const mediaUrl = (u) => (u && /^https?:\/\//i.test(u) ? u : `${API_BASE}${u}`);
@@ -1243,7 +1245,7 @@ function BriefCard({ b, top = false, onTake }) {
         <div className="cp-brief__heading">
           <b className="cp-brief__title">{b.title}</b>
           <div className="cp-brief__badges">
-            <span className="pf-badge">{b.platform}</span>
+            <span className="pf-badge">{b.platform === ANY_PLATFORM ? 'Любая площадка' : b.platform}</span>
             {top && <span className="pf-badge pf-badge--accent">Топ по выгоде</span>}
           </div>
         </div>
@@ -1262,6 +1264,9 @@ function BriefCard({ b, top = false, onTake }) {
           {b.est_basis === 'market' && ' (по среднему охвату на платформе)'}
           {b.est_basis === 'baseline' && ' (ориентир, данных пока нет)'}
         </p>
+      )}
+      {b.platform === ANY_PLATFORM && (
+        <p className="cp-brief__msg">📱 Снимай на любой площадке — TikTok, Reels, Shorts. Платформу выберешь, когда будешь сдавать видео.</p>
       )}
       {b.key_message && <p className="cp-brief__msg">{b.key_message}</p>}
 
@@ -1431,6 +1436,10 @@ function SubmitForm({ c, authFetch, briefs, reload, initialBriefId = '' }) {
   const [guideOpen, setGuideOpen] = useState(false);
   const shotRef = useRef(null);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+  // A brief can be "Любая" (any platform); if so, the creator's platform choice
+  // below is what counts — nudge them to pick where they actually posted.
+  const selectedBrief = briefs.find((x) => String(x.brief_id || x.id) === String(f.brief_id));
+  const anyPlatformBrief = selectedBrief?.platform === ANY_PLATFORM;
 
   const uploadShot = async (file) => {
     if (!file) return;
@@ -1492,6 +1501,11 @@ function SubmitForm({ c, authFetch, briefs, reload, initialBriefId = '' }) {
       {!briefs.length && (
         <p className="creator-portal__muted" style={{ marginTop: -4 }}>
           Нет доступных заказов — возьми заказ во вкладке «Заказы», чтобы сдать по нему видео.
+        </p>
+      )}
+      {anyPlatformBrief && (
+        <p className="creator-portal__muted" style={{ margin: '-4px 0 0', fontSize: '0.85rem' }}>
+          📱 Этот заказ — под любую площадку. Выбери ту, где ты опубликовал видео.
         </p>
       )}
       <div className="cp-field">

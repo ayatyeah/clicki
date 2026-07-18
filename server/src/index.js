@@ -1198,14 +1198,25 @@ app.post(
   })
 );
 
+// Concrete platforms a video can actually be submitted on. Each must have a rates
+// row, or the submission would earn 0 with no error anywhere. 'Любая' is a
+// brief-level wildcard ("post on whatever platform") — never a real submission
+// platform, so it is deliberately absent: the creator picks a concrete one at
+// submit time. This whitelist also stops any hand-crafted platform value (e.g.
+// "Instagram" vs "Instagram Reels") from becoming an unpayable accepted video.
+const SUBMIT_PLATFORMS = ['TikTok', 'Instagram Reels', 'YouTube Shorts', 'Threads', 'X (Twitter)'];
+
 // Submit a video (pipeline steps 6-9): create → AI auto-check → ai_passed | rework.
 app.post(
   '/api/creator/submit',
   requireCreator,
   wrap(async (req, res) => {
     const b = req.body || {};
-    if (!b.platform || !b.video_url || !b.rights_confirmed) {
+    if (!b.video_url || !b.rights_confirmed) {
       return res.status(400).json({ ok: false, errors: ['Укажите видео, платформу и подтвердите права'] });
+    }
+    if (!SUBMIT_PLATFORMS.includes(b.platform)) {
+      return res.status(400).json({ ok: false, errors: ['Выберите площадку, на которой опубликовано видео'] });
     }
     // A video must be tied to an order — no "без брифа" submissions.
     if (!b.brief_id) {

@@ -25,6 +25,10 @@ function LangToggle() {
 
 const KEY = 'clicki_business_token';
 const PLATFORMS = ['TikTok', 'Instagram Reels', 'YouTube Shorts', 'Threads', 'X (Twitter)'];
+// A brief can target one platform or accept any — with 'Любая' the creator picks
+// the real platform when they submit. It is a brief value only, never a
+// submission value (the server rejects it as a submit platform).
+const ANY_PLATFORM = 'Любая';
 
 // Logos may live in Spaces (absolute URL) or Postgres (relative /api/media/:id).
 const mediaUrl = (u) => (u && /^https?:\/\//i.test(u) ? u : `${API_BASE}${u}`);
@@ -446,7 +450,7 @@ function BriefsView({ briefs, authFetch, reload }) {
                     <span className={`pf-status pf-status--${cls}`}>{t(label)}</span>
                   </div>
                   <p className="creator-portal__muted" style={{ margin: 0 }}>
-                    {br.platform} · {br.spec?.orientation === 'horizontal' ? t('горизонтальное') : t('вертикальное')} · {t('до')} {br.duration_max}{lang === 'en' ? 's' : 'с'}
+                    {t(br.platform)} · {br.spec?.orientation === 'horizontal' ? t('горизонтальное') : t('вертикальное')} · {t('до')} {br.duration_max}{lang === 'en' ? 's' : 'с'}
                     {br.spec?.style ? ` · ${t(STYLES.find((s) => s[0] === br.spec.style)?.[1] || br.spec.style)}` : ''}
                   </p>
                   {br.status === 'revision' && (
@@ -1241,7 +1245,13 @@ function BriefForm({ authFetch, reload, brief = null, draft = null, onDone }) {
         <div className="creator-portal__q-title">{t('Платформа')}</div>
         <select value={f.platform} onChange={(e) => set('platform', e.target.value)}>
           {PLATFORMS.map((p) => <option key={p}>{p}</option>)}
+          <option value={ANY_PLATFORM}>{t('Любая платформа')}</option>
         </select>
+        {f.platform === ANY_PLATFORM && (
+          <p className="creator-portal__muted" style={{ margin: '4px 0 0', fontSize: '0.82rem' }}>
+            {t('Креатор снимет на удобной ему площадке и выберет её при сдаче.')}
+          </p>
+        )}
       </div>
 
       <div className="bp-block">

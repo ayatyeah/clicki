@@ -4,6 +4,8 @@ import { useConfirm } from '../../components/ConfirmDialog.jsx';
 import { safeHref } from '../../lib/safeHref.js';
 
 const PLATFORMS = ['TikTok', 'Instagram Reels', 'YouTube Shorts', 'Threads', 'X (Twitter)'];
+// Brief-level wildcard: the creator picks the real platform at submit time.
+const ANY_PLATFORM = 'Любая';
 
 /** Brief status → what an operator calls it, and the badge colour. Shared with
  *  the per-business brief history in BusinessesView. */
@@ -167,6 +169,7 @@ export function BriefsView({ authFetch, canManage = false }) {
           {PLATFORMS.map((p) => (
             <option key={p}>{p}</option>
           ))}
+          <option value={ANY_PLATFORM}>Любая платформа</option>
         </select>
         <input placeholder="Хэштег (#...)" value={form.req_hashtag || ''} onChange={(e) => setF('req_hashtag', e.target.value)} />
         <input placeholder="CTA-ссылка" value={form.req_cta_link || ''} onChange={(e) => setF('req_cta_link', e.target.value)} />

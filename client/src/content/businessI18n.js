@@ -145,6 +145,10 @@ const EN = {
   'Смотреть видео': 'Watch video',
   'Принять работу': 'Accept work',
   'Принимаю…': 'Accepting…',
+  'Любая платформа': 'Any platform',
+  Любая: 'Any',
+  'Креатор снимет на удобной ему площадке и выберет её при сдаче.':
+    'The creator films on whichever platform suits them and picks it when submitting.',
   'Не удалось принять работу': 'Couldn’t accept the work',
   'Не удалось принять работу — проверьте связь и попробуйте ещё раз.':
     'Couldn’t accept the work — check your connection and try again.',
