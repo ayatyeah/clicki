@@ -1030,7 +1030,8 @@ export async function listBriefs() {
  *  /api/demo/admin/briefs, which must not learn real brand names. */
 export async function listBriefsForAdmin() {
   const r = await pool.query(
-    `SELECT b.*, ba.name AS business_name, ba.company AS business_company
+    `SELECT b.*, ba.name AS business_name, ba.company AS business_company,
+            (SELECT COUNT(*) FROM assignments a WHERE a.brief_id = b.id)::int AS assigned_count
        FROM briefs b
        LEFT JOIN business_accounts ba ON ba.id = b.business_id
       ORDER BY b.id DESC`

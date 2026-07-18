@@ -449,6 +449,13 @@
 .mod-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .mod-note { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 12px; padding: 10px 12px; font-size: 0.86rem; color: #92400e; }
 
+/* Who a brief currently reaches (admin BriefsView). "Всем" is amber on purpose —
+   it's the broad, careful action; targeted/none are calm. */
+.brief-audience { margin-top: 8px; font-size: 0.86rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 8px; }
+.brief-audience--all { background: rgba(245, 158, 11, 0.12); color: #92400e; border: 1px solid rgba(245, 158, 11, 0.4); }
+.brief-audience--some { background: rgba(124, 58, 237, 0.08); color: #6d28d9; border: 1px solid var(--line); }
+.brief-audience--none { background: #f4f4f6; color: var(--stone); border: 1px solid var(--line); }
+
 /* Multi-select creator assignment (admin BriefsView → "Назначить креаторам"). */
 .assign-panel { border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 10px; background: #faf9ff; }
 .assign-panel__bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }

@@ -236,6 +236,44 @@ function BriefModCard({ b, authFetch, creators, onChange, canManage }) {
   };
   const { label: statusLabel, cls: statusCls } = briefStatus(b.status);
 
+  // Who can actually see this brief right now. `active` means it's an open order
+  // for EVERY creator — assignment doesn't restrict, it only adds — so that case
+  // is called out loudly. This is the line the operator kept almost crossing:
+  // a brief meant for five, one click from reaching all of them.
+  const totalCreators = creators.length;
+  const assigned = b.assigned_count || 0;
+  const audience = b.status === 'active'
+    ? { icon: '🌐', text: `Виден ВСЕМ креаторам${totalCreators ? ` (${totalCreators})` : ''}`, cls: 'all' }
+    : assigned > 0
+      ? { icon: '👥', text: `Только назначенным: ${assigned}`, cls: 'some' }
+      : { icon: '🔒', text: 'Не опубликован — пока не виден никому', cls: 'none' };
+
+  const publishToAll = async () => {
+    const okToPublish = await confirm({
+      title: 'Опубликовать всем креаторам?',
+      message: `Бриф станет открытым заказом для ВСЕХ креаторов${totalCreators ? ` — это ${totalCreators} чел.` : ''}, и любой сможет взять его в работу. Если он нужен только выбранным — не публикуйте, а нажмите «Назначить креаторам».`,
+      confirmText: 'Опубликовать всем',
+      danger: true,
+    });
+    if (!okToPublish) return;
+    call(`/api/admin/briefs/${b.id}/status`, { status: 'active' });
+  };
+
+  // Pull a live brief back from "everyone" — the recovery if it went public by
+  // mistake. Assignments survive, so anyone specifically assigned keeps access.
+  const unpublish = async () => {
+    const okTo = await confirm({
+      title: 'Снять бриф с публикации?',
+      message: assigned > 0
+        ? `Бриф перестанет быть открытым для всех. Назначенные (${assigned}) сохранят доступ.`
+        : 'Бриф перестанет быть открытым для всех — его больше никто не увидит, пока вы снова не опубликуете или не назначите креаторов.',
+      confirmText: 'Снять с публикации',
+      danger: true,
+    });
+    if (!okTo) return;
+    call(`/api/admin/briefs/${b.id}/status`, { status: 'new' });
+  };
+
   return (
     <div className="bp-card">
       <div className="bp-card__head">
@@ -247,6 +285,9 @@ function BriefModCard({ b, authFetch, creators, onChange, canManage }) {
         {b.req_hashtag ? ` · ${b.req_hashtag}` : ''}
         {b.spec?.style ? ` · ${b.spec.style}` : ''}
       </p>
+      <div className={`brief-audience brief-audience--${audience.cls}`}>
+        <span aria-hidden="true">{audience.icon}</span> {audience.text}
+      </div>
       <div className="mod-panel">
         {b.ai_score != null && (
           <div className="mod-ai"><span className="mod-ai__score">ИИ: {b.ai_score}/100.</span> {b.ai_feedback}</div>
@@ -263,14 +304,18 @@ function BriefModCard({ b, authFetch, creators, onChange, canManage }) {
             </button>
           )}
           <button className="btn btn--ghost btn--sm" disabled={busy} onClick={() => call(`/api/admin/briefs/${b.id}/ai`)}>ИИ-анализ</button>
-          {b.status !== 'active' && (
-            <button className="btn btn--primary btn--sm" disabled={busy} onClick={() => call(`/api/admin/briefs/${b.id}/status`, { status: 'active' })}>
-              Опубликовать креаторам
+          {b.status !== 'active' ? (
+            <button className="btn btn--primary btn--sm" disabled={busy} onClick={publishToAll}>
+              🌐 Опубликовать всем
+            </button>
+          ) : (
+            <button className="btn btn--ghost btn--sm" disabled={busy} onClick={unpublish}>
+              Снять с публикации
             </button>
           )}
           <button className="btn btn--ghost btn--sm" disabled={busy} onClick={() => setShowNote((s) => !s)}>Вернуть бизнесу</button>
           <button className="btn btn--ghost btn--sm" disabled={busy} onClick={() => setShowAssign((s) => !s)} aria-expanded={showAssign}>
-            Назначить креаторам
+            👥 Назначить выбранным
           </button>
           {canManage && (
             <button className="btn btn--danger btn--sm" disabled={busy} onClick={remove}>Удалить</button>
