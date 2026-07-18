@@ -889,7 +889,14 @@ function OverviewHome({ c, wallet, submissions, briefs, forecast, go }) {
   const totalViews = accepted.reduce((a, s) => a + (s.views || 0), 0);
   const needStats = submissions.filter((s) => needsScreenshotToday(s, c)).length;
   const inReview = submissions.filter((s) => ['ai_passed', 'sent_to_business'].includes(s.status)).length;
-  const activeOrders = [...briefs, ...submissions.filter((s) => s.status !== 'rejected')].slice(0, 6);
+  // Tag each order by where it came from. The two lists can't be told apart by
+  // status: `briefs` are assignment rows whose status is always 'assigned', so
+  // the old `o.status ? 'videos' : 'briefs'` test sent every assigned brief to
+  // the wrong tab and printed "assigned" in Latin. Kind decides the tab and label.
+  const activeOrders = [
+    ...briefs.map((b) => ({ ...b, _kind: 'brief' })),
+    ...submissions.filter((s) => s.status !== 'rejected').map((s) => ({ ...s, _kind: 'submission' })),
+  ].slice(0, 6);
 
   // Human label for an order's status (briefs use active/new/revision; submissions use the pipeline statuses).
   const orderLabel = (o) => ({
@@ -977,10 +984,10 @@ function OverviewHome({ c, wallet, submissions, briefs, forecast, go }) {
       {activeOrders.length ? (
         <div className="cp-orders">
           {activeOrders.map((o) => (
-            <button key={`${o.id}-${o.status || 'brief'}`} className="cp-order" onClick={() => go(o.status ? 'videos' : 'briefs')}>
+            <button key={`${o._kind}-${o.id}`} className="cp-order" onClick={() => go(o._kind === 'submission' ? 'videos' : 'briefs')}>
               <div className="cp-order__body">
                 <b>{o.title || o.brief_title || o.platform}</b>
-                <span className="cp-order__sub">{o.platform}{o.status ? ` · ${orderLabel(o)}` : ''}</span>
+                <span className="cp-order__sub">{o.platform} · {o._kind === 'submission' ? orderLabel(o) : 'назначен вам'}</span>
               </div>
               {o.est_payout > 0 && <span className="cp-order__pay">≈ {nfmt(o.est_payout)} ₸</span>}
               <span className="cp-order__chev" aria-hidden="true">→</span>

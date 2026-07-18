@@ -9,6 +9,7 @@ export function PayoutsView({ authFetch }) {
   const [payouts, setPayouts] = useState([]);
   const [creators, setCreators] = useState([]);
   const [form, setForm] = useState({ creator_id: '', amount: '' });
+  const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
   const load = async () => {
     const p = await (await authFetch('/api/admin/payouts')).json();
@@ -21,21 +22,30 @@ export function PayoutsView({ authFetch }) {
   }, []); // eslint-disable-line
 
   const create = async () => {
-    if (!form.creator_id || !form.amount) return;
+    if (!form.creator_id || !form.amount || creating) return; // in-flight guard: a
+    // second click must not fire a second POST — the server is atomic now, but a
+    // disabled button is the first line and stops the request ever leaving.
     setError('');
-    const res = await authFetch('/api/admin/payouts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ creator_id: Number(form.creator_id), amount: Number(form.amount) }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || data.ok === false) {
-      setError((data.errors && data.errors[0]) || 'Не удалось создать выплату');
-      return;
+    setCreating(true);
+    try {
+      const res = await authFetch('/api/admin/payouts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ creator_id: Number(form.creator_id), amount: Number(form.amount) }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) {
+        setError((data.errors && data.errors[0]) || 'Не удалось создать выплату');
+        return;
+      }
+      setForm({ creator_id: '', amount: '' });
+      toast.success('Выплата создана');
+      load();
+    } catch {
+      setError('Ошибка сети — выплата не создана. Попробуйте ещё раз.');
+    } finally {
+      setCreating(false);
     }
-    setForm({ creator_id: '', amount: '' });
-    toast.success('Выплата создана');
-    load();
   };
   const markPaid = async (id) => {
     const okToPay = await confirm({
@@ -69,7 +79,7 @@ export function PayoutsView({ authFetch }) {
           ))}
         </select>
         <input type="number" placeholder="Сумма ₸" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} />
-        <button className="btn btn--primary btn--sm" onClick={create}>Создать выплату</button>
+        <button className="btn btn--primary btn--sm" onClick={create} disabled={creating}>{creating ? 'Создаю…' : 'Создать выплату'}</button>
       </div>
       <div className="admin-table-wrap" style={{ marginTop: 16 }}>
         <table className="admin-table">

@@ -97,6 +97,7 @@ import {
   getEarningsForecast,
   listPayouts,
   createPayout,
+  createManualPayout,
   hasActivePayoutForSubmission,
   markPayoutPaid,
   getLeaderboard,
@@ -2009,13 +2010,14 @@ app.post('/api/admin/payouts', requireAdmin, wrap(async (req, res) => {
   if (!creatorId || !Number.isFinite(amount) || amount <= 0) {
     return res.status(400).json({ ok: false, errors: ['Укажите креатора и сумму больше нуля'] });
   }
-  const wallet = await getCreatorWallet(creatorId);
-  // Guard against the AVAILABLE amount (earned − paid − already-queued), so you
-  // can't pay on top of a pending auto-payout and double-pay the creator.
-  if (amount > wallet.available) {
-    return res.status(400).json({ ok: false, errors: [`Сумма превышает доступный баланс (доступно ${Math.round(wallet.available).toLocaleString('ru-RU')} ₸, из них уже в очереди ${Math.round(wallet.pending).toLocaleString('ru-RU')} ₸)`] });
+  // Check-and-insert is atomic inside createManualPayout (per-creator lock), so a
+  // double-click or a retried POST can't both pass the balance check and queue
+  // twice the money. `available` = earned − paid − already-queued.
+  const result = await createManualPayout(creatorId, amount);
+  if (!result.ok) {
+    return res.status(400).json({ ok: false, errors: [`Сумма превышает доступный баланс (доступно ${Math.round(result.available).toLocaleString('ru-RU')} ₸, из них уже в очереди ${Math.round(result.pending).toLocaleString('ru-RU')} ₸)`] });
   }
-  ok(res, { payout: await createPayout(creatorId, amount) });
+  ok(res, { payout: result.payout });
 }));
 app.post('/api/admin/payouts/:id/paid', requireAdmin, wrap(async (req, res) => {
   const payout = await markPayoutPaid(Number(req.params.id));

@@ -3760,6 +3760,7 @@ canvas {
 }
 .stat-shots__toggle:hover { text-decoration: underline; }
 .stat-shots__muted { color: var(--fog); font-size: 0.82rem; }
+.stat-shots__retry { background: none; border: 0; padding: 0; font: inherit; color: var(--charcoal, #6d28d9); text-decoration: underline; cursor: pointer; }
 .stat-shots__chev {
   margin-left: auto; background: none; border: none; padding: 2px;
   color: var(--fog); cursor: pointer; display: inline-flex; align-items: center;

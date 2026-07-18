@@ -60,32 +60,48 @@ export default function StatScreenshots({ submissionId, platform, basePath, auth
   const [open, setOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const [shots, setShots] = useState(null);
+  const [loadError, setLoadError] = useState(false);
   const [progress, setProgress] = useState(null); // null idle | 0-100 uploading
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState('');
   const [lightboxIndex, setLightboxIndex] = useState(null);
   const fileRef = useRef(null);
+  // A ref, not the `progress` state: `upload` is a useCallback whose deps don't
+  // include progress, so reading the state inside would be stale. This guards
+  // re-entry from drop / Enter / the file input all at once.
+  const uploadingRef = useRef(false);
 
   const load = useCallback(async () => {
+    setLoadError(false);
     try {
       const res = await authFetch(`${basePath}/${submissionId}/screenshots`);
       const d = await res.json();
       if (res.ok && d.ok !== false) setShots(d.screenshots || []);
+      else setLoadError(true);
     } catch {
-      /* leave as null; reopening retries */
+      // Without this the list sat on "Загрузка…" forever after one failed fetch:
+      // shots stayed null, the effect's deps never changed, nothing retried, and
+      // nothing told the creator to collapse and reopen. Surface it with a retry.
+      setLoadError(true);
     }
   }, [authFetch, basePath, submissionId]);
 
   useEffect(() => {
-    if (open && shots === null) load();
-  }, [open, shots, load]);
+    if (open && shots === null && !loadError) load();
+  }, [open, shots, loadError, load]);
 
   // XHR (not fetch) so the creator sees a real progress bar for the upload.
   const upload = useCallback(
     (file) => {
       if (!file) return;
+      // Already uploading → ignore. A second file dropped (or Enter pressed) mid-
+      // upload used to fire a concurrent XHR; both raced the server's cooldown
+      // check and inserted, leaving two rows for the same day — after which the
+      // 24h cooldown blocked the next legitimate upload.
+      if (uploadingRef.current) return;
       if (!file.type.startsWith('image/')) return setError('Нужен скриншот-изображение (JPG или PNG).');
       if (file.size > 4 * 1024 * 1024) return setError('Слишком большой файл — сделайте обычный скриншот (до 4 МБ).');
+      uploadingRef.current = true;
       setError('');
       setProgress(0);
       // Creator token now lives in localStorage (persistent PWA login); admin
@@ -109,8 +125,10 @@ export default function StatScreenshots({ submissionId, platform, basePath, auth
           let d = {};
           try { d = JSON.parse(xhr.responseText); } catch { /* ignore */ }
           if (xhr.status >= 200 && xhr.status < 300 && d.ok !== false) {
+            uploadingRef.current = false;
             setProgress(null);
             setShots(d.screenshots || []);
+            setLoadError(false);
             setOpen(true);
             toast.success('Скриншот загружен');
             onUploaded?.(); // refresh the parent so the "нужен скрин сегодня" badge/counters update
@@ -118,6 +136,7 @@ export default function StatScreenshots({ submissionId, platform, basePath, auth
           }
           // 5xx is transient → retry; 4xx (bad file, 429 cooldown) is final.
           if (xhr.status >= 500 && tryNo < MAX_TRIES) return retry();
+          uploadingRef.current = false;
           setProgress(null);
           const msg = d.errors?.[0] || 'Не удалось загрузить';
           setError(msg);
@@ -125,6 +144,7 @@ export default function StatScreenshots({ submissionId, platform, basePath, auth
         };
         xhr.onerror = () => {
           if (tryNo < MAX_TRIES) return retry();
+          uploadingRef.current = false;
           setProgress(null);
           setError('Ошибка сети при загрузке — проверь интернет и попробуй ещё раз.');
           toast.error('Ошибка сети при загрузке');
@@ -234,7 +254,12 @@ export default function StatScreenshots({ submissionId, platform, basePath, auth
             </div>
           )}
 
-          {shots === null ? (
+          {loadError ? (
+            <p className="stat-shots__muted">
+              Не удалось загрузить список.{' '}
+              <button type="button" className="stat-shots__retry" onClick={load}>Повторить</button>
+            </p>
+          ) : shots === null ? (
             <p className="stat-shots__muted">Загрузка…</p>
           ) : shots.length === 0 ? (
             <p className="stat-shots__muted">Пока нет ни одного скриншота.</p>

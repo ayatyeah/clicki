@@ -1920,24 +1920,30 @@ export async function getBusinessGrowth(businessId) {
  * already sees in Analytics — no new tracking, just a print-friendly rollup.
  */
 export async function getBusinessReport(businessId) {
+  // Same min-views threshold the creator wallet applies (getCreatorWallet). A
+  // video accepted below it earns the creator nothing, so it must cost the brand
+  // nothing too — without this filter the printed report billed the client for
+  // views no creator was ever paid for, and the two numbers disagreed.
+  const settings = await getSettings();
+  const minViews = settings.min_views_per_video || 2000;
   const byPlatformQ = await pool.query(
     `SELECT s.platform, COUNT(*)::int AS videos, COALESCE(SUM(s.views), 0)::bigint AS views,
             COALESCE(SUM(s.views * r.client_rate), 0)::float AS spend
        FROM submissions s
        JOIN briefs b ON b.id = s.brief_id
        JOIN rates r ON r.platform = s.platform
-      WHERE b.business_id = $1 AND s.status = 'accepted'
+      WHERE b.business_id = $1 AND s.status = 'accepted' AND s.views >= $2
       GROUP BY s.platform
       ORDER BY spend DESC`,
-    [businessId]
+    [businessId, minViews]
   );
   const topQ = await pool.query(
     `SELECT s.id, s.platform, s.views, s.video_url, b.title AS brief_title
        FROM submissions s
        JOIN briefs b ON b.id = s.brief_id
-      WHERE b.business_id = $1 AND s.status = 'accepted'
+      WHERE b.business_id = $1 AND s.status = 'accepted' AND s.views >= $2
       ORDER BY s.views DESC LIMIT 10`,
-    [businessId]
+    [businessId, minViews]
   );
   const byPlatform = byPlatformQ.rows.map((r) => ({
     platform: r.platform,
@@ -1960,23 +1966,26 @@ export async function getBusinessReport(businessId) {
 
 /* ---------------- Platform: wallet & payouts (ТЗ §8) ---------------- */
 /** Creator earnings: accepted videos past the min-views threshold × creator_rate, minus paid out. */
-export async function getCreatorWallet(creatorId) {
+// `runner` is pool by default, but createManualPayout passes its transaction
+// client so the balance is read under the same advisory lock that guards the
+// insert — otherwise two concurrent payouts read the same available and both go.
+export async function getCreatorWallet(creatorId, runner = pool) {
   const settings = await getSettings();
   const minViews = settings.min_views_per_video || 2000;
-  const earnedQ = await pool.query(
+  const earnedQ = await runner.query(
     `SELECT COALESCE(SUM(s.views * r.creator_rate), 0)::float AS earned
        FROM submissions s JOIN rates r ON r.platform = s.platform
       WHERE s.creator_id = $1 AND s.status = 'accepted' AND s.views >= $2`,
     [creatorId, minViews]
   );
-  const paidQ = await pool.query(
+  const paidQ = await runner.query(
     `SELECT COALESCE(SUM(amount),0)::float AS paid FROM payouts WHERE creator_id=$1 AND status='paid'`,
     [creatorId]
   );
   // Payouts already queued (created on business-accept) but not yet marked paid.
   // These must NOT be payable again — `available` is what an operator can safely
   // disburse now. `balance` stays "earned − paid" (what the creator is owed).
-  const pendingQ = await pool.query(
+  const pendingQ = await runner.query(
     `SELECT COALESCE(SUM(amount),0)::float AS pending FROM payouts WHERE creator_id=$1 AND status='pending'`,
     [creatorId]
   );
@@ -2034,6 +2043,45 @@ export async function createPayout(creatorId, amount, submissionId) {
     [creatorId, amount, submissionId || null]
   );
   return r.rows[0];
+}
+
+/**
+ * Operator-initiated payout, checked and inserted atomically.
+ *
+ * The endpoint used to read the wallet and then insert in two separate
+ * statements, so two of them at once — a double-click, a retried request — both
+ * saw the same `available` and both passed, queuing twice the money the creator
+ * had earned. This does the read and the write in one transaction, holding a
+ * per-creator advisory lock across both, so the second attempt sees the first's
+ * pending row and is turned away.
+ *
+ * Returns { ok:true, payout } or { ok:false, available, pending } — never throws
+ * for the ordinary "not enough balance" case, so the caller can report it.
+ */
+export async function createManualPayout(creatorId, amount) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // Two-key form namespaces this lock (77 = "payouts") so a bare creator id
+    // can't clash with some other advisory lock elsewhere. Released at COMMIT.
+    await client.query('SELECT pg_advisory_xact_lock(77, $1)', [creatorId]);
+    const wallet = await getCreatorWallet(creatorId, client);
+    if (amount > wallet.available) {
+      await client.query('ROLLBACK');
+      return { ok: false, available: wallet.available, pending: wallet.pending };
+    }
+    const r = await client.query(
+      'INSERT INTO payouts (creator_id, amount, submission_id) VALUES ($1,$2,NULL) RETURNING *',
+      [creatorId, amount]
+    );
+    await client.query('COMMIT');
+    return { ok: true, payout: r.rows[0] };
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw e;
+  } finally {
+    client.release();
+  }
 }
 /** True if this submission already has a live (pending or paid) payout — used to
  *  stop a re-opened/re-accepted video from creating a second payout. */
