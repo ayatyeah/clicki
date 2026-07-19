@@ -13,6 +13,7 @@ import { AutopilotView } from './admin/AutopilotView.jsx';
 import { BriefsView } from './admin/BriefsView.jsx';
 import { ReviewView } from './admin/ReviewView.jsx';
 import { BriefViewsView } from './admin/BriefViewsView.jsx';
+import { BriefReviewView } from './admin/BriefReviewView.jsx';
 import { MonthlyReportView } from './admin/MonthlyReportView.jsx';
 import { CreatorsView } from './admin/CreatorsView.jsx';
 import { BusinessesView } from './admin/BusinessesView.jsx';
@@ -288,6 +289,7 @@ export default function Admin() {
     { key: 'leads-business', label: 'Заявки Бизнеса', icon: 'inbox' },
     { key: 'leads-creators', label: 'Заявки Креаторов', icon: 'users' },
     { key: 'briefs', label: 'Брифы', icon: 'briefs' },
+    { key: 'brief-review', label: 'Проверка по брифам', icon: 'check' },
     { key: 'brief-views', label: 'Просмотры по брифам', icon: 'eye' },
     { key: 'monthly-report', label: 'Отчёт за месяц', icon: 'chart' },
     { key: 'review', label: 'Проверка видео', icon: 'check' },
@@ -480,6 +482,7 @@ export default function Admin() {
           )}
 
           {view === 'briefs' && <BriefsView authFetch={authFetch} canManage />}
+          {view === 'brief-review' && <BriefReviewView authFetch={authFetch} />}
           {view === 'brief-views' && <BriefViewsView authFetch={authFetch} />}
           {view === 'monthly-report' && <MonthlyReportView authFetch={authFetch} />}
           {view === 'review' && <ReviewView authFetch={authFetch} />}

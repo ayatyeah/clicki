@@ -2054,6 +2054,16 @@ app.post('/api/admin/submissions/:id/accept', requireAdmin, wrap(async (req, res
   notifyOps(`✅ Оператор принял работу #${sub.id}`);
   ok(res, { submission: sub });
 }));
+// On-demand AI re-analysis of one video (the brief-review drill-down button).
+// Re-runs the same check as submit time but keeps the current status — this is an
+// inspection tool for the operator, not a pipeline transition.
+app.post('/api/admin/submissions/:id/ai', requireAdmin, wrap(async (req, res) => {
+  const submission = await getSubmission(Number(req.params.id));
+  if (!submission) return res.status(404).json({ ok: false, errors: ['Видео не найдено'] });
+  const brief = submission.brief_id ? await getBrief(submission.brief_id) : null;
+  const { score, feedback } = await aiCheckSubmission(submission, brief);
+  ok(res, { submission: await setSubmissionAi(submission.id, { ai_score: score, ai_feedback: feedback, status: submission.status }) });
+}));
 app.post('/api/admin/submissions/:id/views', requireAdmin, wrap(async (req, res) => ok(res, { submission: await recordViews(Number(req.params.id), Number(req.body?.views) || 0, !!req.body?.final) })));
 // Operator views a submission's daily stats-screenshot series.
 app.get('/api/admin/submissions/:id/screenshots', requireAdmin, wrap(async (req, res) => ok(res, { screenshots: await listStatScreenshots(Number(req.params.id)) })));

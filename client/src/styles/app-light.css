@@ -1431,3 +1431,47 @@
   width: 4px; height: 1.05em; border-radius: 3px;
   background: linear-gradient(180deg, #a78bfa, #7c3aed);
 }
+
+/* ---------- Проверка по брифам (BriefReviewView drill-down) ---------- */
+.br-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 10px; font-size: 0.85rem; }
+.br-crumbs__item { display: inline-flex; align-items: center; gap: 6px; }
+.br-crumbs__link {
+  background: none; border: none; padding: 0; cursor: pointer; font: inherit;
+  color: #7c3aed; font-weight: 600;
+}
+.br-crumbs__link:hover { text-decoration: underline; }
+.br-crumbs__cur { color: var(--stone); }
+.br-crumbs__sep { color: var(--fog); }
+
+/* Level 1 — brief cards */
+.br-briefs { display: grid; gap: 10px; }
+.br-brief {
+  display: flex; align-items: center; gap: 14px; width: 100%; text-align: left;
+  padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--r-card);
+  background: #fff; cursor: pointer; box-shadow: var(--shadow-soft);
+  transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease;
+}
+.br-brief:hover { transform: translateY(-1px); box-shadow: var(--shadow-card); border-color: rgba(124, 58, 237, 0.28); }
+.br-brief__main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
+.br-brief__title { color: var(--ink); font-size: 1rem; overflow-wrap: anywhere; }
+.br-brief__stats { display: flex; gap: 14px; flex: 0 0 auto; flex-wrap: wrap; font-size: 0.82rem; color: var(--stone); }
+.br-brief__stats b { color: var(--ink); }
+.br-brief__chevron { flex: 0 0 auto; color: #7c3aed; font-size: 1.1rem; }
+
+/* Level 3 — one creator's video card */
+.br-video {
+  border: 1px solid var(--line); border-radius: var(--r-card); background: #fff;
+  box-shadow: var(--shadow-soft); padding: 16px; margin-top: 14px;
+}
+.br-video__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.br-video__link { color: #7c3aed; font-weight: 600; text-decoration: none; }
+.br-video__link:hover { text-decoration: underline; }
+.br-video__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 14px; }
+.br-metric {
+  display: flex; flex-direction: column; gap: 4px; align-items: flex-start;
+  padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: #faf9ff;
+}
+.br-metric__label { font-family: var(--font-mono, monospace); font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fog); }
+.br-metric__value { font-family: var(--font-display); font-weight: 700; font-size: 1.4rem; color: var(--ink); line-height: 1.1; }
+.br-metric__ai { font-size: 0.82rem; color: var(--stone); line-height: 1.45; }
+.br-video__shots { margin-top: 14px; display: flex; flex-direction: column; gap: 6px; }
