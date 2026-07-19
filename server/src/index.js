@@ -1441,6 +1441,18 @@ app.post('/api/business/logo', uploadLimiter, requireBusiness, uploadImage.singl
   }
 });
 
+// Generic business image upload (e.g. a brief's logo) → returns a URL to store in
+// the brief spec. Unlike /api/business/logo it doesn't touch the business profile.
+app.post('/api/business/upload', uploadLimiter, requireBusiness, uploadImage.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ ok: false, errors: ['Файл не получен'] });
+  try {
+    res.json({ ok: true, url: await storeUpload(req.file, { imageOnly: true }) });
+  } catch (err) {
+    console.error('[business-upload]', err.message);
+    res.status(400).json({ ok: false, errors: [err.message || 'Не удалось сохранить файл'] });
+  }
+});
+
 // Live growth dashboard: cumulative views across the business's whole campaign, by day.
 app.get('/api/business/growth', requireBusiness, wrap(async (req, res) => ok(res, { growth: await getBusinessGrowth(req.business.id) })));
 

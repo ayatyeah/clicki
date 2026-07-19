@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { useConfirm } from '../../components/ConfirmDialog.jsx';
 import { safeHref } from '../../lib/safeHref.js';
+import { API_BASE } from '../../lib/config.js';
+import { briefOfferRows, briefRefLinks } from '../../lib/briefFields.js';
+
+const mediaUrl = (u) => (u && /^https?:\/\//i.test(u) ? u : `${API_BASE}${u}`);
 
 const PLATFORMS = ['TikTok', 'Instagram Reels', 'YouTube Shorts', 'Threads', 'X (Twitter)'];
 // Brief-level wildcard: the creator picks the real platform at submit time.
@@ -46,11 +50,14 @@ export function BriefRead({ b }) {
   const texts = [
     ['Цель', b.goal],
     ['Аудитория', b.audience],
+    // Business creative brief (product, УТП, боль, 3-сек, гео, формат, платформы)
+    ...briefOfferRows(b),
     ['Ключевое сообщение', b.key_message],
     ['Что нужно показать', b.dos],
     ['Чего не делать', b.donts],
     ['Референсы', b.refs],
   ].filter(([, v]) => v && String(v).trim());
+  const refLinks = briefRefLinks(b);
 
   const flags = [
     [b.req_mention, 'Упоминание бренда в первые 3 сек'],
@@ -101,6 +108,27 @@ export function BriefRead({ b }) {
         </div>
       ))}
 
+      {refLinks.length > 0 && (
+        <div className="brief-read__block">
+          <span className="brief-read__k">Референсы</span>
+          <div className="brief-read__v">
+            {refLinks.map((url, i) => {
+              const href = safeHref(url);
+              return (
+                <div key={i}>{href ? <a href={href} target="_blank" rel="noopener noreferrer">Референс {i + 1}</a> : url}</div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {spec.logo_url && (
+        <div className="brief-read__block">
+          <span className="brief-read__k">Логотип</span>
+          <img className="brief-read__logo" src={mediaUrl(spec.logo_url)} alt="Логотип бренда" />
+        </div>
+      )}
+
       {!!flags.length && (
         <div className="brief-read__block">
           <span className="brief-read__k">Требования</span>
@@ -110,7 +138,7 @@ export function BriefRead({ b }) {
         </div>
       )}
 
-      {!facts.length && !texts.length && !flags.length && !b.req_cta_link && (
+      {!facts.length && !texts.length && !flags.length && !b.req_cta_link && !refLinks.length && !spec.logo_url && (
         <p className="brief-read__empty" style={{ margin: 0 }}>В брифе заполнено только название.</p>
       )}
     </div>

@@ -1490,3 +1490,28 @@
 .br-metric__value { font-family: var(--font-display); font-weight: 700; font-size: 1.4rem; color: var(--ink); line-height: 1.1; }
 .br-metric__ai { font-size: 0.82rem; color: var(--stone); line-height: 1.45; }
 .br-video__shots { margin-top: 14px; display: flex; flex-direction: column; gap: 6px; }
+
+/* ---------- Brief builder: extra business fields ---------- */
+/* Priority-platform tags (shown when the brief accepts any platform) */
+.bp-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.bp-tag {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+  border: 1px solid var(--line); border-radius: 999px; cursor: pointer;
+  font-size: 0.88rem; color: var(--stone); background: #fff; user-select: none;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+.bp-tag input { margin: 0; }
+.bp-tag.is-on { background: rgba(124, 58, 237, 0.1); border-color: rgba(124, 58, 237, 0.35); color: #6d28d9; font-weight: 600; }
+/* Logo upload preview inside the brief form */
+.bp-logo { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.bp-logo__img {
+  width: 64px; height: 64px; object-fit: contain;
+  border: 1px solid var(--line); border-radius: 10px; background: #fff; padding: 4px;
+}
+/* Brand logo shown to the creator (brief card) and in admin moderation (brief read) */
+.cp-brief__logo { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.cp-brief__logo img,
+.brief-read__logo {
+  max-width: 150px; max-height: 96px; object-fit: contain;
+  border: 1px solid var(--line); border-radius: 10px; background: #fff; padding: 6px;
+}

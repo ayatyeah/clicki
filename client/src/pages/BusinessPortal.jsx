@@ -11,6 +11,7 @@ import AvatarCropper from '../components/AvatarCropper.jsx';
 import { BUSINESS_GUIDE } from '../content/guides.js';
 import { useLang } from '../i18n.jsx';
 import { bt } from '../content/businessI18n.js';
+import { VIDEO_FORMATS } from '../lib/briefFields.js';
 
 /** Compact RU/EN switch for the business cabinet. */
 function LangToggle() {
@@ -1091,6 +1092,17 @@ const EMPTY_BRIEF = {
   brand_spoken: false,
   product_in_frame: true,
   style: 'youth',
+  // Business creative brief fields (stored in spec).
+  product: '',
+  usp: '',
+  audience_pain: '',
+  hook_3sec: '',
+  geo: '',
+  video_format: '',
+  priority_platforms: [],
+  reference_links: ['', '', ''],
+  logo_url: '',
+  submission_rules: '',
 };
 
 function BriefForm({ authFetch, reload, brief = null, draft = null, onDone }) {
@@ -1113,13 +1125,51 @@ function BriefForm({ authFetch, reload, brief = null, draft = null, onDone }) {
         brand_spoken: src.spec?.brand_spoken ?? false,
         product_in_frame: src.spec?.product_in_frame ?? true,
         style: src.spec?.style || 'youth',
+        product: src.spec?.product || '',
+        usp: src.spec?.usp || '',
+        audience_pain: src.spec?.audience_pain || '',
+        hook_3sec: src.spec?.hook_3sec || '',
+        geo: src.spec?.geo || '',
+        video_format: src.spec?.video_format || '',
+        priority_platforms: Array.isArray(src.spec?.priority_platforms) ? src.spec.priority_platforms : [],
+        // Always 3 slots so the inputs render even when fewer links were saved.
+        reference_links: [0, 1, 2].map((i) => src.spec?.reference_links?.[i] || ''),
+        logo_url: src.spec?.logo_url || '',
+        submission_rules: src.spec?.submission_rules || '',
       }
     : EMPTY_BRIEF;
   const [f, setF] = useState(initial);
   const [error, setError] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
+  const [logoBusy, setLogoBusy] = useState(false);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+  const setRef = (i, v) => setF((s) => ({ ...s, reference_links: s.reference_links.map((x, idx) => (idx === i ? v : x)) }));
+  const togglePlatform = (p) => setF((s) => ({
+    ...s,
+    priority_platforms: s.priority_platforms.includes(p)
+      ? s.priority_platforms.filter((x) => x !== p)
+      : [...s.priority_platforms, p],
+  }));
+
+  const uploadLogo = async (file) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return setError(t('Нужно изображение (JPG или PNG).'));
+    setLogoBusy(true);
+    setError('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await authFetch('/api/business/upload', { method: 'POST', body: fd });
+      const d = await res.json();
+      if (!res.ok || d.ok === false) throw new Error(d.errors?.[0] || t('Не удалось загрузить'));
+      set('logo_url', d.url);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLogoBusy(false);
+    }
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -1146,6 +1196,17 @@ function BriefForm({ authFetch, reload, brief = null, draft = null, onDone }) {
           brand_spoken: f.brand_spoken,
           product_in_frame: f.product_in_frame,
           style: f.style,
+          product: f.product.trim(),
+          usp: f.usp.trim(),
+          audience_pain: f.audience_pain.trim(),
+          hook_3sec: f.hook_3sec.trim(),
+          geo: f.geo.trim(),
+          video_format: f.video_format,
+          // Priority platforms only apply when the brief accepts any platform.
+          priority_platforms: f.platform === ANY_PLATFORM ? f.priority_platforms : [],
+          reference_links: f.reference_links.map((s) => s.trim()).filter(Boolean),
+          logo_url: f.logo_url,
+          submission_rules: f.submission_rules.trim(),
         },
       };
       const res = await authFetch(brief ? `/api/business/briefs/${brief.id}` : '/api/business/briefs', {
@@ -1187,8 +1248,50 @@ function BriefForm({ authFetch, reload, brief = null, draft = null, onDone }) {
         )}
       </div>
 
+      {/* Priority platforms — only meaningful when the brief accepts any platform. */}
+      {f.platform === ANY_PLATFORM && (
+        <div className="creator-portal__q">
+          <div className="creator-portal__q-title">{t('Приоритетные платформы (по желанию)')}</div>
+          <p className="creator-portal__muted" style={{ margin: '0 0 6px', fontSize: '0.82rem' }}>
+            {t('Если какие-то площадки важнее — отметь их, креатор увидит приоритет.')}
+          </p>
+          <div className="bp-tags">
+            {PLATFORMS.map((p) => (
+              <label key={p} className={`bp-tag ${f.priority_platforms.includes(p) ? 'is-on' : ''}`}>
+                <input type="checkbox" checked={f.priority_platforms.includes(p)} onChange={() => togglePlatform(p)} />
+                {t(p)}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="bp-block">
-        <div className="bp-block__title">{t('Видео')}</div>
+        <div className="bp-block__title">{t('Оффер и посыл')}</div>
+        <div className="creator-portal__q">
+          <div className="creator-portal__q-title">{t('Конкретный продукт / услуга / акция')}</div>
+          <input placeholder={t('Не «весь бренд», а точный оффер')} value={f.product} onChange={(e) => set('product', e.target.value)} />
+        </div>
+        <div className="creator-portal__q">
+          <div className="creator-portal__q-title">{t('Главная фишка продукта (почему выберут вас)?')}</div>
+          <input placeholder={t('Главное преимущество / УТП')} value={f.usp} onChange={(e) => set('usp', e.target.value)} />
+        </div>
+        <div className="creator-portal__q">
+          <div className="creator-portal__q-title">{t('Кто ваш клиент и какую проблему решает оффер?')}</div>
+          <textarea rows={2} placeholder={t('Целевая аудитория и её боль')} value={f.audience_pain} onChange={(e) => set('audience_pain', e.target.value)} />
+        </div>
+        <div className="creator-portal__q">
+          <div className="creator-portal__q-title">{t('Что зритель должен понять за первые 3 секунды (одно предложение)')}</div>
+          <input placeholder={t('Одна мысль, которая цепляет с первых секунд')} value={f.hook_3sec} onChange={(e) => set('hook_3sec', e.target.value)} />
+        </div>
+        <div className="creator-portal__q">
+          <div className="creator-portal__q-title">{t('География (города / страны)')}</div>
+          <input placeholder={t('Например: Алматы, Астана')} value={f.geo} onChange={(e) => set('geo', e.target.value)} />
+        </div>
+      </div>
+
+      <div className="bp-block">
+        <div className="bp-block__title">{t('Техзадание: съёмка и монтаж')}</div>
         <div className="creator-portal__q">
           <div className="creator-portal__q-title">{t('Ориентация')}</div>
           <label className="creator-portal__opt"><input type="radio" name="orientation" checked={f.orientation === 'vertical'} onChange={() => set('orientation', 'vertical')} /> {t('Вертикальное')}</label>
@@ -1218,6 +1321,27 @@ function BriefForm({ authFetch, reload, brief = null, draft = null, onDone }) {
           <div className="creator-portal__q-title">{t('Продукт в кадре')}</div>
           <label className="pf-check"><input type="checkbox" checked={f.product_in_frame} onChange={(e) => set('product_in_frame', e.target.checked)} /> {t('Да')}</label>
         </div>
+        <div className="creator-portal__q">
+          <div className="creator-portal__q-title">{t('Желаемый формат ролика')}</div>
+          <select value={f.video_format} onChange={(e) => set('video_format', e.target.value)}>
+            <option value="">{t('Не важно')}</option>
+            {VIDEO_FORMATS.map((v) => <option key={v} value={v}>{t(v)}</option>)}
+          </select>
+        </div>
+        <div className="creator-portal__q">
+          <div className="creator-portal__q-title">{t('Логотип')}</div>
+          {f.logo_url ? (
+            <div className="bp-logo">
+              <img className="bp-logo__img" src={mediaUrl(f.logo_url)} alt="" />
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => set('logo_url', '')}>{t('Удалить')}</button>
+            </div>
+          ) : (
+            <label className="btn btn--ghost btn--sm">
+              {logoBusy ? t('Загрузка…') : t('Загрузить логотип')}
+              <input type="file" accept="image/*" hidden disabled={logoBusy} onChange={(e) => { const file = e.target.files?.[0]; e.target.value = ''; uploadLogo(file); }} />
+            </label>
+          )}
+        </div>
       </div>
 
       <div className="bp-block">
@@ -1242,13 +1366,41 @@ function BriefForm({ authFetch, reload, brief = null, draft = null, onDone }) {
       </div>
 
       <div className="creator-portal__q">
-        <div className="creator-portal__q-title">{t('Что делать (по желанию)')}</div>
-        <textarea rows={2} placeholder={t('Например: показать продукт крупным планом')} value={f.dos} onChange={(e) => set('dos', e.target.value)} />
+        <div className="creator-portal__q-title">{t('Сценарий / структура видео (по желанию)')}</div>
+        <textarea rows={3} placeholder={t('Чёткий script: что в начале, в середине и в конце — по секундам, если нужно')} value={f.dos} onChange={(e) => set('dos', e.target.value)} />
       </div>
 
       <div className="creator-portal__q">
         <div className="creator-portal__q-title">{t('Чего не делать (по желанию)')}</div>
         <textarea rows={2} placeholder={t('Например: не упоминать конкурентов')} value={f.donts} onChange={(e) => set('donts', e.target.value)} />
+      </div>
+
+      <div className="bp-block">
+        <div className="bp-block__title">{t('Референсы (по желанию)')}</div>
+        <p className="creator-portal__muted" style={{ margin: '0 0 6px', fontSize: '0.82rem' }}>
+          {t('2–3 ролика, которые нравятся — вставь ссылки.')}
+        </p>
+        {f.reference_links.map((val, i) => (
+          <div className="creator-portal__q" key={i}>
+            <input
+              type="url"
+              inputMode="url"
+              placeholder={`${t('Ссылка на референс')} ${i + 1}`}
+              value={val}
+              onChange={(e) => setRef(i, e.target.value)}
+            />
+          </div>
+        ))}
+      </div>
+
+      <div className="creator-portal__q">
+        <div className="creator-portal__q-title">{t('Правила сдачи материалов (по желанию)')}</div>
+        <textarea
+          rows={2}
+          placeholder={t('Например: сдать до 20 числа, прислать ссылку на опубликованное видео + скриншот статистики')}
+          value={f.submission_rules}
+          onChange={(e) => set('submission_rules', e.target.value)}
+        />
       </div>
 
       {error && <p className="creator-portal__err">{error}</p>}

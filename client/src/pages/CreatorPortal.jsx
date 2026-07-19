@@ -14,6 +14,7 @@ import Guide from '../components/Guide.jsx';
 import Tour from '../components/Tour.jsx';
 import InstallApp from '../components/InstallApp.jsx';
 import { CREATOR_GUIDE, CREATOR_TOUR } from '../content/guides.js';
+import { briefOfferRows, briefRefLinks } from '../lib/briefFields.js';
 import { useToast } from '../components/Toast.jsx';
 
 const KEY = 'clicki_creator_token';
@@ -1306,6 +1307,8 @@ function BriefCard({ b, top = false, onTake, takingId, mine = false }) {
   const rows = [];
   if (b.goal) rows.push(['Цель', b.goal]);
   if (b.audience) rows.push(['Аудитория', b.audience]);
+  // Business creative brief (product, УТП, боль аудитории, 3-сек, гео, формат, платформы)
+  rows.push(...briefOfferRows(b));
   if (spec.orientation) rows.push(['Ориентация', spec.orientation === 'horizontal' ? 'Горизонтальное' : 'Вертикальное']);
   rows.push(['Хронометраж', b.duration_min ? `${b.duration_min}–${b.duration_max} сек` : `до ${b.duration_max} сек`]);
   if (spec.cta_required) rows.push(['CTA', 'Обязательно']);
@@ -1365,14 +1368,37 @@ function BriefCard({ b, top = false, onTake, takingId, mine = false }) {
       </div>
 
       {open && (
-        <dl className="brief-detail">
-          {rows.map(([k, v]) => (
-            <div key={k} className="brief-detail__row">
-              <dt>{k}</dt>
-              <dd>{v}</dd>
+        <>
+          <dl className="brief-detail">
+            {rows.map(([k, v]) => (
+              <div key={k} className="brief-detail__row">
+                <dt>{k}</dt>
+                <dd>{v}</dd>
+              </div>
+            ))}
+            {briefRefLinks(b).length > 0 && (
+              <div className="brief-detail__row">
+                <dt>Референсы</dt>
+                <dd>
+                  {briefRefLinks(b).map((url, i) => {
+                    const href = safeHref(url);
+                    return (
+                      <div key={i}>
+                        {href ? <a href={href} target="_blank" rel="noopener noreferrer">Референс {i + 1}</a> : url}
+                      </div>
+                    );
+                  })}
+                </dd>
+              </div>
+            )}
+          </dl>
+          {spec.logo_url && (
+            <div className="cp-brief__logo">
+              <span className="creator-portal__muted">Логотип бренда</span>
+              <img src={mediaUrl(spec.logo_url)} alt="Логотип бренда" />
             </div>
-          ))}
-        </dl>
+          )}
+        </>
       )}
 
       <div className="cp-brief__actions">
