@@ -420,11 +420,18 @@ const CREATOR_TABS = [
   { key: 'overview', label: 'Обзор', short: 'Обзор', icon: 'home' },
   { key: 'briefs', label: 'Заказы', short: 'Заказы', icon: 'briefs' },
   { key: 'videos', label: 'Видео', short: 'Видео', icon: 'video' },
-  { key: 'referrals', label: 'Рефералы', short: 'Рефы', icon: 'users' },
-  { key: 'rating', label: 'Рейтинг', short: 'Топ', icon: 'trophy' },
-  { key: 'guide', label: 'Как это работает', short: 'Гайд', icon: 'help' },
-  { key: 'account', label: 'Мой аккаунт', short: 'Профиль', icon: 'user' },
+  { key: 'account', label: 'Профиль', short: 'Профиль', icon: 'user' },
 ];
+
+// «Профиль» — это хаб: аккаунт + рефералы + рейтинг + гайд как под-вкладки. Все
+// они подсвечивают вкладку «Профиль» в нижнем/боковом меню (см. activeMain).
+const PROFILE_SUBS = [
+  { key: 'account', label: 'Аккаунт' },
+  { key: 'referrals', label: 'Рефералы' },
+  { key: 'rating', label: 'Рейтинг' },
+  { key: 'guide', label: 'Гайд' },
+];
+const PROFILE_SUB_KEYS = PROFILE_SUBS.map((s) => s.key);
 
 function timeAgo(iso) {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -611,6 +618,9 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
   // How many live videos still need today's stats screenshot — surfaced up here
   // so the creator sees the daily task without opening each video card.
   const needStatsToday = submissions.filter((s) => needsScreenshotToday(s, c)).length;
+  // Which of the 4 bottom-nav tabs is highlighted: every profile sub-view
+  // (рефералы/рейтинг/гайд) keeps «Профиль» active.
+  const activeMain = PROFILE_SUB_KEYS.includes(view) ? 'account' : view;
   const avatarNode = c.avatar_url
     ? <img src={mediaUrl(c.avatar_url)} alt="" />
     : <span>{(firstName || '?').charAt(0).toUpperCase()}</span>;
@@ -626,7 +636,7 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
                 key={tab.key}
                 type="button"
                 data-tour={`nav-${tab.key}`}
-                className={`cp-side__link ${view === tab.key ? 'is-active' : ''}`}
+                className={`cp-side__link ${activeMain === tab.key ? 'is-active' : ''}`}
                 onClick={() => setView(tab.key)}
               >
                 <span className="cp-side__icon" aria-hidden="true"><Icon name={tab.icon} size={20} /></span>
@@ -671,8 +681,8 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
                 key={tab.key}
                 type="button"
                 data-tour={`nav-${tab.key}`}
-                aria-current={view === tab.key ? 'page' : undefined}
-                className={`cp-bottomnav__btn ${view === tab.key ? 'is-active' : ''}`}
+                aria-current={activeMain === tab.key ? 'page' : undefined}
+                className={`cp-bottomnav__btn ${activeMain === tab.key ? 'is-active' : ''}`}
                 onClick={() => setView(tab.key)}
               >
                 <span className="cp-bottomnav__icon" aria-hidden="true"><Icon name={tab.icon} size={24} /></span>
@@ -720,52 +730,71 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
         </div>
       )}
 
-      {view === 'referrals' && (
-        <>
-          <h2 className="creator-portal__h2">Рефералы</h2>
-          <p className="creator-portal__muted cp-section-sub">
-            Приглашай друзей-креаторов и приводи бренды по своим ссылкам — за каждого начисляем XP.
-          </p>
-          {c.username ? (
-            <ReferralsView authFetch={authFetch} username={c.username} />
-          ) : (
-            <div className="creator-portal__card">
-              <EmptyState
-                icon="🔗"
-                title="Ссылки появятся, когда выдадут логин"
-                hint="Оператор создаёт тебе логин после подтверждения заявки — тогда здесь появятся твоя реф-ссылка и ссылка для профиля."
-              />
-            </div>
-          )}
-        </>
-      )}
-
-      {view === 'rating' && (
-        <>
-          <h2 className="creator-portal__h2">Рейтинг</h2>
-          <p className="creator-portal__muted cp-section-sub">
-            Чем больше XP, тем выше ты в топе. Снимай видео и держи ежедневный стрик — так рейтинг растёт быстрее.
-          </p>
-          <Leaderboard meId={c.id} />
-        </>
-      )}
-
-      {view === 'guide' && (
-        <>
-          <div className="cp-guide__head">
-            <h2 className="creator-portal__h2" style={{ margin: 0 }}>Как это работает</h2>
-            <button type="button" className="btn btn--primary btn--sm" onClick={() => setTourOpen(true)}>
-              Смотреть тур
-            </button>
+      {PROFILE_SUB_KEYS.includes(view) && (
+        <div className="cp-profile">
+          {/* Профиль-хаб: аккаунт + рефералы + рейтинг + гайд под одной вкладкой. */}
+          <div className="cp-subnav" role="tablist" aria-label="Профиль">
+            {PROFILE_SUBS.map((s) => (
+              <button
+                key={s.key}
+                type="button"
+                role="tab"
+                aria-selected={view === s.key}
+                data-tour={`sub-${s.key}`}
+                className={`cp-subnav__btn ${view === s.key ? 'is-active' : ''}`}
+                onClick={() => setView(s.key)}
+              >
+                {s.label}
+              </button>
+            ))}
           </div>
-          <p className="creator-portal__muted" style={{ marginTop: 0 }}>
-            Тур проведёт по кабинету и покажет, где что находится. Ниже — тот же путь текстом и скриншотами.
-          </p>
-          <Guide content={CREATOR_GUIDE} />
-        </>
-      )}
 
           {view === 'account' && <AccountView c={c} authFetch={authFetch} reload={reload} />}
+
+          {view === 'referrals' && (
+            <>
+              <p className="creator-portal__muted cp-section-sub" style={{ marginTop: 0 }}>
+                Приглашай друзей-креаторов и приводи бренды по своим ссылкам — за каждого начисляем XP.
+              </p>
+              {c.username ? (
+                <ReferralsView authFetch={authFetch} username={c.username} />
+              ) : (
+                <div className="creator-portal__card">
+                  <EmptyState
+                    icon="🔗"
+                    title="Ссылки появятся, когда выдадут логин"
+                    hint="Оператор создаёт тебе логин после подтверждения заявки — тогда здесь появятся твоя реф-ссылка и ссылка для профиля."
+                  />
+                </div>
+              )}
+            </>
+          )}
+
+          {view === 'rating' && (
+            <>
+              <p className="creator-portal__muted cp-section-sub" style={{ marginTop: 0 }}>
+                Чем больше XP, тем выше ты в топе. Снимай видео и держи ежедневный стрик — так рейтинг растёт быстрее.
+              </p>
+              <Leaderboard meId={c.id} />
+            </>
+          )}
+
+          {view === 'guide' && (
+            <>
+              <div className="cp-guide__head">
+                <h2 className="creator-portal__h2" style={{ margin: 0 }}>Как это работает</h2>
+                <button type="button" className="btn btn--primary btn--sm" onClick={() => setTourOpen(true)}>
+                  Смотреть тур
+                </button>
+              </div>
+              <p className="creator-portal__muted" style={{ marginTop: 0 }}>
+                Тур проведёт по кабинету и покажет, где что находится. Ниже — тот же путь текстом и скриншотами.
+              </p>
+              <Guide content={CREATOR_GUIDE} />
+            </>
+          )}
+        </div>
+      )}
         </div>
       </div>
       <Tour steps={tourSteps} open={tourOpen} onClose={() => setTourOpen(false)} />

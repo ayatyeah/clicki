@@ -177,6 +177,21 @@
   color: var(--ink);
   box-shadow: 0 1px 3px rgba(24, 20, 48, 0.12);
 }
+/* Профиль-хаб: сегментированное под-меню (Аккаунт · Рефералы · Рейтинг · Гайд).
+   Прокручивается по горизонтали, если не влезает на узком экране. */
+.cp-subnav {
+  display: flex; gap: 4px; padding: 4px; margin-bottom: 16px;
+  background: #f3f0fb; border-radius: 10px;
+  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.cp-subnav::-webkit-scrollbar { display: none; }
+.cp-subnav__btn {
+  flex: 1 0 auto; white-space: nowrap; border: none; background: none; cursor: pointer;
+  padding: 8px 16px; border-radius: 7px; font: inherit; font-size: 0.9rem; font-weight: 600;
+  color: var(--stone); transition: background 0.15s ease, color 0.15s ease;
+}
+.cp-subnav__btn.is-active { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(24, 20, 48, 0.12); }
+.cp-subnav__btn:hover:not(.is-active) { color: var(--ink); }
 .app-light .creator-portal__link:hover { color: var(--cobalt); }
 .app-light .creator-portal__applied-icon { background: rgba(22, 163, 74, 0.14); color: #15803d; }
 .app-light .creator-portal__card:has(.creator-portal__bar) {
