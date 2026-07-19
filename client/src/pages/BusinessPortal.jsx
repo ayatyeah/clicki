@@ -1105,6 +1105,28 @@ const EMPTY_BRIEF = {
   submission_rules: '',
 };
 
+/** Collapsible section of the brief form — keeps the long form manageable to
+ *  fill and readable on a phone (tap a header to expand just that group).
+ *  Fields inside are controlled by the parent form state, so collapsing a
+ *  section never loses what was typed. */
+function BriefSection({ title, hint, children, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className={`bp-acc ${open ? 'is-open' : ''}`}>
+      <button type="button" className="bp-acc__head" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        <span className="bp-acc__title">{title}</span>
+        <span className="bp-acc__chev" aria-hidden="true">▾</span>
+      </button>
+      {open && (
+        <div className="bp-acc__body">
+          {hint && <p className="creator-portal__muted bp-acc__hint">{hint}</p>}
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BriefForm({ authFetch, reload, brief = null, draft = null, onDone }) {
   const { lang } = useLang();
   const t = (s) => bt(lang, s);
@@ -1266,8 +1288,7 @@ function BriefForm({ authFetch, reload, brief = null, draft = null, onDone }) {
         </div>
       )}
 
-      <div className="bp-block">
-        <div className="bp-block__title">{t('Оффер и посыл')}</div>
+      <BriefSection title={t('Оффер и посыл')} defaultOpen>
         <div className="creator-portal__q">
           <div className="creator-portal__q-title">{t('Конкретный продукт / услуга / акция')}</div>
           <input placeholder={t('Не «весь бренд», а точный оффер')} value={f.product} onChange={(e) => set('product', e.target.value)} />
@@ -1288,10 +1309,13 @@ function BriefForm({ authFetch, reload, brief = null, draft = null, onDone }) {
           <div className="creator-portal__q-title">{t('География (города / страны)')}</div>
           <input placeholder={t('Например: Алматы, Астана')} value={f.geo} onChange={(e) => set('geo', e.target.value)} />
         </div>
-      </div>
+        <div className="creator-portal__q">
+          <div className="creator-portal__q-title">{t('Ключевое сообщение')}</div>
+          <input placeholder={t('Что должен донести ролик')} value={f.key_message} onChange={(e) => set('key_message', e.target.value)} />
+        </div>
+      </BriefSection>
 
-      <div className="bp-block">
-        <div className="bp-block__title">{t('Техзадание: съёмка и монтаж')}</div>
+      <BriefSection title={t('Техзадание: съёмка и монтаж')} defaultOpen={!!brief}>
         <div className="creator-portal__q">
           <div className="creator-portal__q-title">{t('Ориентация')}</div>
           <label className="creator-portal__opt"><input type="radio" name="orientation" checked={f.orientation === 'vertical'} onChange={() => set('orientation', 'vertical')} /> {t('Вертикальное')}</label>
@@ -1302,6 +1326,13 @@ function BriefForm({ authFetch, reload, brief = null, draft = null, onDone }) {
           <input type="number" min="5" max="180" value={f.max_duration} onChange={(e) => set('max_duration', e.target.value)} />
         </div>
         <div className="creator-portal__q">
+          <div className="creator-portal__q-title">{t('Желаемый формат ролика')}</div>
+          <select value={f.video_format} onChange={(e) => set('video_format', e.target.value)}>
+            <option value="">{t('Не важно')}</option>
+            {VIDEO_FORMATS.map((v) => <option key={v} value={v}>{t(v)}</option>)}
+          </select>
+        </div>
+        <div className="creator-portal__q">
           <div className="creator-portal__q-title">CTA</div>
           <label className="pf-check"><input type="checkbox" checked={f.cta_required} onChange={(e) => set('cta_required', e.target.checked)} /> {t('Обязательно')}</label>
         </div>
@@ -1310,8 +1341,8 @@ function BriefForm({ authFetch, reload, brief = null, draft = null, onDone }) {
           <input placeholder={t('https://ваш-сайт.kz/акция')} value={f.req_cta_link} onChange={(e) => set('req_cta_link', e.target.value)} />
         </div>
         <div className="creator-portal__q">
-          <div className="creator-portal__q-title">{t('Логотип')}</div>
-          <label className="pf-check"><input type="checkbox" checked={f.logo_first5} onChange={(e) => set('logo_first5', e.target.checked)} /> {t('Первые 5 секунд')}</label>
+          <div className="creator-portal__q-title">{t('Логотип в первые 5 секунд')}</div>
+          <label className="pf-check"><input type="checkbox" checked={f.logo_first5} onChange={(e) => set('logo_first5', e.target.checked)} /> {t('Обязательно')}</label>
         </div>
         <div className="creator-portal__q">
           <div className="creator-portal__q-title">{t('Название бренда')}</div>
@@ -1322,14 +1353,7 @@ function BriefForm({ authFetch, reload, brief = null, draft = null, onDone }) {
           <label className="pf-check"><input type="checkbox" checked={f.product_in_frame} onChange={(e) => set('product_in_frame', e.target.checked)} /> {t('Да')}</label>
         </div>
         <div className="creator-portal__q">
-          <div className="creator-portal__q-title">{t('Желаемый формат ролика')}</div>
-          <select value={f.video_format} onChange={(e) => set('video_format', e.target.value)}>
-            <option value="">{t('Не важно')}</option>
-            {VIDEO_FORMATS.map((v) => <option key={v} value={v}>{t(v)}</option>)}
-          </select>
-        </div>
-        <div className="creator-portal__q">
-          <div className="creator-portal__q-title">{t('Логотип')}</div>
+          <div className="creator-portal__q-title">{t('Логотип бренда (картинка)')}</div>
           {f.logo_url ? (
             <div className="bp-logo">
               <img className="bp-logo__img" src={mediaUrl(f.logo_url)} alt="" />
@@ -1342,10 +1366,9 @@ function BriefForm({ authFetch, reload, brief = null, draft = null, onDone }) {
             </label>
           )}
         </div>
-      </div>
+      </BriefSection>
 
-      <div className="bp-block">
-        <div className="bp-block__title">{t('Стиль')}</div>
+      <BriefSection title={t('Стиль ролика')} defaultOpen={!!brief}>
         <div className="creator-portal__q">
           {STYLES.map(([val, label]) => (
             <label key={val} className="creator-portal__opt">
@@ -1353,55 +1376,48 @@ function BriefForm({ authFetch, reload, brief = null, draft = null, onDone }) {
             </label>
           ))}
         </div>
-      </div>
+      </BriefSection>
 
-      <div className="creator-portal__q">
-        <div className="creator-portal__q-title">{t('Ключевое сообщение')}</div>
-        <input placeholder={t('Что должен донести ролик')} value={f.key_message} onChange={(e) => set('key_message', e.target.value)} />
-      </div>
-
-      <div className="creator-portal__q">
-        <div className="creator-portal__q-title">{t('Хэштег (по желанию)')}</div>
-        <input placeholder={t('#бренд')} value={f.req_hashtag} onChange={(e) => set('req_hashtag', e.target.value)} />
-      </div>
-
-      <div className="creator-portal__q">
-        <div className="creator-portal__q-title">{t('Сценарий / структура видео (по желанию)')}</div>
-        <textarea rows={3} placeholder={t('Чёткий script: что в начале, в середине и в конце — по секундам, если нужно')} value={f.dos} onChange={(e) => set('dos', e.target.value)} />
-      </div>
-
-      <div className="creator-portal__q">
-        <div className="creator-portal__q-title">{t('Чего не делать (по желанию)')}</div>
-        <textarea rows={2} placeholder={t('Например: не упоминать конкурентов')} value={f.donts} onChange={(e) => set('donts', e.target.value)} />
-      </div>
-
-      <div className="bp-block">
-        <div className="bp-block__title">{t('Референсы (по желанию)')}</div>
-        <p className="creator-portal__muted" style={{ margin: '0 0 6px', fontSize: '0.82rem' }}>
-          {t('2–3 ролика, которые нравятся — вставь ссылки.')}
-        </p>
-        {f.reference_links.map((val, i) => (
-          <div className="creator-portal__q" key={i}>
+      <BriefSection title={t('Сценарий, референсы и сдача')} defaultOpen={!!brief}>
+        <div className="creator-portal__q">
+          <div className="creator-portal__q-title">{t('Сценарий / структура видео (по желанию)')}</div>
+          <textarea rows={3} placeholder={t('Чёткий script: что в начале, в середине и в конце — по секундам, если нужно')} value={f.dos} onChange={(e) => set('dos', e.target.value)} />
+        </div>
+        <div className="creator-portal__q">
+          <div className="creator-portal__q-title">{t('Чего не делать (по желанию)')}</div>
+          <textarea rows={2} placeholder={t('Например: не упоминать конкурентов')} value={f.donts} onChange={(e) => set('donts', e.target.value)} />
+        </div>
+        <div className="creator-portal__q">
+          <div className="creator-portal__q-title">{t('Хэштег (по желанию)')}</div>
+          <input placeholder={t('#бренд')} value={f.req_hashtag} onChange={(e) => set('req_hashtag', e.target.value)} />
+        </div>
+        <div className="creator-portal__q">
+          <div className="creator-portal__q-title">{t('Референсы — 2–3 ролика (по желанию)')}</div>
+          <p className="creator-portal__muted" style={{ margin: '0 0 6px', fontSize: '0.82rem' }}>
+            {t('Ролики, которые нравятся — вставь ссылки.')}
+          </p>
+          {f.reference_links.map((val, i) => (
             <input
+              key={i}
               type="url"
               inputMode="url"
+              className="bp-ref-input"
               placeholder={`${t('Ссылка на референс')} ${i + 1}`}
               value={val}
               onChange={(e) => setRef(i, e.target.value)}
             />
-          </div>
-        ))}
-      </div>
-
-      <div className="creator-portal__q">
-        <div className="creator-portal__q-title">{t('Правила сдачи материалов (по желанию)')}</div>
-        <textarea
-          rows={2}
-          placeholder={t('Например: сдать до 20 числа, прислать ссылку на опубликованное видео + скриншот статистики')}
-          value={f.submission_rules}
-          onChange={(e) => set('submission_rules', e.target.value)}
-        />
-      </div>
+          ))}
+        </div>
+        <div className="creator-portal__q">
+          <div className="creator-portal__q-title">{t('Правила сдачи материалов (по желанию)')}</div>
+          <textarea
+            rows={2}
+            placeholder={t('Например: сдать до 20 числа, прислать ссылку на опубликованное видео + скриншот статистики')}
+            value={f.submission_rules}
+            onChange={(e) => set('submission_rules', e.target.value)}
+          />
+        </div>
+      </BriefSection>
 
       {error && <p className="creator-portal__err">{error}</p>}
       <button className="btn btn--primary btn--block" disabled={busy}>

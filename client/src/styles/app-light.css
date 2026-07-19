@@ -246,27 +246,29 @@
   text-transform: uppercase;
   color: #6d28d9;
 }
+.bp-form { display: flex; flex-direction: column; gap: 14px; }
 .bp-form .creator-portal__q-title { font-size: 0.95rem; }
 .bp-form input[type='number'] { max-width: 140px; }
 
-/* Whole brief form balances into two columns on wider screens so it fills the
-   page width and stays short — much easier to see/screenshot at a glance. */
-@media (min-width: 760px) {
-  .app-light .bp-form {
-    display: block;
-    column-count: 2;
-    column-gap: 18px;
-  }
-  .app-light .bp-form > * {
-    break-inside: avoid;
-    margin-bottom: 12px;
-  }
-  .app-light .bp-form > .creator-portal__q:first-child,
-  .app-light .bp-form > .creator-portal__err,
-  .app-light .bp-form > .btn {
-    column-span: all;
-  }
+/* Collapsible brief-form sections (accordion). The brief grew long; folding it
+   into tap-to-open groups keeps it quick to fill and readable on a phone.
+   Fields stay controlled by the form state, so collapsing never loses input. */
+.bp-acc { border: 1px solid var(--line); border-radius: var(--r-card); background: #fbfaff; overflow: hidden; }
+.bp-acc__head {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 14px 16px; background: none; border: none; cursor: pointer; font: inherit; text-align: left;
 }
+.bp-acc__title {
+  font-family: var(--font-mono); font-size: 0.76rem; letter-spacing: 0.08em;
+  text-transform: uppercase; color: #6d28d9; font-weight: 700;
+}
+.bp-acc__chev { color: #6d28d9; font-size: 0.9rem; transition: transform 0.18s ease; }
+.bp-acc.is-open .bp-acc__chev { transform: rotate(180deg); }
+.bp-acc__head:hover .bp-acc__title { color: #5b21b6; }
+.bp-acc__body { display: flex; flex-direction: column; gap: 14px; padding: 0 16px 16px; }
+.bp-acc__hint { margin: 0; font-size: 0.82rem; }
+.bp-ref-input { margin-bottom: 8px; }
+.bp-ref-input:last-child { margin-bottom: 0; }
 
 /* Business dashboard widgets */
 .bp-stat__hint { margin-top: 4px; font-size: 0.78rem; color: var(--fog); }

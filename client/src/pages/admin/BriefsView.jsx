@@ -281,14 +281,20 @@ function BriefModCard({ b, authFetch, creators, onChange, canManage }) {
       setBusy(false);
     }
   };
-  const { label: statusLabel, cls: statusCls } = briefStatus(b.status);
-
   // Who can actually see this brief right now. `active` means it's an open order
   // for EVERY creator — assignment doesn't restrict, it only adds — so that case
   // is called out loudly. This is the line the operator kept almost crossing:
   // a brief meant for five, one click from reaching all of them.
   const totalCreators = creators.length;
   const assigned = b.assigned_count || 0;
+  // Assigning to specific creators is itself a publish action — the brief is live
+  // for them and they see it in «Назначенные тебе», so it's no longer «на
+  // модерации». Its status stays 'new' (which really means "not broadcast to
+  // everyone"), so reflect the assigned state in the pill instead of the raw label.
+  const base = briefStatus(b.status);
+  const assignedTargeted = b.status !== 'active' && b.status !== 'revision' && assigned > 0;
+  const statusLabel = assignedTargeted ? 'назначен выбранным' : base.label;
+  const statusCls = assignedTargeted ? 'accepted' : base.cls;
   const audience = b.status === 'active'
     ? { icon: '🌐', text: `Виден ВСЕМ креаторам${totalCreators ? ` (${totalCreators})` : ''}`, cls: 'all' }
     : assigned > 0
