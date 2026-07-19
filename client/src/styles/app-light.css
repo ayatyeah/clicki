@@ -975,6 +975,23 @@
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   margin-top: 5px; font-size: 0.76rem; color: var(--fog);
 }
+/* Public "UGC creator" code chip in the admin creators table */
+.creators-cell__ugc { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.ugc-chip {
+  display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 999px;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em;
+  background: rgba(124, 58, 237, 0.1); color: #6d28d9; font-variant-numeric: tabular-nums;
+}
+/* "Кто взял" (takers) analytics panel in the brief moderation card */
+.takers-panel { display: grid; gap: 10px; margin-top: 4px; }
+.takers-panel__summary {
+  font-size: 0.85rem; color: var(--stone); padding: 8px 12px;
+  border: 1px solid var(--line); border-radius: 10px; background: #faf9ff;
+}
+.takers-cell__ugc {
+  margin-top: 2px; font-size: 0.72rem; font-weight: 700; color: #6d28d9;
+  letter-spacing: 0.03em; font-variant-numeric: tabular-nums;
+}
 /* TikTok connection chip in the admin creators table */
 .tt-chip {
   display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px;
@@ -1095,6 +1112,11 @@
 .cp-account__id { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
 .cp-account__id b { color: var(--ink); font-size: 1.05rem; }
 .cp-account__id .creator-portal__muted { margin: 0; font-size: 0.85rem; }
+.cp-ugc {
+  display: inline-flex; align-items: baseline; gap: 5px; padding: 2px 10px; border-radius: 999px;
+  font-size: 0.8rem; color: #6d28d9; background: rgba(124, 58, 237, 0.1);
+}
+.cp-ugc b { font-size: 0.82rem; letter-spacing: 0.03em; font-variant-numeric: tabular-nums; }
 .cp-field-label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; color: var(--ink); font-size: 0.92rem; }
 .cp-field-label input, .cp-field-label textarea { font-weight: 400; }
 

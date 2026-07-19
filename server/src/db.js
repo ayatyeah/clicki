@@ -1,5 +1,28 @@
+import crypto from 'node:crypto';
 import pg from 'pg';
 const { Pool } = pg;
+
+// Public "UGC creator" code shown on the creator and in the admin — random, not
+// sequential, so it reveals nothing about signup order or how many creators there
+// are. Ambiguous characters (0/O, 1/l/I) are left out so it's easy to read aloud.
+const UGC_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+export function generateUgcCode() {
+  const bytes = crypto.randomBytes(9);
+  let code = '';
+  for (let i = 0; i < 9; i++) code += UGC_ALPHABET[bytes[i] % UGC_ALPHABET.length];
+  return code;
+}
+
+// The 24-hour rule. A brief slot is occupied only while a creator still "holds"
+// it: either they've already submitted a video (slot spent) or they took the
+// brief within the last 24 hours (still inside their window). A holder who did
+// neither has let the slot lapse — it reopens for one more creator. Written
+// against an `assignments a` row; shared by the slot count in takeBrief() and the
+// availability filter in listActiveBriefsRanked() so both agree on who counts.
+const ACTIVE_HOLDER_SQL = `(
+  a.created_at > NOW() - INTERVAL '24 hours'
+  OR EXISTS (SELECT 1 FROM submissions s WHERE s.brief_id = a.brief_id AND s.creator_id = a.creator_id)
+)`;
 
 const pool = new Pool({
   user: process.env.DB_USER,
@@ -99,6 +122,23 @@ export async function initDb() {
     await client.query(`ALTER TABLE creators ADD COLUMN IF NOT EXISTS password_hash TEXT`);
     await client.query(`ALTER TABLE creators ADD COLUMN IF NOT EXISTS session_token TEXT`);
     await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS creators_username_key ON creators (lower(username))`);
+    // Random public "UGC creator" code per creator (not sequential). New creators
+    // get one in createCreator; existing ones are backfilled here, one at a time
+    // so each gets a distinct random value under the unique index.
+    await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS ugc_code VARCHAR(16)');
+    await client.query('CREATE UNIQUE INDEX IF NOT EXISTS creators_ugc_code_key ON creators (ugc_code)');
+    const needCode = await client.query('SELECT id FROM creators WHERE ugc_code IS NULL');
+    for (const row of needCode.rows) {
+      // Retry on the astronomically rare collision with an already-issued code.
+      for (let attempt = 0; attempt < 5; attempt++) {
+        try {
+          await client.query('UPDATE creators SET ugc_code = $1 WHERE id = $2', [generateUgcCode(), row.id]);
+          break;
+        } catch (e) {
+          if (e.code !== '23505') throw e;
+        }
+      }
+    }
     // Briefs as structured data (ТЗ §9.2, §9.3)
     await client.query(`
       CREATE TABLE IF NOT EXISTS briefs (
@@ -944,12 +984,21 @@ export async function createCreator({ name, contact, socials, city, referred_by,
   const capRow = await pool.query(`SELECT value::int AS cap FROM settings WHERE key = 'founding_cap'`);
   const cap = capRow.rows[0]?.cap ?? 50;
   const founding = cap === 0 || count.rows[0].n < cap;
-  const r = await pool.query(
-    `INSERT INTO creators (name, contact, socials, city, referred_by, founding, username, password_hash, session_token, status)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,COALESCE($10,'active')) RETURNING *`,
-    [name, contact || null, socials || null, city || null, referred_by || null, founding, username || null, password_hash || null, session_token || null, status || null]
-  );
-  return r.rows[0];
+  // Retry only on a ugc_code collision (unique-violation 23505); any other error
+  // is real and rethrown.
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const r = await pool.query(
+        `INSERT INTO creators (name, contact, socials, city, referred_by, founding, username, password_hash, session_token, status, ugc_code)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,COALESCE($10,'active'),$11) RETURNING *`,
+        [name, contact || null, socials || null, city || null, referred_by || null, founding, username || null, password_hash || null, session_token || null, status || null, generateUgcCode()]
+      );
+      return r.rows[0];
+    } catch (e) {
+      if (e.code === '23505' && /ugc_code/.test(e.detail || e.constraint || '') && attempt < 5) continue;
+      throw e;
+    }
+  }
 }
 export async function updateCreator(id, fields) {
   const allowed = ['account_open', 'onboarding_passed', 'status', 'trust_score', 'avatar_url', 'bio', 'topics', 'city', 'socials', 'email'];
@@ -1063,6 +1112,49 @@ export async function listBriefsForAdmin() {
 export async function getBrief(id) {
   const r = await pool.query('SELECT * FROM briefs WHERE id = $1', [id]);
   return r.rows[0] || null;
+}
+/**
+ * Full "who took this brief" analytics for the admin (ТЗ: сколько взяли, кто
+ * именно, за какое время, сдал ли). One row per creator who took the brief:
+ *   - taken_at            when they took it
+ *   - submitted_at        when they first submitted (null = not submitted)
+ *   - submission_status   status of that submission
+ *   - seconds_to_submit   take → submit duration, in seconds (null if not submitted)
+ *   - within_window       still inside their 24h window (the 24-hour rule)
+ *   - lapsed              took it, no submission, 24h elapsed → their slot reopened
+ * Ordered by take time so the operator reads the sequence they came in.
+ */
+export async function getBriefTakers(briefId) {
+  const r = await pool.query(
+    `SELECT
+        a.creator_id,
+        c.name AS creator_name,
+        c.ugc_code,
+        a.created_at AS taken_at,
+        s.id AS submission_id,
+        s.status AS submission_status,
+        s.platform AS submission_platform,
+        s.video_url,
+        s.created_at AS submitted_at,
+        (s.created_at IS NOT NULL) AS submitted,
+        CASE WHEN s.created_at IS NOT NULL
+             THEN EXTRACT(EPOCH FROM (s.created_at - a.created_at)) END AS seconds_to_submit,
+        (a.created_at > NOW() - INTERVAL '24 hours') AS within_window,
+        (s.created_at IS NULL AND a.created_at <= NOW() - INTERVAL '24 hours') AS lapsed
+       FROM assignments a
+       JOIN creators c ON c.id = a.creator_id
+       LEFT JOIN LATERAL (
+         SELECT id, status, platform, video_url, created_at
+           FROM submissions s2
+          WHERE s2.brief_id = a.brief_id AND s2.creator_id = a.creator_id
+          ORDER BY s2.created_at ASC
+          LIMIT 1
+       ) s ON TRUE
+      WHERE a.brief_id = $1
+      ORDER BY a.created_at ASC`,
+    [briefId]
+  );
+  return r.rows;
 }
 /** A creator may submit against a brief only if it's still an open broadcast,
  * or they were specifically assigned to it — prevents submitting against an
@@ -1181,7 +1273,12 @@ export async function takeBrief(briefId, creatorId) {
     }
     const slots = Number(brief.slots) || 0;
     if (slots > 0) {
-      const taken = (await client.query('SELECT COUNT(*)::int AS n FROM assignments WHERE brief_id=$1', [briefId])).rows[0].n;
+      // Count only creators still holding a slot (24-hour rule) — lapsed holders
+      // don't occupy a slot, so their spot is available to take.
+      const taken = (await client.query(
+        `SELECT COUNT(*)::int AS n FROM assignments a WHERE a.brief_id=$1 AND ${ACTIVE_HOLDER_SQL}`,
+        [briefId]
+      )).rows[0].n;
       if (taken >= slots) {
         await client.query('ROLLBACK');
         return { ok: false, reason: 'full' };
@@ -1499,7 +1596,8 @@ export async function listActiveBriefsRanked(creatorId) {
         GROUP BY platform`,
       [minViews]
     ),
-    pool.query('SELECT brief_id, COUNT(*)::int AS n FROM assignments GROUP BY brief_id'),
+    // Only holders still occupying a slot (24-hour rule) count toward "full".
+    pool.query(`SELECT a.brief_id, COUNT(*)::int AS n FROM assignments a WHERE ${ACTIVE_HOLDER_SQL} GROUP BY a.brief_id`),
     pool.query('SELECT brief_id FROM assignments WHERE creator_id=$1', [creatorId]),
   ]);
   const rateByPlatform = Object.fromEntries(ratesQ.rows.map((r) => [r.platform, Number(r.creator_rate)]));

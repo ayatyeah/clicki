@@ -226,6 +226,7 @@ function BriefModCard({ b, authFetch, creators, onChange, canManage }) {
   const [showNote, setShowNote] = useState(false);
   const [showBrief, setShowBrief] = useState(false);
   const [showAssign, setShowAssign] = useState(false);
+  const [showTakers, setShowTakers] = useState(false);
   const call = async (url, body) => {
     setBusy(true);
     try {
@@ -335,6 +336,9 @@ function BriefModCard({ b, authFetch, creators, onChange, canManage }) {
           <button className="btn btn--ghost btn--sm" disabled={busy} onClick={() => setShowAssign((s) => !s)} aria-expanded={showAssign}>
             👥 Назначить выбранным
           </button>
+          <button className="btn btn--ghost btn--sm" onClick={() => setShowTakers((s) => !s)} aria-expanded={showTakers}>
+            📊 Кто взял{assigned ? ` (${assigned})` : ''}
+          </button>
           {canManage && (
             <button className="btn btn--danger btn--sm" disabled={busy} onClick={remove}>Удалить</button>
           )}
@@ -347,6 +351,7 @@ function BriefModCard({ b, authFetch, creators, onChange, canManage }) {
             onDone={() => { setShowAssign(false); onChange(); }}
           />
         )}
+        {showTakers && <BriefTakers briefId={b.id} authFetch={authFetch} />}
         {showNote && (
           <div className="mod-actions">
             <input placeholder="Что исправить бизнесу" value={note} onChange={(e) => setNote(e.target.value)} style={{ flex: 1, minWidth: 200 }} />
@@ -355,6 +360,104 @@ function BriefModCard({ b, authFetch, creators, onChange, canManage }) {
             </button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/** Seconds → "2 ч 15 мин" / "40 мин" / "30 сек". Used for take→submit time. */
+function humanDuration(seconds) {
+  const s = Math.max(0, Math.round(Number(seconds) || 0));
+  if (s < 60) return `${s} сек`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m} мин`;
+  const h = Math.floor(m / 60);
+  const rem = m % 60;
+  return rem ? `${h} ч ${rem} мин` : `${h} ч`;
+}
+
+/**
+ * Full "who took this brief" analytics (ТЗ: сколько взяли, кто именно, за какое
+ * время взяли и сдали ли). Loads on open. Each taker shows: name + UGC-код, when
+ * they took it, whether/when they submitted, how long take→submit took, and their
+ * state under the 24-hour rule — сдал / ⏳ в работе / ⌛ просрочено (slot reopened).
+ */
+function BriefTakers({ briefId, authFetch }) {
+  const [takers, setTakers] = useState(null); // null = loading
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await authFetch(`/api/admin/briefs/${briefId}/takers`);
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok || d.ok === false) throw new Error(d.errors?.[0] || `Ошибка ${res.status}`);
+        if (alive) setTakers(d.takers || []);
+      } catch (e) {
+        if (alive) setErr(e.message);
+      }
+    })();
+    return () => { alive = false; };
+  }, [briefId, authFetch]);
+
+  if (err) return <p className="creator-portal__err" style={{ margin: '8px 0' }}>Не удалось загрузить: {err}</p>;
+  if (takers === null) return <p className="muted-note" style={{ margin: '8px 0' }}>Загружаю…</p>;
+  if (!takers.length) return <p className="muted-note" style={{ margin: '8px 0' }}>Бриф ещё никто не взял.</p>;
+
+  const submitted = takers.filter((t) => t.submitted).length;
+  const active = takers.filter((t) => !t.submitted && t.within_window).length;
+  const lapsed = takers.filter((t) => t.lapsed).length;
+
+  const state = (t) => {
+    if (t.submitted) return { cls: 'accepted', text: '✅ сдал' };
+    if (t.lapsed) return { cls: 'rejected', text: '⌛ просрочено' };
+    return { cls: 'pending', text: '⏳ в работе' };
+  };
+
+  return (
+    <div className="takers-panel">
+      <div className="takers-panel__summary">
+        Взяли: <b>{takers.length}</b> · Сдали: <b>{submitted}</b> · В работе: <b>{active}</b>
+        {lapsed > 0 && <> · Просрочено: <b>{lapsed}</b></>}
+      </div>
+      <div className="admin-table-wrap">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>Креатор</th>
+              <th>Взял</th>
+              <th>Сдал</th>
+              <th>Время до сдачи</th>
+              <th>Статус</th>
+            </tr>
+          </thead>
+          <tbody>
+            {takers.map((t) => {
+              const st = state(t);
+              const video = safeHref(t.video_url);
+              return (
+                <tr key={t.creator_id}>
+                  <td data-label="Креатор">
+                    <b>{t.creator_name}</b>
+                    {t.ugc_code && <div className="takers-cell__ugc">UGC {t.ugc_code}</div>}
+                  </td>
+                  <td data-label="Взял">{t.taken_at ? new Date(t.taken_at).toLocaleString('ru-RU') : '—'}</td>
+                  <td data-label="Сдал">
+                    {t.submitted
+                      ? <>
+                          {new Date(t.submitted_at).toLocaleString('ru-RU')}
+                          {video && <> · <a href={video} target="_blank" rel="noopener noreferrer">видео</a></>}
+                        </>
+                      : '—'}
+                  </td>
+                  <td data-label="Время до сдачи">{t.submitted ? humanDuration(t.seconds_to_submit) : '—'}</td>
+                  <td data-label="Статус"><span className={`pf-status pf-status--${st.cls}`}>{st.text}</span></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );

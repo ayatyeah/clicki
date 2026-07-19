@@ -307,6 +307,12 @@ export function CreatorsView({ authFetch }) {
               <tr key={c.id}>
                 <td data-label="Креатор">
                   <b>{c.name}</b> {c.founding && <span className="pf-badge">Founding</span>}
+                  {c.ugc_code && (
+                    <div className="creators-cell__ugc">
+                      <span className="ugc-chip" title="UGC-код креатора">UGC {c.ugc_code}</span>
+                      <CopyButton value={c.ugc_code} label="Копировать" />
+                    </div>
+                  )}
                   {c.socials && <div className="creators-cell__socials">{c.socials}</div>}
                   <div className="creators-cell__meta">
                     <Stars value={c.rating || 0} />

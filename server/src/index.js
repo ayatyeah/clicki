@@ -54,6 +54,7 @@ import {
   updateCreator,
   listBriefs,
   listBriefsForAdmin,
+  getBriefTakers,
   getBrief,
   creatorCanSubmitToBrief,
   pingDb,
@@ -1944,6 +1945,9 @@ app.post('/api/admin/businesses/:id/delete', requireAdmin, wrap(async (req, res)
 app.get('/api/admin/briefs', requireAdmin, wrap(async (_req, res) => ok(res, { briefs: await listBriefsForAdmin() })));
 app.post('/api/admin/briefs', requireAdmin, wrap(async (req, res) => ok(res, { brief: await createBrief(req.body || {}) })));
 app.post('/api/admin/briefs/:id/status', requireAdmin, wrap(async (req, res) => ok(res, { brief: await setBriefStatus(Number(req.params.id), req.body?.status) })));
+// Full "who took this brief" analytics: сколько взяли, кто именно, за какое время
+// взяли и сдали ли (the 24-hour rule marks lapsed holders).
+app.get('/api/admin/briefs/:id/takers', requireAdmin, wrap(async (req, res) => ok(res, { takers: await getBriefTakers(Number(req.params.id)) })));
 // Delete a brief (e.g. leftover test briefs). Submissions survive (brief_id → NULL).
 app.post('/api/admin/briefs/:id/delete', requireAdmin, wrap(async (req, res) => {
   const done = await deleteBrief(Number(req.params.id));

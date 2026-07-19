@@ -851,6 +851,11 @@ function AccountView({ c, authFetch, reload }) {
           <div className="cp-account__id">
             <b>{c.name}</b>
             {c.username && <span className="creator-portal__muted">@{c.username}</span>}
+            {c.ugc_code && (
+              <span className="cp-ugc" title="Твой UGC-код креатора CLICKI">
+                UGC-код: <b>{c.ugc_code}</b>
+              </span>
+            )}
             <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; pickFile(f); }} />
             <button type="button" className="btn btn--ghost btn--sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
               {uploading ? 'Загрузка…' : avatar ? 'Сменить фото' : 'Загрузить фото'}
