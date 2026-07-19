@@ -1334,3 +1334,100 @@
   color: var(--stone); font-size: 0.88rem; line-height: 1.5;
   overflow-wrap: anywhere;
 }
+
+/* ============================================================
+   Admin polish — a more finished, premium light admin.
+   Scoped to .app-light (the real admin/cabinet light theme) and
+   layered at the end so it wins cleanly over the base rules.
+   Pairs with the desktop app-shell in index.css.
+   ============================================================ */
+
+/* Two-tone canvas: a white sidebar rail against a softly tinted content area,
+   so the white content cards read as raised. Desktop only — on mobile the
+   sidebar is an overlay drawer and the page keeps its existing background. */
+@media (min-width: 861px) {
+  .app-light .admin { background: #f5f2fc; }
+  .app-light .admin-main {
+    background:
+      radial-gradient(120% 60% at 100% 0%, rgba(124, 58, 237, 0.06), transparent 60%),
+      linear-gradient(180deg, #faf8ff 0%, #f4f0fb 100%);
+  }
+  .app-light .admin-sidebar {
+    background: #fff;
+    box-shadow: 1px 0 0 var(--line), 12px 0 32px -28px rgba(124, 58, 237, 0.5);
+  }
+}
+
+/* Brand lockup at the top of the rail */
+.app-light .admin-sidebar__brand {
+  font-family: var(--font-display);
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+.app-light .admin-sidebar__brand .brand-mark {
+  width: 26px; height: 26px; border-radius: 7px;
+  box-shadow: 0 4px 10px -4px rgba(124, 58, 237, 0.55);
+}
+
+/* Each nav item carries its icon in a soft rounded chip; the active item's chip
+   turns solid brand-purple and the row gets a left accent bar, so the current
+   section reads instantly down a 22-item rail. */
+.app-light .admin-nav__btn { gap: 11px; padding: 9px 12px; }
+.app-light .admin-nav__icon {
+  width: 30px; height: 30px; flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 9px;
+  background: rgba(124, 58, 237, 0.09);
+  color: #7c3aed;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.app-light .admin-nav__btn:hover { background: rgba(124, 58, 237, 0.06); }
+.app-light .admin-nav__btn:hover .admin-nav__icon { background: rgba(124, 58, 237, 0.16); }
+.app-light .admin-nav__btn.is-active {
+  background: rgba(124, 58, 237, 0.1);
+  color: #5b21b6;
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 #7c3aed;
+}
+.app-light .admin-nav__btn.is-active .admin-nav__icon {
+  background: #7c3aed; color: #fff;
+  box-shadow: 0 6px 14px -6px rgba(124, 58, 237, 0.7);
+}
+/* Logout pinned at the foot of the rail (desktop app-shell) reads as a quiet
+   footer action, not a floating button. */
+@media (min-width: 861px) {
+  .app-light .admin-sidebar__logout { color: var(--stone); }
+  .app-light .admin-sidebar__logout:hover { background: rgba(124, 58, 237, 0.06); color: var(--ink); }
+}
+
+/* KPI cards lift on hover; icons get a soft drop shadow so they feel tactile. */
+.app-light .kpi { transition: transform 0.16s ease, box-shadow 0.16s ease; }
+.app-light .kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-card); }
+.app-light .kpi__icon { box-shadow: 0 8px 16px -8px rgba(24, 20, 48, 0.45); }
+
+/* Tables: a proper light-theme row hover (the base rule is a near-invisible
+   white tint meant for the dark theme) and a soft, tinted header row. */
+.app-light .admin-table-wrap {
+  box-shadow: var(--shadow-soft);
+  overflow: hidden; /* let the rounded corners clip the header fill */
+  overflow-x: auto;
+}
+.app-light .admin-table thead th {
+  background: #f8f6fe;
+  border-bottom: 1px solid var(--line);
+}
+.app-light .admin-table tbody tr { transition: background 0.12s ease; }
+.app-light .admin-table tbody tr:hover { background: rgba(124, 58, 237, 0.05); }
+
+/* Section headings: a small gradient tick before the title gives hierarchy
+   without shouting. Only the top-level block title, not every subhead. */
+.app-light .admin-block > .admin-block__title:first-child,
+.app-light .admin-panel__head > .admin-block__title {
+  display: flex; align-items: center; gap: 10px;
+}
+.app-light .admin-block > .admin-block__title:first-child::before,
+.app-light .admin-panel__head > .admin-block__title::before {
+  content: ""; flex: 0 0 auto;
+  width: 4px; height: 1.05em; border-radius: 3px;
+  background: linear-gradient(180deg, #a78bfa, #7c3aed);
+}
