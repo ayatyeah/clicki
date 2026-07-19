@@ -4068,8 +4068,14 @@ canvas {
 .ref-stat__value { font-family: var(--font-display); font-weight: 700; font-size: 1.8rem; line-height: 1; color: var(--ink); }
 .ref-stat__label { margin-top: 6px; font-size: 0.8rem; color: var(--fog); }
 .ref-stat__arrow { display: flex; align-items: center; color: var(--fog); font-size: 1.3rem; }
-.ref-link__row { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
-.ref-link__input { flex: 1; min-width: 0; }
+/* The row wraps so the copy button drops to its own line rather than off the
+   right edge when the input won't shrink. iOS Safari refuses to size a form
+   control below its intrinsic (long-URL) width even with min-width:0 — which is
+   exactly what pushed «Копировать» off-screen on iPhone. On Chromium the input
+   shrinks and both stay on one line; on iOS the button wraps under. */
+.ref-link__row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 4px; }
+.ref-link__input { flex: 1 1 8rem; min-width: 0; }
+.ref-link__row .btn { flex: 0 0 auto; }
 .ref-link__leads { margin: 12px 0 0; padding-left: 18px; }
 @media (max-width: 560px) {
   .ref-stat__arrow { display: none; }
