@@ -337,9 +337,9 @@ function BriefModCard({ b, authFetch, creators, onChange, canManage }) {
         <span className={`pf-status pf-status--${statusCls}`}>{statusLabel}</span>
       </div>
       <p className="creator-portal__muted" style={{ margin: 0 }}>
-        {b.platform} · до {b.duration_max}с
+        {b.platform} · {b.spec?.duration_any ? 'произвольная длит.' : `до ${b.duration_max}с`}
         {b.req_hashtag ? ` · ${b.req_hashtag}` : ''}
-        {b.spec?.style ? ` · ${b.spec.style}` : ''}
+        {(b.tone || b.spec?.style) ? ` · ${b.tone || b.spec.style}` : ''}
       </p>
       <div className={`brief-audience brief-audience--${audience.cls}`}>
         <span aria-hidden="true">{audience.icon}</span> {audience.text}

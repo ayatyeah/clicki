@@ -467,7 +467,7 @@ function BriefsView({ briefs, authFetch, reload }) {
                     <span className={`pf-status pf-status--${cls}`}>{t(label)}</span>
                   </div>
                   <p className="creator-portal__muted" style={{ margin: 0 }}>
-                    {t(br.platform)} · {br.spec?.orientation === 'horizontal' ? t('горизонтальное') : t('вертикальное')} · {t('до')} {br.duration_max}{lang === 'en' ? 's' : 'с'}
+                    {t(br.platform)} · {br.spec?.orientation === 'horizontal' ? t('горизонтальное') : t('вертикальное')} · {br.spec?.duration_any ? t('произвольная длит.') : `${t('до')} ${br.duration_max}${lang === 'en' ? 's' : 'с'}`}
                     {br.spec?.style ? ` · ${t(STYLES.find((s) => s[0] === br.spec.style)?.[1] || br.spec.style)}` : ''}
                   </p>
                   {br.status === 'revision' && (
