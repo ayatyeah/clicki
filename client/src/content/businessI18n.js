@@ -256,6 +256,51 @@ const EN = {
   принято: 'accepted',
   отклонено: 'rejected',
   ожидает: 'pending',
+
+  // Brief builder — structured creative fields (shared BriefForm)
+  'Приоритетные платформы (по желанию)': 'Priority platforms (optional)',
+  'Если какие-то площадки важнее — отметь их, креатор увидит приоритет.':
+    'If some platforms matter more, mark them — the creator will see the priority.',
+  'Оффер и посыл': 'Offer & message',
+  'Конкретный продукт / услуга / акция': 'Specific product / service / promo',
+  'Не «весь бренд», а точный оффер': 'Not the “whole brand” — the exact offer',
+  'Главная фишка продукта (почему выберут вас)?': 'The product’s main hook (why choose you)?',
+  'Главное преимущество / УТП': 'Key advantage / USP',
+  'Кто ваш клиент и какую проблему решает оффер?': 'Who is your customer and what problem does the offer solve?',
+  'Целевая аудитория и её боль': 'Target audience and its pain point',
+  'Что зритель должен понять за первые 3 секунды (одно предложение)':
+    'What the viewer should grasp in the first 3 seconds (one sentence)',
+  'Одна мысль, которая цепляет с первых секунд': 'One idea that hooks from the first seconds',
+  'География (города / страны)': 'Geography (cities / countries)',
+  'Например: Алматы, Астана': 'e.g. Almaty, Astana',
+  'Техзадание: съёмка и монтаж': 'Spec: filming & editing',
+  Длительность: 'Duration',
+  'Произвольная — без конкретных таймингов': 'Free — no specific timing',
+  'Максимум, сек': 'Max, sec',
+  'Желаемый формат ролика': 'Desired video format',
+  'Не важно': 'No preference',
+  Распаковка: 'Unboxing',
+  'Говорящая голова': 'Talking head',
+  'Обзор приложения': 'App walkthrough',
+  Тренды: 'Trends',
+  'Логотип в первые 5 секунд': 'Logo in the first 5 seconds',
+  'Логотип бренда (картинка)': 'Brand logo (image)',
+  Удалить: 'Remove',
+  'Стиль ролика': 'Video style',
+  'Сценарий, референсы и сдача': 'Script, references & delivery',
+  'Сценарий / структура видео (по желанию)': 'Script / video structure (optional)',
+  'Чёткий script: что в начале, в середине и в конце — по секундам, если нужно':
+    'A clear script: what comes at the start, middle and end — by seconds if needed',
+  'Референсы — 2–3 ролика (по желанию)': 'References — 2–3 videos (optional)',
+  'Ролик, который нравится — ссылка и, по желанию, почему его взяли.':
+    'A video you like — a link and, optionally, why you picked it.',
+  'Ссылка на референс': 'Reference link',
+  'Почему взяли этот референс (по желанию)': 'Why you picked this reference (optional)',
+  'Правила сдачи материалов (по желанию)': 'Delivery rules (optional)',
+  'Например: сдать до 20 числа, прислать ссылку на опубликованное видео + скриншот статистики':
+    'e.g. submit by the 20th, send a link to the published video + a stats screenshot',
+  'Сохранить — обновить у креаторов': 'Save — update for creators',
+  'Сохранено — изменения сразу у креаторов ✓': 'Saved — changes are live for creators ✓',
 };
 
 export function bt(lang, ru) {

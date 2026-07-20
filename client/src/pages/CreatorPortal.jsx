@@ -16,6 +16,19 @@ import InstallApp from '../components/InstallApp.jsx';
 import { CREATOR_GUIDE, CREATOR_TOUR } from '../content/guides.js';
 import { briefOfferRows, briefRefLinks } from '../lib/briefFields.js';
 import { useToast } from '../components/Toast.jsx';
+import { useLang } from '../i18n.jsx';
+import { ct } from '../content/creatorI18n.js';
+
+/** Compact RU/EN switch for the creator cabinet. */
+function LangToggle() {
+  const { lang, setLang } = useLang();
+  return (
+    <div className="bz-lang" role="group" aria-label="Язык / Language">
+      <button type="button" className={`bz-lang__btn ${lang === 'ru' ? 'is-active' : ''}`} onClick={() => setLang('ru')}>RU</button>
+      <button type="button" className={`bz-lang__btn ${lang === 'en' ? 'is-active' : ''}`} onClick={() => setLang('en')}>EN</button>
+    </div>
+  );
+}
 
 const KEY = 'clicki_creator_token';
 const PLATFORMS = ['TikTok', 'Instagram Reels', 'YouTube Shorts', 'Threads', 'X (Twitter)'];
@@ -63,6 +76,8 @@ export default function CreatorPortal() {
   );
   const { authFetch } = api;
   const toast = useToast();
+  const { lang } = useLang();
+  const t = (s) => ct(lang, s);
 
   const loadMe = useCallback(async () => {
     setLoading(true);
@@ -101,8 +116,8 @@ export default function CreatorPortal() {
     const tt = params.get('tiktok');
     const ig = params.get('instagram');
     if (!tt && !ig) return;
-    if (tt) toast[tt === 'connected' ? 'success' : 'error'](tt === 'connected' ? 'TikTok подключён ✓' : 'Не удалось подключить TikTok');
-    if (ig) toast[ig === 'connected' ? 'success' : 'error'](ig === 'connected' ? 'Instagram подключён ✓' : 'Не удалось подключить Instagram');
+    if (tt) toast[tt === 'connected' ? 'success' : 'error'](tt === 'connected' ? `${t('TikTok подключён')} ✓` : t('Не удалось подключить TikTok'));
+    if (ig) toast[ig === 'connected' ? 'success' : 'error'](ig === 'connected' ? `${t('Instagram подключён')} ✓` : t('Не удалось подключить Instagram'));
     window.history.replaceState(null, '', window.location.pathname);
     if (token) loadMe();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -123,7 +138,7 @@ export default function CreatorPortal() {
     const refId = new URLSearchParams(window.location.search).get('ref');
     return <AuthScreen refId={refId} onAuthed={onAuthed} />;
   }
-  if (!data) return <Shell><p className="creator-portal__muted">{loading ? 'Загрузка…' : '…'}</p></Shell>;
+  if (!data) return <Shell><p className="creator-portal__muted">{loading ? t('Загрузка…') : '…'}</p></Shell>;
 
   const c = data.creator;
   if (!c.onboarding_passed) return <Onboarding authFetch={authFetch} onDone={() => { setOpenGuide(true); loadMe(); }} />;
@@ -145,6 +160,8 @@ export default function CreatorPortal() {
 }
 
 function Shell({ children, wide = false }) {
+  const { lang } = useLang();
+  const t = (s) => ct(lang, s);
   return (
     <main className="creator-portal page-light app-light ae-skip">
       <Seo title="CLICKI — кабинет креатора" path="/creator" description="Личный кабинет креатора CLICKI: брифы, сдача видео, кошелёк и рейтинг." noindex />
@@ -152,7 +169,7 @@ function Shell({ children, wide = false }) {
         {!wide && (
           <div className="creator-portal__head">
             <Link to="/" className="creator-portal__brand"><img className="brand-mark" src="/logo-mark.png" alt="" />CLICKI</Link>
-            <span className="creator-portal__tag">кабинет креатора</span>
+            <span className="creator-portal__tag">{t('кабинет креатора')}</span>
           </div>
         )}
         {children}
@@ -163,30 +180,32 @@ function Shell({ children, wide = false }) {
 
 /* ---------------- Auth: login + application tabs ---------------- */
 function AuthScreen({ onAuthed, refId }) {
+  const { lang } = useLang();
+  const t = (s) => ct(lang, s);
   const [mode, setMode] = useState('login'); // 'login' | 'apply' | 'forgot'
   const [applied, setApplied] = useState(false);
   return (
     <Shell>
       <div className="mascot-avatar"><img src="/mascot-hood.jpg" alt="CLICKI" /></div>
-      <h1 className="creator-portal__title">Кабинет креатора</h1>
+      <h1 className="creator-portal__title">{t('Кабинет креатора')}</h1>
       {mode === 'forgot' ? (
         <ForgotForm onBack={() => setMode('login')} />
       ) : (
         <>
           <p className="creator-portal__muted">
             {mode === 'login'
-              ? 'Войди в аккаунт, который выдал оператор CLICKI.'
-              : 'Оставь заявку — оператор свяжется и выдаст доступ в кабинет.'}
+              ? t('Войди в аккаунт, который выдал оператор CLICKI.')
+              : t('Оставь заявку — оператор свяжется и выдаст доступ в кабинет.')}
           </p>
           <div className="creator-portal__tabs">
             <button className={`creator-portal__tab ${mode === 'login' ? 'is-active' : ''}`} onClick={() => setMode('login')}>
-              Вход
+              {t('Вход')}
             </button>
             <button
               className={`creator-portal__tab ${mode === 'apply' ? 'is-active' : ''}`}
               onClick={() => { setMode('apply'); setApplied(false); }}
             >
-              Подать заявку
+              {t('Подать заявку')}
             </button>
           </div>
           {mode === 'login' ? (
@@ -205,6 +224,8 @@ function AuthScreen({ onAuthed, refId }) {
 /** "Забыли пароль?" — collects the login + a contact so the operator can restore
  *  access manually (there's no self-serve reset yet). Ends on a "we'll be in touch". */
 function ForgotForm({ onBack }) {
+  const { lang } = useLang();
+  const t = (s) => ct(lang, s);
   const [f, setF] = useState({ login: '', contact: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -214,7 +235,7 @@ function ForgotForm({ onBack }) {
   const submit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!f.login.trim() || !f.contact.trim()) return setError('Укажи логин и Telegram для связи');
+    if (!f.login.trim() || !f.contact.trim()) return setError(t('Укажи логин и Telegram для связи'));
     setBusy(true);
     try {
       const res = await fetch(`${API_BASE}/api/creator/password-reset-request`, {
@@ -223,7 +244,7 @@ function ForgotForm({ onBack }) {
         body: JSON.stringify({ login: f.login.trim(), contact: f.contact.trim() }),
       });
       const d = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error((d.errors && d.errors[0]) || 'Ошибка');
+      if (!res.ok) throw new Error((d.errors && d.errors[0]) || t('Ошибка'));
       setDone(true);
     } catch (err) {
       setError(err.message);
@@ -236,27 +257,29 @@ function ForgotForm({ onBack }) {
     return (
       <div className="creator-portal__card cp-forgot-done">
         <div className="cp-forgot-done__icon" aria-hidden="true">✓</div>
-        <h2 className="creator-portal__title" style={{ fontSize: '1.25rem', margin: 0 }}>Мы свяжемся с вами скоро</h2>
-        <p className="creator-portal__muted">Оператор восстановит доступ и напишет в Telegram, который ты указал.</p>
-        <button type="button" className="btn btn--ghost btn--block" onClick={onBack}>Вернуться ко входу</button>
+        <h2 className="creator-portal__title" style={{ fontSize: '1.25rem', margin: 0 }}>{t('Мы свяжемся с вами скоро')}</h2>
+        <p className="creator-portal__muted">{t('Оператор восстановит доступ и напишет в Telegram, который ты указал.')}</p>
+        <button type="button" className="btn btn--ghost btn--block" onClick={onBack}>{t('Вернуться ко входу')}</button>
       </div>
     );
   }
   return (
     <form className="creator-portal__card" onSubmit={submit} noValidate>
-      <p className="creator-portal__muted">Укажи свой логин и Telegram — оператор восстановит доступ и свяжется с тобой.</p>
-      <input placeholder="Твой логин" value={f.login} onChange={(e) => set('login', e.target.value)} />
-      <input placeholder="Telegram для связи (@ник или телефон)" value={f.contact} onChange={(e) => set('contact', e.target.value)} />
+      <p className="creator-portal__muted">{t('Укажи свой логин и Telegram — оператор восстановит доступ и свяжется с тобой.')}</p>
+      <input placeholder={t('Твой логин')} value={f.login} onChange={(e) => set('login', e.target.value)} />
+      <input placeholder={t('Telegram для связи (@ник или телефон)')} value={f.contact} onChange={(e) => set('contact', e.target.value)} />
       {error && <p className="creator-portal__err">{error}</p>}
-      <button className="btn btn--primary btn--block" disabled={busy}>{busy ? 'Отправляю…' : 'Отправить'}</button>
+      <button className="btn btn--primary btn--block" disabled={busy}>{busy ? t('Отправляю…') : t('Отправить')}</button>
       <p className="creator-portal__muted creator-portal__switch">
-        <button type="button" className="creator-portal__link" onClick={onBack}>← Назад ко входу</button>
+        <button type="button" className="creator-portal__link" onClick={onBack}>{t('← Назад ко входу')}</button>
       </p>
     </form>
   );
 }
 
 function LoginForm({ onAuthed, toApply, onForgot }) {
+  const { lang } = useLang();
+  const t = (s) => ct(lang, s);
   const [f, setF] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -273,7 +296,7 @@ function LoginForm({ onAuthed, toApply, onForgot }) {
         body: JSON.stringify(f),
       });
       const d = await res.json();
-      if (!res.ok) throw new Error((d.errors && d.errors[0]) || 'Ошибка входа');
+      if (!res.ok) throw new Error((d.errors && d.errors[0]) || t('Ошибка входа'));
       onAuthed(d.token, d);
     } catch (err) {
       setError(err.message);
@@ -284,22 +307,24 @@ function LoginForm({ onAuthed, toApply, onForgot }) {
 
   return (
     <form className="creator-portal__card" onSubmit={submit} noValidate>
-      <input name="username" placeholder="Логин" autoComplete="username" value={f.username} onChange={(e) => set('username', e.target.value)} />
-      <input name="password" type="password" placeholder="Пароль" autoComplete="current-password" value={f.password} onChange={(e) => set('password', e.target.value)} />
+      <input name="username" placeholder={t('Логин')} autoComplete="username" value={f.username} onChange={(e) => set('username', e.target.value)} />
+      <input name="password" type="password" placeholder={t('Пароль')} autoComplete="current-password" value={f.password} onChange={(e) => set('password', e.target.value)} />
       {error && <p className="creator-portal__err">{error}</p>}
-      <button className="btn btn--primary btn--block" disabled={busy}>{busy ? 'Вхожу…' : 'Войти'}</button>
+      <button className="btn btn--primary btn--block" disabled={busy}>{busy ? t('Вхожу…') : t('Войти')}</button>
       <p className="creator-portal__muted creator-portal__switch" style={{ marginBottom: 0 }}>
-        <button type="button" className="creator-portal__link" onClick={onForgot}>Забыли пароль?</button>
+        <button type="button" className="creator-portal__link" onClick={onForgot}>{t('Забыли пароль?')}</button>
       </p>
       <p className="creator-portal__muted creator-portal__switch">
-        Нет аккаунта?{' '}
-        <button type="button" className="creator-portal__link" onClick={toApply}>Подать заявку</button>
+        {t('Нет аккаунта?')}{' '}
+        <button type="button" className="creator-portal__link" onClick={toApply}>{t('Подать заявку')}</button>
       </p>
     </form>
   );
 }
 
 function ApplyForm({ refId, onDone }) {
+  const { lang } = useLang();
+  const t = (s) => ct(lang, s);
   const [f, setF] = useState({ name: '', contact: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -316,7 +341,7 @@ function ApplyForm({ refId, onDone }) {
         body: JSON.stringify({ ...f, referred_by: refId ? Number(refId) : undefined }),
       });
       const d = await res.json();
-      if (!res.ok) throw new Error((d.errors && d.errors[0]) || 'Ошибка');
+      if (!res.ok) throw new Error((d.errors && d.errors[0]) || t('Ошибка'));
       onDone();
     } catch (err) {
       setError(err.message);
@@ -327,28 +352,30 @@ function ApplyForm({ refId, onDone }) {
 
   return (
     <form className="creator-portal__card" onSubmit={submit} noValidate>
-      <input name="name" placeholder="Имя" autoComplete="name" value={f.name} onChange={(e) => set('name', e.target.value)} />
-      <input name="contact" placeholder="Телефон / Telegram" autoComplete="tel" value={f.contact} onChange={(e) => set('contact', e.target.value)} />
+      <input name="name" placeholder={t('Имя')} autoComplete="name" value={f.name} onChange={(e) => set('name', e.target.value)} />
+      <input name="contact" placeholder={t('Телефон / Telegram')} autoComplete="tel" value={f.contact} onChange={(e) => set('contact', e.target.value)} />
       {error && <p className="creator-portal__err">{error}</p>}
-      <button className="btn btn--primary btn--block" disabled={busy}>{busy ? 'Отправляю…' : 'Отправить заявку'}</button>
+      <button className="btn btn--primary btn--block" disabled={busy}>{busy ? t('Отправляю…') : t('Отправить заявку')}</button>
       <p className="creator-portal__muted creator-portal__switch">
-        Доступ выдаёт оператор после проверки заявки.
+        {t('Доступ выдаёт оператор после проверки заявки.')}
       </p>
     </form>
   );
 }
 
 function ApplyDone({ onToLogin }) {
+  const { lang } = useLang();
+  const t = (s) => ct(lang, s);
   return (
     <div className="creator-portal__card">
       <div className="creator-portal__applied">
         <span className="creator-portal__applied-icon" aria-hidden="true">✓</span>
-        <h2 className="creator-portal__h2" style={{ marginTop: 0 }}>Заявка отправлена</h2>
+        <h2 className="creator-portal__h2" style={{ marginTop: 0 }}>{t('Заявка отправлена')}</h2>
         <p className="creator-portal__muted">
-          Оператор CLICKI свяжется с тобой и выдаст логин и пароль для входа в кабинет.
+          {t('Оператор CLICKI свяжется с тобой и выдаст логин и пароль для входа в кабинет.')}
         </p>
         <button type="button" className="btn btn--ghost btn--block" onClick={onToLogin}>
-          Перейти ко входу
+          {t('Перейти ко входу')}
         </button>
       </div>
     </div>
@@ -356,6 +383,8 @@ function ApplyDone({ onToLogin }) {
 }
 
 function Onboarding({ authFetch, onDone }) {
+  const { lang } = useLang();
+  const t = (s) => ct(lang, s);
   const [step, setStep] = useState('quiz'); // 'quiz' | 'done'
   const [ans, setAns] = useState({});
   const [error, setError] = useState('');
@@ -364,13 +393,13 @@ function Onboarding({ authFetch, onDone }) {
   const submitQuiz = async () => {
     const correct = QUIZ.filter((q, i) => ans[i] === q.a).length;
     if (correct < QUIZ.length) {
-      return setError(`Правильных ${correct} из ${QUIZ.length}. Ответь верно на все — перечитай и попробуй снова.`);
+      return setError(`${t('Правильных')} ${correct} ${t('из')} ${QUIZ.length}. ${t('Ответь верно на все — перечитай и попробуй снова.')}`);
     }
     setBusy(true);
     setError('');
     try {
       const res = await authFetch('/api/creator/onboarding', { method: 'POST' });
-      if (!res.ok) throw new Error('Не удалось сохранить — попробуйте ещё раз');
+      if (!res.ok) throw new Error(t('Не удалось сохранить — попробуйте ещё раз'));
       setStep('done'); // show the welcome screen before opening the cabinet
     } catch (err) {
       setError(err.message);
@@ -383,12 +412,12 @@ function Onboarding({ authFetch, onDone }) {
     return (
       <Shell>
         <div className="mascot-avatar"><img src="/mascot-hood.jpg" alt="CLICKI" /></div>
-        <h1 className="creator-portal__title">Добро пожаловать в CLICKI! 🎉</h1>
+        <h1 className="creator-portal__title">{t('Добро пожаловать в CLICKI! 🎉')}</h1>
         <p className="creator-portal__muted">
-          Отличный результат — ты прошёл тест и разобрался в правилах. Теперь можно брать заказы и зарабатывать на коротких видео.
+          {t('Отличный результат — ты прошёл тест и разобрался в правилах. Теперь можно брать заказы и зарабатывать на коротких видео.')}
         </p>
         <div className="creator-portal__card">
-          <button className="btn btn--primary btn--block" onClick={onDone}>Войти в кабинет →</button>
+          <button className="btn btn--primary btn--block" onClick={onDone}>{t('Войти в кабинет →')}</button>
         </div>
       </Shell>
     );
@@ -396,22 +425,22 @@ function Onboarding({ authFetch, onDone }) {
 
   return (
     <Shell>
-      <h1 className="creator-portal__title">Короткий тест</h1>
-      <p className="creator-portal__muted">Несколько вопросов о правилах — чтобы видео не отклонялись потом.</p>
+      <h1 className="creator-portal__title">{t('Короткий тест')}</h1>
+      <p className="creator-portal__muted">{t('Несколько вопросов о правилах — чтобы видео не отклонялись потом.')}</p>
       <div className="creator-portal__card">
         {QUIZ.map((q, i) => (
           <div key={i} className="creator-portal__q">
-            <div className="creator-portal__q-title">{i + 1}. {q.q}</div>
+            <div className="creator-portal__q-title">{i + 1}. {t(q.q)}</div>
             {q.opts.map((o, oi) => (
               <label key={oi} className="creator-portal__opt">
                 <input type="radio" name={`q${i}`} checked={ans[i] === oi} onChange={() => setAns((a) => ({ ...a, [i]: oi }))} />
-                {o}
+                {t(o)}
               </label>
             ))}
           </div>
         ))}
         {error && <p className="creator-portal__err">{error}</p>}
-        <button className="btn btn--primary btn--block" onClick={submitQuiz} disabled={busy}>{busy ? 'Сохраняю…' : 'Пройти тест'}</button>
+        <button className="btn btn--primary btn--block" onClick={submitQuiz} disabled={busy}>{busy ? t('Сохраняю…') : t('Пройти тест')}</button>
       </div>
     </Shell>
   );
@@ -434,17 +463,19 @@ const PROFILE_SUBS = [
 ];
 const PROFILE_SUB_KEYS = PROFILE_SUBS.map((s) => s.key);
 
-function timeAgo(iso) {
+function timeAgo(iso, t = (s) => s) {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (diff < 60) return 'только что';
-  if (diff < 3600) return `${Math.floor(diff / 60)} мин назад`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)} ч назад`;
-  return `${Math.floor(diff / 86400)} дн назад`;
+  if (diff < 60) return t('только что');
+  if (diff < 3600) return `${Math.floor(diff / 60)} ${t('мин назад')}`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} ${t('ч назад')}`;
+  return `${Math.floor(diff / 86400)} ${t('дн назад')}`;
 }
 
 /** Notification bell — shows admin broadcasts. Opening it marks everything read
  *  (clears the badge). Polls once a minute so a fresh broadcast shows up live. */
 function NotificationBell({ authFetch }) {
+  const { lang } = useLang();
+  const t = (s) => ct(lang, s);
   const [items, setItems] = useState([]);
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
@@ -494,25 +525,25 @@ function NotificationBell({ authFetch }) {
 
   return (
     <div className="cp-bell" ref={wrapRef}>
-      <button type="button" className="cp-bell__btn" onClick={toggle} aria-label="Уведомления" aria-expanded={open}>
+      <button type="button" className="cp-bell__btn" onClick={toggle} aria-label={t('Уведомления')} aria-expanded={open}>
         <Icon name="bell" size={20} />
         {unread > 0 && <span className="cp-bell__badge">{unread > 9 ? '9+' : unread}</span>}
       </button>
       {open && (
-        <div className="cp-bell__panel" role="dialog" aria-label="Уведомления">
-          <div className="cp-bell__head">Уведомления</div>
+        <div className="cp-bell__panel" role="dialog" aria-label={t('Уведомления')}>
+          <div className="cp-bell__head">{t('Уведомления')}</div>
           {items.length ? (
             <ul className="cp-bell__list">
               {items.map((a) => (
                 <li key={a.id} className={`cp-bell__item ${a.unread ? 'is-unread' : ''}`}>
                   <div className="cp-bell__item-title">{a.title}</div>
                   {a.body && <div className="cp-bell__item-body">{a.body}</div>}
-                  <div className="cp-bell__item-time">{timeAgo(a.createdAt)}</div>
+                  <div className="cp-bell__item-time">{timeAgo(a.createdAt, t)}</div>
                 </li>
               ))}
             </ul>
           ) : (
-            <div className="cp-bell__empty">Пока нет уведомлений</div>
+            <div className="cp-bell__empty">{t('Пока нет уведомлений')}</div>
           )}
         </div>
       )}
@@ -556,6 +587,8 @@ function needsScreenshotToday(s, creator) {
 }
 
 function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview', autoTour = false }) {
+  const { lang } = useLang();
+  const t = (s) => ct(lang, s);
   const { creator: c, wallet, briefs, openBriefs = [], submissions, level } = data;
   const [view, setView] = useState(initialView);
   const [tourOpen, setTourOpen] = useState(autoTour);
@@ -585,7 +618,7 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok || d.ok === false) {
-        toast.error((d.errors && d.errors[0]) || 'Не удалось взять заказ');
+        toast.error((d.errors && d.errors[0]) || t('Не удалось взять заказ'));
         reload(); // counts may have changed — refresh so a full brief drops off
         return;
       }
@@ -593,7 +626,7 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
       reload();
       setView('videos');
     } catch {
-      toast.error('Ошибка сети — попробуйте ещё раз');
+      toast.error(t('Ошибка сети — попробуйте ещё раз'));
     } finally {
       setTakingId(null);
     }
@@ -631,7 +664,8 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
         {/* Desktop sidebar (hidden on mobile — the tab strip takes over there) */}
         <aside className="cp-side">
           <Link to="/" className="cp-side__brand"><img className="brand-mark" src="/logo-mark.png" alt="" />CLICKI</Link>
-          <nav className="cp-side__nav" aria-label="Разделы кабинета">
+          <LangToggle />
+          <nav className="cp-side__nav" aria-label={t('Разделы кабинета')}>
             {CREATOR_TABS.map((tab) => (
               <button
                 key={tab.key}
@@ -641,7 +675,7 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
                 onClick={() => setView(tab.key)}
               >
                 <span className="cp-side__icon" aria-hidden="true"><Icon name={tab.icon} size={20} /></span>
-                {tab.label}
+                {t(tab.label)}
               </button>
             ))}
           </nav>
@@ -656,27 +690,28 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
 
         <div className="cp-shell__main">
           <div className="creator-portal__top">
-            <button type="button" className="cp-greeting" onClick={() => setView('account')} title="Мой аккаунт">
+            <button type="button" className="cp-greeting" onClick={() => setView('account')} title={t('Мой аккаунт')}>
               <span className="cp-avatar">{avatarNode}</span>
               <span className="cp-greeting__text">
-                <span className="creator-portal__title cp-greeting__title">Привет, {firstName} {c.founding && <span className="pf-badge">Founding</span>}</span>
-                <span className="creator-portal__muted">{level} · Стрик {c.streak} дн · XP {c.xp} · Trust {c.trust_score}</span>
+                <span className="creator-portal__title cp-greeting__title">{t('Привет')}, {firstName} {c.founding && <span className="pf-badge">Founding</span>}</span>
+                <span className="creator-portal__muted">{level} · {t('Стрик')} {c.streak} {t('дн')} · XP {c.xp} · Trust {c.trust_score}</span>
               </span>
             </button>
             <div className="cp-top__actions">
+              <LangToggle />
               <NotificationBell authFetch={authFetch} />
-              <button className="btn btn--ghost btn--sm" onClick={onLogout}>Выйти</button>
+              <button className="btn btn--ghost btn--sm" onClick={onLogout}>{t('Выйти')}</button>
             </div>
           </div>
 
           {needStatsToday > 0 && (
             <button type="button" className="cp-reminder" onClick={() => setView('videos')}>
-              📊 {needStatsToday === 1 ? '1 видео ждёт скриншот статистики за сегодня' : `${needStatsToday} видео ждут скриншот статистики за сегодня`}
-              <span className="cp-reminder__cta">Загрузить →</span>
+              📊 {needStatsToday === 1 ? t('1 видео ждёт скриншот статистики за сегодня') : `${needStatsToday} ${t('видео ждут скриншот статистики за сегодня')}`}
+              <span className="cp-reminder__cta">{t('Загрузить →')}</span>
             </button>
           )}
 
-          <nav className="cp-bottomnav" aria-label="Разделы кабинета">
+          <nav className="cp-bottomnav" aria-label={t('Разделы кабинета')}>
             {CREATOR_TABS.map((tab) => (
               <button
                 key={tab.key}
@@ -687,7 +722,7 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
                 onClick={() => setView(tab.key)}
               >
                 <span className="cp-bottomnav__icon" aria-hidden="true"><Icon name={tab.icon} size={24} /></span>
-                <span className="cp-bottomnav__label">{tab.short || tab.label}</span>
+                <span className="cp-bottomnav__label">{t(tab.short || tab.label)}</span>
               </button>
             ))}
           </nav>
@@ -715,7 +750,7 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
           <SubmitForm c={c} authFetch={authFetch} briefs={submitBriefs} reload={reload} initialBriefId={takeBriefId} />
 
           <section className="creator-portal__card cp-videos__list">
-            <h2 className="cp-card__title">Мои видео</h2>
+            <h2 className="cp-card__title">{t('Мои видео')}</h2>
             {submissions.length ? (
               <div className="cp-vids">
                 {submissions.map((s) => <VideoRow key={s.id} s={s} c={c} authFetch={authFetch} reload={reload} />)}
@@ -723,8 +758,8 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
             ) : (
               <EmptyState
                 icon="🎬"
-                title="Пока ничего не сдано"
-                hint="Возьми открытый заказ во вкладке «Заказы», сними видео по брифу и загрузи ссылку здесь."
+                title={t('Пока ничего не сдано')}
+                hint={t('Возьми открытый заказ во вкладке «Заказы», сними видео по брифу и загрузи ссылку здесь.')}
               />
             )}
           </section>
@@ -734,7 +769,7 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
       {PROFILE_SUB_KEYS.includes(view) && (
         <div className="cp-profile">
           {/* Профиль-хаб: аккаунт + рефералы + рейтинг + гайд под одной вкладкой. */}
-          <div className="cp-subnav" role="tablist" aria-label="Профиль">
+          <div className="cp-subnav" role="tablist" aria-label={t('Профиль')}>
             {PROFILE_SUBS.map((s) => (
               <button
                 key={s.key}
@@ -745,7 +780,7 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
                 className={`cp-subnav__btn ${view === s.key ? 'is-active' : ''}`}
                 onClick={() => setView(s.key)}
               >
-                {s.label}
+                {t(s.label)}
               </button>
             ))}
           </div>
@@ -755,7 +790,7 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
           {view === 'referrals' && (
             <>
               <p className="creator-portal__muted cp-section-sub" style={{ marginTop: 0 }}>
-                Приглашай друзей-креаторов и приводи бренды по своим ссылкам — за каждого начисляем XP.
+                {t('Приглашай друзей-креаторов и приводи бренды по своим ссылкам — за каждого начисляем XP.')}
               </p>
               {c.username ? (
                 <ReferralsView authFetch={authFetch} username={c.username} />
@@ -763,8 +798,8 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
                 <div className="creator-portal__card">
                   <EmptyState
                     icon="🔗"
-                    title="Ссылки появятся, когда выдадут логин"
-                    hint="Оператор создаёт тебе логин после подтверждения заявки — тогда здесь появятся твоя реф-ссылка и ссылка для профиля."
+                    title={t('Ссылки появятся, когда выдадут логин')}
+                    hint={t('Оператор создаёт тебе логин после подтверждения заявки — тогда здесь появятся твоя реф-ссылка и ссылка для профиля.')}
                   />
                 </div>
               )}
@@ -774,7 +809,7 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
           {view === 'rating' && (
             <>
               <p className="creator-portal__muted cp-section-sub" style={{ marginTop: 0 }}>
-                Чем больше XP, тем выше ты в топе. Снимай видео и держи ежедневный стрик — так рейтинг растёт быстрее.
+                {t('Чем больше XP, тем выше ты в топе. Снимай видео и держи ежедневный стрик — так рейтинг растёт быстрее.')}
               </p>
               <Leaderboard meId={c.id} />
             </>
@@ -783,13 +818,13 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
           {view === 'guide' && (
             <>
               <div className="cp-guide__head">
-                <h2 className="creator-portal__h2" style={{ margin: 0 }}>Как это работает</h2>
+                <h2 className="creator-portal__h2" style={{ margin: 0 }}>{t('Как это работает')}</h2>
                 <button type="button" className="btn btn--primary btn--sm" onClick={() => setTourOpen(true)}>
-                  Смотреть тур
+                  {t('Смотреть тур')}
                 </button>
               </div>
               <p className="creator-portal__muted" style={{ marginTop: 0 }}>
-                Тур проведёт по кабинету и покажет, где что находится. Ниже — тот же путь текстом и скриншотами.
+                {t('Тур проведёт по кабинету и покажет, где что находится. Ниже — тот же путь текстом и скриншотами.')}
               </p>
               <Guide content={CREATOR_GUIDE} />
             </>
@@ -805,6 +840,8 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
 
 /* ---------------- Creator account (avatar, bio, niche) ---------------- */
 function AccountView({ c, authFetch, reload }) {
+  const { lang } = useLang();
+  const t = (s) => ct(lang, s);
   const toast = useToast();
   const fileRef = useRef(null);
   const [avatar, setAvatar] = useState(c.avatar_url || '');
@@ -820,8 +857,8 @@ function AccountView({ c, authFetch, reload }) {
   // A user picked a file → open the cropper (validation of the raw file only).
   const pickFile = (file) => {
     if (!file) return;
-    if (!file.type.startsWith('image/')) return toast.error('Нужно изображение (JPG или PNG).');
-    if (file.size > 20 * 1024 * 1024) return toast.error('Слишком большой файл — до 20 МБ.');
+    if (!file.type.startsWith('image/')) return toast.error(t('Нужно изображение (JPG или PNG).'));
+    if (file.size > 20 * 1024 * 1024) return toast.error(t('Слишком большой файл — до 20 МБ.'));
     setCropFile(file);
   };
 
@@ -834,10 +871,10 @@ function AccountView({ c, authFetch, reload }) {
       fd.append('file', blob, 'avatar.jpg');
       const res = await authFetch('/api/creator/avatar', { method: 'POST', body: fd });
       const d = await res.json();
-      if (!res.ok || d.ok === false) throw new Error(d.errors?.[0] || 'Не удалось загрузить');
+      if (!res.ok || d.ok === false) throw new Error(d.errors?.[0] || t('Не удалось загрузить'));
       setAvatar(d.creator.avatar_url);
       reload();
-      toast.success('Фото обновлено');
+      toast.success(t('Фото обновлено'));
     } catch (e) {
       toast.error(e.message);
     } finally {
@@ -855,9 +892,9 @@ function AccountView({ c, authFetch, reload }) {
         body: JSON.stringify({ bio, city, socials, email }),
       });
       const d = await res.json();
-      if (!res.ok || d.ok === false) throw new Error(d.errors?.[0] || 'Ошибка');
+      if (!res.ok || d.ok === false) throw new Error(d.errors?.[0] || t('Ошибка'));
       reload();
-      setMsg('Сохранено ✓');
+      setMsg(`${t('Сохранено')} ✓`);
       setTimeout(() => setMsg(''), 2500);
     } catch (e) {
       setMsg(e.message);
@@ -868,8 +905,8 @@ function AccountView({ c, authFetch, reload }) {
 
   return (
     <>
-      <h2 className="creator-portal__h2">Мой аккаунт</h2>
-      <p className="creator-portal__muted cp-section-sub">Аватар и профиль видят бренды и другие креаторы.</p>
+      <h2 className="creator-portal__h2">{t('Мой аккаунт')}</h2>
+      <p className="creator-portal__muted cp-section-sub">{t('Аватар и профиль видят бренды и другие креаторы.')}</p>
 
       {cropFile && <AvatarCropper file={cropFile} onCancel={() => setCropFile(null)} onConfirm={uploadAvatar} />}
 
@@ -882,38 +919,38 @@ function AccountView({ c, authFetch, reload }) {
             <b>{c.name}</b>
             {c.username && <span className="creator-portal__muted">@{c.username}</span>}
             {c.ugc_code && (
-              <span className="cp-ugc" title="Твой UGC-код креатора CLICKI">
-                UGC-код: <b>{c.ugc_code}</b>
+              <span className="cp-ugc" title={t('Твой UGC-код креатора CLICKI')}>
+                {t('UGC-код')}: <b>{c.ugc_code}</b>
               </span>
             )}
             <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; pickFile(f); }} />
             <button type="button" className="btn btn--ghost btn--sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
-              {uploading ? 'Загрузка…' : avatar ? 'Сменить фото' : 'Загрузить фото'}
+              {uploading ? t('Загрузка…') : avatar ? t('Сменить фото') : t('Загрузить фото')}
             </button>
           </div>
         </div>
 
-        <label className="cp-field-label">Город
-          <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Например: Алматы" />
+        <label className="cp-field-label">{t('Город')}
+          <input value={city} onChange={(e) => setCity(e.target.value)} placeholder={t('Например: Алматы')} />
         </label>
-        <label className="cp-field-label">Почта
+        <label className="cp-field-label">{t('Почта')}
           <input type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
         </label>
-        <label className="cp-field-label">Соцсети
-          <input value={socials} onChange={(e) => setSocials(e.target.value)} placeholder="@ник в TikTok / Instagram" />
+        <label className="cp-field-label">{t('Соцсети')}
+          <input value={socials} onChange={(e) => setSocials(e.target.value)} placeholder={t('@ник в TikTok / Instagram')} />
         </label>
-        <label className="cp-field-label">О себе
-          <textarea rows={3} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Пара слов о тебе и твоём контенте" />
+        <label className="cp-field-label">{t('О себе')}
+          <textarea rows={3} value={bio} onChange={(e) => setBio(e.target.value)} placeholder={t('Пара слов о тебе и твоём контенте')} />
         </label>
 
-        <button className="btn btn--primary btn--block" onClick={save} disabled={busy}>{busy ? 'Сохраняю…' : 'Сохранить'}</button>
+        <button className="btn btn--primary btn--block" onClick={save} disabled={busy}>{busy ? t('Сохраняю…') : t('Сохранить')}</button>
         {msg && <p className="creator-portal__muted" style={{ textAlign: 'center' }}>{msg}</p>}
       </div>
 
       {/* Connect social accounts so views sync automatically (no daily screenshots). */}
       <div className="creator-portal__card cp-social">
-        <h3 className="cp-card__title">Подключение соцсетей</h3>
-        <p className="creator-portal__muted cp-section-sub">Подключи аккаунт — просмотры видео будут подтягиваться сами, без скриншотов.</p>
+        <h3 className="cp-card__title">{t('Подключение соцсетей')}</h3>
+        <p className="creator-portal__muted cp-section-sub">{t('Подключи аккаунт — просмотры видео будут подтягиваться сами, без скриншотов.')}</p>
         <TikTokConnect c={c} authFetch={authFetch} reload={reload} />
         <InstagramSoon />
       </div>
@@ -965,6 +1002,8 @@ const nfmt = (n) => Math.round(n || 0).toLocaleString('ru-RU');
  * data the cabinet already loads.
  */
 function OverviewHome({ c, wallet, submissions, briefs, forecast, go }) {
+  const { lang } = useLang();
+  const t = (s) => ct(lang, s);
   const toast = useToast();
   const lp = levelProgress(c.xp);
   const threshold = wallet.payout_threshold || 0;
@@ -990,8 +1029,8 @@ function OverviewHome({ c, wallet, submissions, briefs, forecast, go }) {
   }[o.status] || o.status);
 
   const attention = [];
-  if (needStats > 0) attention.push({ icon: '📊', title: `${needStats} видео ждут статистику`, cta: 'Загрузить', onClick: () => go('videos') });
-  if (lp.next) attention.push({ icon: '⭐', title: `${nfmt(lp.toNext)} XP до «${lp.next}»`, cta: 'Рейтинг', onClick: () => go('rating') });
+  if (needStats > 0) attention.push({ icon: '📊', title: `${needStats} ${t('видео ждут статистику')}`, cta: t('Загрузить'), onClick: () => go('videos') });
+  if (lp.next) attention.push({ icon: '⭐', title: `${nfmt(lp.toNext)} XP ${t('до')} «${lp.next}»`, cta: t('Рейтинг'), onClick: () => go('rating') });
 
   return (
     <div className="cp-home">
@@ -1000,12 +1039,12 @@ function OverviewHome({ c, wallet, submissions, briefs, forecast, go }) {
         <div className="cp-level__info">
           <div className="cp-level__row">
             <span className="cp-level__name">{lp.cur}</span>
-            <span className="cp-chip cp-chip--soft">текущий</span>
+            <span className="cp-chip cp-chip--soft">{t('текущий')}</span>
           </div>
           <div className="cp-level__bar"><div style={{ width: `${lp.pct}%` }} /></div>
           <div className="cp-level__meta">
             <span>{nfmt(c.xp)}{lp.next ? ` / ${nfmt(lp.nextMin)}` : ''} XP</span>
-            {lp.next && <span className="creator-portal__muted">до «{lp.next}» осталось {nfmt(lp.toNext)} XP</span>}
+            {lp.next && <span className="creator-portal__muted">{t('до')} «{lp.next}» {t('осталось')} {nfmt(lp.toNext)} XP</span>}
           </div>
         </div>
         <div className="cp-level__badge" aria-hidden="true"><img src="/mascot-hood.jpg" alt="" /></div>
@@ -1014,31 +1053,31 @@ function OverviewHome({ c, wallet, submissions, briefs, forecast, go }) {
       {/* KPI grid */}
       <div className="cp-kpis">
         <div className="cp-kpi">
-          <div className="cp-kpi__label">Баланс</div>
+          <div className="cp-kpi__label">{t('Баланс')}</div>
           <div className="cp-kpi__value">{nfmt(wallet.balance)} ₸</div>
           <button
             className="btn btn--primary btn--sm cp-kpi__btn"
             onClick={() => toast.info(threshold && wallet.balance >= threshold
-              ? 'Выплата на Kaspi оформляется оператором — обычно в течение дня.'
-              : `Вывод откроется при балансе ${nfmt(threshold)} ₸ — сейчас ${nfmt(wallet.balance)} ₸.`)}
+              ? t('Выплата на Kaspi оформляется оператором — обычно в течение дня.')
+              : `${t('Вывод откроется при балансе')} ${nfmt(threshold)} ₸ — ${t('сейчас')} ${nfmt(wallet.balance)} ₸.`)}
           >
-            Вывести
+            {t('Вывести')}
           </button>
         </div>
         <div className="cp-kpi">
-          <div className="cp-kpi__label">До выплаты</div>
+          <div className="cp-kpi__label">{t('До выплаты')}</div>
           <div className="cp-kpi__value">{nfmt(Math.max(0, threshold - wallet.balance))} ₸</div>
           <div className="cp-kpi__bar"><div style={{ width: `${payoutPct}%` }} /></div>
         </div>
         <div className="cp-kpi">
-          <div className="cp-kpi__label">Всего просмотров</div>
+          <div className="cp-kpi__label">{t('Всего просмотров')}</div>
           <div className="cp-kpi__value">{nfmt(totalViews)}</div>
-          <div className="cp-kpi__sub">{accepted.length} принято</div>
+          <div className="cp-kpi__sub">{accepted.length} {t('принято')}</div>
         </div>
         <div className="cp-kpi">
-          <div className="cp-kpi__label">В проверке</div>
+          <div className="cp-kpi__label">{t('В проверке')}</div>
           <div className="cp-kpi__value">{inReview}</div>
-          <div className="cp-kpi__sub">видео на модерации</div>
+          <div className="cp-kpi__sub">{t('видео на модерации')}</div>
         </div>
       </div>
 
@@ -1047,7 +1086,7 @@ function OverviewHome({ c, wallet, submissions, briefs, forecast, go }) {
       {/* Attention list */}
       {attention.length > 0 && (
         <>
-          <h2 className="creator-portal__h2">Требуют внимания</h2>
+          <h2 className="creator-portal__h2">{t('Требуют внимания')}</h2>
           <div className="cp-attention">
             {attention.map((a, i) => (
               <div key={i} className="cp-att-card">
@@ -1064,21 +1103,21 @@ function OverviewHome({ c, wallet, submissions, briefs, forecast, go }) {
       )}
 
       {/* Active orders */}
-      <h2 className="creator-portal__h2">Активные заказы</h2>
+      <h2 className="creator-portal__h2">{t('Активные заказы')}</h2>
       {activeOrders.length ? (
         <div className="cp-orders">
           {activeOrders.map((o) => (
             <button key={`${o._kind}-${o.id}`} className="cp-order" onClick={() => go(o._kind === 'submission' ? 'videos' : 'briefs')}>
               <div className="cp-order__body">
                 <b>{o.title || o.brief_title || o.platform}</b>
-                <span className="cp-order__sub">{o.platform} · {o._kind === 'submission' ? orderLabel(o) : 'назначен вам'}</span>
+                <span className="cp-order__sub">{o.platform} · {o._kind === 'submission' ? t(orderLabel(o)) : t('назначен вам')}</span>
               </div>
               <span className="cp-order__chev" aria-hidden="true">→</span>
             </button>
           ))}
         </div>
       ) : (
-        <EmptyState icon="🎬" title="Пока нет активных заказов" hint="Возьми заказ во вкладке «Заказы» и сними видео по брифу." />
+        <EmptyState icon="🎬" title={t('Пока нет активных заказов')} hint={t('Возьми заказ во вкладке «Заказы» и сними видео по брифу.')} />
       )}
     </div>
   );
@@ -1086,24 +1125,26 @@ function OverviewHome({ c, wallet, submissions, briefs, forecast, go }) {
 
 /** Earnings Forecaster — projects income from the creator's own recent pace. */
 function EarningsForecastCard({ forecast }) {
+  const { lang } = useLang();
+  const t = (s) => ct(lang, s);
   if (!forecast.videos_30d) {
     return (
       <div className="creator-portal__card">
-        <div className="creator-portal__wallet-row"><span>Прогноз заработка</span></div>
-        <p className="creator-portal__muted">Прогноз появится после первого принятого видео за последние 30 дней.</p>
+        <div className="creator-portal__wallet-row"><span>{t('Прогноз заработка')}</span></div>
+        <p className="creator-portal__muted">{t('Прогноз появится после первого принятого видео за последние 30 дней.')}</p>
       </div>
     );
   }
   return (
     <div className="creator-portal__card">
       <div className="creator-portal__wallet-row">
-        <span>Прогноз заработка</span>
-        <b>{forecast.pace_30d.toLocaleString('ru-RU')} ₸/мес</b>
+        <span>{t('Прогноз заработка')}</span>
+        <b>{forecast.pace_30d.toLocaleString('ru-RU')} {t('₸/мес')}</b>
       </div>
       <p className="creator-portal__muted">
-        В том же темпе (за 30 дней — {forecast.videos_30d} видео).
+        {t('В том же темпе (за 30 дней —')} {forecast.videos_30d} {t('видео).')}
         {forecast.avg_per_video > 0 && (
-          <> Возьми ещё 2 брифа — примерно <b>{forecast.plus_2_briefs.toLocaleString('ru-RU')} ₸</b>.</>
+          <> {t('Возьми ещё 2 брифа — примерно')} <b>{forecast.plus_2_briefs.toLocaleString('ru-RU')} ₸</b>.</>
         )}
       </p>
     </div>
@@ -1118,6 +1159,8 @@ function EarningsForecastCard({ forecast }) {
  *    friend-referral XP — so the creator sees the payoff, not just raw links.
  */
 function ReferralsView({ authFetch, username }) {
+  const { lang } = useLang();
+  const t = (s) => ct(lang, s);
   const [data, setData] = useState(null);
   const [open, setOpen] = useState(false);
   useEffect(() => {
@@ -1143,17 +1186,17 @@ function ReferralsView({ authFetch, username }) {
       <div className="ref-stats">
         <div className="ref-stat">
           <div className="ref-stat__value">{data ? (data.clicks ?? 0).toLocaleString('ru-RU') : '—'}</div>
-          <div className="ref-stat__label">Открыли ссылку</div>
+          <div className="ref-stat__label">{t('Открыли ссылку')}</div>
         </div>
         <div className="ref-stat__arrow" aria-hidden="true">→</div>
         <div className="ref-stat">
           <div className="ref-stat__value">{data ? (data.total ?? 0).toLocaleString('ru-RU') : '—'}</div>
-          <div className="ref-stat__label">Заявок от бизнеса</div>
+          <div className="ref-stat__label">{t('Заявок от бизнеса')}</div>
         </div>
         <div className="ref-stat__arrow" aria-hidden="true">→</div>
         <div className="ref-stat">
           <div className="ref-stat__value">{data?.conversion != null ? `${data.conversion}%` : '—'}</div>
-          <div className="ref-stat__label">Конверсия</div>
+          <div className="ref-stat__label">{t('Конверсия')}</div>
         </div>
       </div>
 
@@ -1161,13 +1204,13 @@ function ReferralsView({ authFetch, username }) {
         <div className="ref-card__head">
           <span className="ref-card__icon" aria-hidden="true"><Icon name="link" /></span>
           <div className="ref-card__titles">
-            <b>Ссылка для профиля</b>
-            <span className="creator-portal__muted">приводит клиентов из твоих соцсетей</span>
+            <b>{t('Ссылка для профиля')}</b>
+            <span className="creator-portal__muted">{t('приводит клиентов из твоих соцсетей')}</span>
           </div>
         </div>
         <p className="creator-portal__muted">
-          Помести её в шапку профиля в соцсетях. По ней открывается твоя страница на CLICKI с брендами, с которыми ты работал.
-          <b> +{data?.xpPerLead ?? 30} XP</b> за каждую заявку бизнеса по этой ссылке.
+          {t('Помести её в шапку профиля в соцсетях. По ней открывается твоя страница на CLICKI с брендами, с которыми ты работал.')}
+          <b> +{data?.xpPerLead ?? 30} XP</b> {t('за каждую заявку бизнеса по этой ссылке.')}
         </p>
         <div className="ref-link__row">
           <input className="ref-link__input" readOnly value={bioLink} onFocus={(e) => e.target.select()} />
@@ -1175,13 +1218,13 @@ function ReferralsView({ authFetch, username }) {
         </div>
         {data && data.total > 0 && (
           <button type="button" className="creator-portal__link" onClick={() => setOpen((o) => !o)}>
-            {open ? 'Скрыть заявки' : `Показать заявки (${data.total})`}
+            {open ? t('Скрыть заявки') : `${t('Показать заявки')} (${data.total})`}
           </button>
         )}
         {open && (
           <ul className="ref-link__leads">
             {leads.map((l) => (
-              <li key={l.id} className="creator-portal__muted">Заявка · {l.at}</li>
+              <li key={l.id} className="creator-portal__muted">{t('Заявка')} · {l.at}</li>
             ))}
           </ul>
         )}
@@ -1191,29 +1234,29 @@ function ReferralsView({ authFetch, username }) {
         <div className="ref-card__head">
           <span className="ref-card__icon" aria-hidden="true"><Icon name="users" /></span>
           <div className="ref-card__titles">
-            <b>Пригласить друга-креатора</b>
-            <span className="creator-portal__muted">+500 XP за каждого</span>
+            <b>{t('Пригласить друга-креатора')}</b>
+            <span className="creator-portal__muted">{t('+500 XP за каждого')}</span>
           </div>
         </div>
         <p className="creator-portal__muted">
-          Отправь эту ссылку другу. <b>+{data?.friends?.xpPerFriend ?? 500} XP</b>, когда у него засчитают первое видео.
+          {t('Отправь эту ссылку другу.')} <b>+{data?.friends?.xpPerFriend ?? 500} XP</b>{t(', когда у него засчитают первое видео.')}
         </p>
 
         {/* Friend funnel: invited → snял первое видео (qualified) → XP earned. */}
         <div className="ref-stats">
           <div className="ref-stat">
             <div className="ref-stat__value">{data ? (data.friends?.invited ?? 0) : '—'}</div>
-            <div className="ref-stat__label">Приглашено</div>
+            <div className="ref-stat__label">{t('Приглашено')}</div>
           </div>
           <div className="ref-stat__arrow" aria-hidden="true">→</div>
           <div className="ref-stat">
             <div className="ref-stat__value">{data ? (data.friends?.qualified ?? 0) : '—'}</div>
-            <div className="ref-stat__label">Сняли первое видео</div>
+            <div className="ref-stat__label">{t('Сняли первое видео')}</div>
           </div>
           <div className="ref-stat__arrow" aria-hidden="true">→</div>
           <div className="ref-stat">
             <div className="ref-stat__value">{data ? (data.friends?.xpEarned ?? 0).toLocaleString('ru-RU') : '—'}</div>
-            <div className="ref-stat__label">XP заработано</div>
+            <div className="ref-stat__label">{t('XP заработано')}</div>
           </div>
         </div>
 
@@ -1223,7 +1266,7 @@ function ReferralsView({ authFetch, username }) {
         </div>
         {data?.friends?.invited > 0 && data.friends.qualified < data.friends.invited && (
           <p className="creator-portal__muted" style={{ margin: '8px 0 0', fontSize: '0.82rem' }}>
-            {data.friends.invited - data.friends.qualified} приглашённых ещё не сняли первое видео — XP начислится, когда снимут.
+            {data.friends.invited - data.friends.qualified} {t('приглашённых ещё не сняли первое видео — XP начислится, когда снимут.')}
           </p>
         )}
       </div>
@@ -1237,6 +1280,8 @@ function ReferralsView({ authFetch, username }) {
  * assigned to this creator, with a lightweight client-side sort and a
  * "how to get more orders" tip at the bottom. */
 function OrdersView({ openBriefs, briefs, onTake, takingId, onOpenMine, goProfile }) {
+  const { lang } = useLang();
+  const t = (s) => ct(lang, s);
   const [sort, setSort] = useState('new');
   // Mark the single most profitable open order as "Топ по выгоде".
   const topPayout = Math.max(0, ...openBriefs.map((b) => b.est_payout || 0));
@@ -1248,11 +1293,11 @@ function OrdersView({ openBriefs, briefs, onTake, takingId, onOpenMine, goProfil
   return (
     <>
       <div className="cp-orders-head">
-        <h2 className="creator-portal__h2">Заказы <span className="creator-portal__chip">доступны всем</span></h2>
+        <h2 className="creator-portal__h2">{t('Заказы')} <span className="creator-portal__chip">{t('доступны всем')}</span></h2>
         {openBriefs.length > 1 && (
-          <select className="cp-sort" value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Сортировка заказов">
-            <option value="new">Сначала новые</option>
-            <option value="payout">Сначала выгодные</option>
+          <select className="cp-sort" value={sort} onChange={(e) => setSort(e.target.value)} aria-label={t('Сортировка заказов')}>
+            <option value="new">{t('Сначала новые')}</option>
+            <option value="payout">{t('Сначала выгодные')}</option>
           </select>
         )}
       </div>
@@ -1260,12 +1305,12 @@ function OrdersView({ openBriefs, briefs, onTake, takingId, onOpenMine, goProfil
       {sorted.length ? (
         sorted.map((b) => <BriefCard key={b.id} b={b} top={b.id === topId} onTake={onTake} takingId={takingId} />)
       ) : (
-        <p className="creator-portal__muted">Открытых заказов пока нет — менеджер скоро опубликует.</p>
+        <p className="creator-portal__muted">{t('Открытых заказов пока нет — менеджер скоро опубликует.')}</p>
       )}
 
       {briefs.length > 0 && (
         <>
-          <h2 className="creator-portal__h2">Назначенные тебе</h2>
+          <h2 className="creator-portal__h2">{t('Назначенные тебе')}</h2>
           {/* Already taken/assigned — the button opens the submit form, not a re-take. */}
           {briefs.map((b) => <BriefCard key={b.id} b={b} mine onTake={onOpenMine} />)}
         </>
@@ -1274,12 +1319,12 @@ function OrdersView({ openBriefs, briefs, onTake, takingId, onOpenMine, goProfil
       <div className="cp-tip">
         <span className="cp-tip__icon" aria-hidden="true">💡</span>
         <div className="cp-tip__body">
-          <b>Как получать больше заказов?</b>
+          <b>{t('Как получать больше заказов?')}</b>
           <span className="creator-portal__muted">
-            Заполни профиль, загружай качественные видео и повышай уровень — так бренды будут чаще обращаться к тебе.
+            {t('Заполни профиль, загружай качественные видео и повышай уровень — так бренды будут чаще обращаться к тебе.')}
           </span>
         </div>
-        <button type="button" className="btn btn--ghost btn--sm" onClick={goProfile}>Перейти в профиль</button>
+        <button type="button" className="btn btn--ghost btn--sm" onClick={goProfile}>{t('Перейти в профиль')}</button>
       </div>
     </>
   );
@@ -1301,6 +1346,8 @@ function TileIcon({ name }) {
 }
 
 function BriefCard({ b, top = false, onTake, takingId, mine = false }) {
+  const { lang } = useLang();
+  const t = (s) => ct(lang, s);
   const [open, setOpen] = useState(false);
   const taking = takingId === (b.brief_id || b.id);
   const spec = b.spec || {};
@@ -1308,32 +1355,32 @@ function BriefCard({ b, top = false, onTake, takingId, mine = false }) {
   // views reached) — no more submissions.
   const closed = b.brief_status === 'closed';
   const rows = [];
-  if (b.goal) rows.push(['Цель', b.goal]);
-  if (b.audience) rows.push(['Аудитория', b.audience]);
+  if (b.goal) rows.push([t('Цель'), b.goal]);
+  if (b.audience) rows.push([t('Аудитория'), b.audience]);
   // Business creative brief (product, УТП, боль аудитории, 3-сек, гео, формат, платформы)
   rows.push(...briefOfferRows(b));
-  if (spec.orientation) rows.push(['Ориентация', spec.orientation === 'horizontal' ? 'Горизонтальное' : 'Вертикальное']);
-  rows.push(['Хронометраж', spec.duration_any
-    ? 'Произвольный — без жёстких таймингов'
-    : (b.duration_min ? `${b.duration_min}–${b.duration_max} сек` : `до ${b.duration_max} сек`)]);
-  if (spec.cta_required) rows.push(['CTA', 'Обязательно']);
-  if (spec.logo_first5) rows.push(['Логотип', 'В первые 5 секунд']);
-  if (spec.brand_spoken) rows.push(['Название бренда', 'Обязательно произнести']);
-  if (spec.product_in_frame) rows.push(['Продукт в кадре', 'Да']);
-  if (spec.style) rows.push(['Стиль', STYLE_LABELS[spec.style] || spec.style]);
-  else if (b.tone) rows.push(['Стиль / тон', b.tone]);
-  if (b.req_hashtag) rows.push(['Хэштег', b.req_hashtag]);
-  if (b.req_mention) rows.push(['Упоминание бренда', 'В первые 3 сек']);
-  if (b.req_cta_link) rows.push(['CTA-ссылка', b.req_cta_link]);
-  if (b.dos) rows.push(['Делать', b.dos]);
-  if (b.donts) rows.push(['Не делать', b.donts]);
-  if (b.refs) rows.push(['Референсы', b.refs]);
+  if (spec.orientation) rows.push([t('Ориентация'), spec.orientation === 'horizontal' ? t('Горизонтальное') : t('Вертикальное')]);
+  rows.push([t('Хронометраж'), spec.duration_any
+    ? t('Произвольный — без жёстких таймингов')
+    : (b.duration_min ? `${b.duration_min}–${b.duration_max} ${t('сек')}` : `${t('до')} ${b.duration_max} ${t('сек')}`)]);
+  if (spec.cta_required) rows.push(['CTA', t('Обязательно')]);
+  if (spec.logo_first5) rows.push([t('Логотип'), t('В первые 5 секунд')]);
+  if (spec.brand_spoken) rows.push([t('Название бренда'), t('Обязательно произнести')]);
+  if (spec.product_in_frame) rows.push([t('Продукт в кадре'), t('Да')]);
+  if (spec.style) rows.push([t('Стиль'), t(STYLE_LABELS[spec.style] || spec.style)]);
+  else if (b.tone) rows.push([t('Стиль / тон'), b.tone]);
+  if (b.req_hashtag) rows.push([t('Хэштег'), b.req_hashtag]);
+  if (b.req_mention) rows.push([t('Упоминание бренда'), t('В первые 3 сек')]);
+  if (b.req_cta_link) rows.push([t('CTA-ссылка'), b.req_cta_link]);
+  if (b.dos) rows.push([t('Делать'), b.dos]);
+  if (b.donts) rows.push([t('Не делать'), b.donts]);
+  if (b.refs) rows.push([t('Референсы'), b.refs]);
 
   const tiles = [
-    { name: 'format', label: 'Формат', value: '1 видео' },
-    { name: 'deadline', label: 'Дедлайн', value: b.deadline || '—' },
-    { name: 'review', label: 'Проверка', value: 'до 48 ч' },
-    { name: 'pay', label: 'Оплата', value: 'за результат' },
+    { name: 'format', label: t('Формат'), value: t('1 видео') },
+    { name: 'deadline', label: t('Дедлайн'), value: b.deadline || '—' },
+    { name: 'review', label: t('Проверка'), value: t('до 48 ч') },
+    { name: 'pay', label: t('Оплата'), value: t('за результат') },
   ];
   const initial = (b.title || b.platform || '?').trim().charAt(0).toUpperCase();
 
@@ -1344,20 +1391,20 @@ function BriefCard({ b, top = false, onTake, takingId, mine = false }) {
         <div className="cp-brief__heading">
           <b className="cp-brief__title">{b.title}</b>
           <div className="cp-brief__badges">
-            <span className="pf-badge">{b.platform === ANY_PLATFORM ? 'Любая площадка' : b.platform}</span>
-            {top && <span className="pf-badge pf-badge--accent">Топ по выгоде</span>}
+            <span className="pf-badge">{b.platform === ANY_PLATFORM ? t('Любая площадка') : b.platform}</span>
+            {top && <span className="pf-badge pf-badge--accent">{t('Топ по выгоде')}</span>}
             {b.slots_left != null && !closed && (
               <span className="pf-badge pf-badge--slots">
-                {b.slots_left > 0 ? `Осталось мест: ${b.slots_left}` : 'Мест нет'}
+                {b.slots_left > 0 ? `${t('Осталось мест')}: ${b.slots_left}` : t('Мест нет')}
               </span>
             )}
-            {closed && <span className="pf-badge pf-badge--closed">Закрыт — цель набрана</span>}
+            {closed && <span className="pf-badge pf-badge--closed">{t('Закрыт — цель набрана')}</span>}
           </div>
         </div>
       </div>
 
       {b.platform === ANY_PLATFORM && (
-        <p className="cp-brief__msg">📱 Снимай на любой площадке — TikTok, Reels, Shorts. Платформу выберешь, когда будешь сдавать видео.</p>
+        <p className="cp-brief__msg">{t('📱 Снимай на любой площадке — TikTok, Reels, Shorts. Платформу выберешь, когда будешь сдавать видео.')}</p>
       )}
       {b.key_message && <p className="cp-brief__msg">{b.key_message}</p>}
 
@@ -1384,13 +1431,13 @@ function BriefCard({ b, top = false, onTake, takingId, mine = false }) {
             ))}
             {briefRefLinks(b).length > 0 && (
               <div className="brief-detail__row">
-                <dt>Референсы</dt>
+                <dt>{t('Референсы')}</dt>
                 <dd>
                   {briefRefLinks(b).map((r, i) => {
                     const href = safeHref(r.url);
                     return (
                       <div key={i} className="brief-ref">
-                        {href ? <a href={href} target="_blank" rel="noopener noreferrer">Референс {i + 1}</a> : r.url}
+                        {href ? <a href={href} target="_blank" rel="noopener noreferrer">{t('Референс')} {i + 1}</a> : r.url}
                         {r.note && <span className="brief-ref__note"> — {r.note}</span>}
                       </div>
                     );
@@ -1401,8 +1448,8 @@ function BriefCard({ b, top = false, onTake, takingId, mine = false }) {
           </dl>
           {spec.logo_url && (
             <div className="cp-brief__logo">
-              <span className="creator-portal__muted">Логотип бренда</span>
-              <img src={mediaUrl(spec.logo_url)} alt="Логотип бренда" />
+              <span className="creator-portal__muted">{t('Логотип бренда')}</span>
+              <img src={mediaUrl(spec.logo_url)} alt={t('Логотип бренда')} />
             </div>
           )}
         </>
@@ -1410,10 +1457,10 @@ function BriefCard({ b, top = false, onTake, takingId, mine = false }) {
 
       <div className="cp-brief__actions">
         <button type="button" className="creator-portal__link" onClick={() => setOpen((o) => !o)}>
-          {open ? 'Свернуть ↑' : 'Читать весь бриф →'}
+          {open ? t('Свернуть ↑') : t('Читать весь бриф →')}
         </button>
         {closed ? (
-          <span className="cp-brief__closed">✓ Бриф закрыт — набрано нужное количество просмотров</span>
+          <span className="cp-brief__closed">{t('✓ Бриф закрыт — набрано нужное количество просмотров')}</span>
         ) : (
           <button
             type="button"
@@ -1421,7 +1468,7 @@ function BriefCard({ b, top = false, onTake, takingId, mine = false }) {
             disabled={taking}
             onClick={() => onTake?.(b.brief_id || b.id)}
           >
-            {mine ? 'Сдать видео →' : taking ? 'Беру…' : 'Взять в работу'}
+            {mine ? t('Сдать видео →') : taking ? t('Беру…') : t('Взять в работу')}
           </button>
         )}
       </div>
@@ -1432,6 +1479,8 @@ function BriefCard({ b, top = false, onTake, takingId, mine = false }) {
 const MEDALS = ['gold', 'silver', 'bronze'];
 
 function Leaderboard({ meId }) {
+  const { lang } = useLang();
+  const t = (s) => ct(lang, s);
   const [rows, setRows] = useState(null);
   useEffect(() => {
     fetch(`${API_BASE}/api/leaderboard`)
@@ -1439,8 +1488,8 @@ function Leaderboard({ meId }) {
       .then((d) => setRows(d.leaderboard || []))
       .catch(() => setRows([]));
   }, []);
-  if (rows === null) return <p className="creator-portal__muted">Загрузка…</p>;
-  if (!rows.length) return <p className="creator-portal__muted">Рейтинг пока пуст.</p>;
+  if (rows === null) return <p className="creator-portal__muted">{t('Загрузка…')}</p>;
+  if (!rows.length) return <p className="creator-portal__muted">{t('Рейтинг пока пуст.')}</p>;
   return (
     <div className="creator-portal__card cp-lb">
       {rows.map((r, i) => {
@@ -1455,7 +1504,7 @@ function Leaderboard({ meId }) {
             <div className="cp-lb-info">
               <span className="cp-lb-name">
                 {r.name}
-                {me && <span className="cp-lb-you">ты</span>}
+                {me && <span className="cp-lb-you">{t('ты')}</span>}
               </span>
               <span className="cp-lb-meta">
                 <span className="pf-badge">{r.level}</span>
@@ -1489,6 +1538,8 @@ function FieldIcon({ name }) {
 /** One row in "Мои видео": brand avatar, title + status + views/AI, optional
  * AI feedback, and the daily stats-screenshots strip. */
 function VideoRow({ s, c, authFetch, reload }) {
+  const { lang } = useLang();
+  const t = (s2) => ct(lang, s2);
   const initial = (s.brief_title || s.platform || '?').trim().charAt(0).toUpperCase();
   return (
     <div className="cp-vid">
@@ -1497,21 +1548,21 @@ function VideoRow({ s, c, authFetch, reload }) {
         <div className="cp-vid__row1">
           <div className="cp-vid__titlewrap">
             <a className="cp-vid__title" href={safeHref(s.video_url)} target="_blank" rel="noreferrer">{s.brief_title || s.platform}</a>
-            <span className={`pf-status pf-status--${s.status}`}>{SUB_STATUS_RU[s.status] || s.status}</span>
+            <span className={`pf-status pf-status--${s.status}`}>{t(SUB_STATUS_RU[s.status] || s.status)}</span>
           </div>
           <div className="cp-vid__stats">
-            <span className="cp-vid__views">{(s.views || 0).toLocaleString('ru-RU')} просм.</span>
+            <span className="cp-vid__views">{(s.views || 0).toLocaleString('ru-RU')} {t('просм.')}</span>
             {s.ai_score != null && <span className="ai-score">AI {s.ai_score}/100</span>}
           </div>
         </div>
 
         {s.status === 'rework' && s.ai_feedback && (
-          <p className="creator-portal__rework">↻ На доработку: {s.ai_feedback}</p>
+          <p className="creator-portal__rework">↻ {t('На доработку')}: {s.ai_feedback}</p>
         )}
         {(s.status === 'accepted' || s.status === 'rejected') && s.coach_feedback && (
-          <p className="cp-vid__coach">🎯 AI-коуч: {s.coach_feedback}</p>
+          <p className="cp-vid__coach">🎯 {t('AI-коуч')}: {s.coach_feedback}</p>
         )}
-        {s.review_note && <p className="cp-vid__note">📝 Комментарий модератора: {s.review_note}</p>}
+        {s.review_note && <p className="cp-vid__note">📝 {t('Комментарий модератора')}: {s.review_note}</p>}
 
         {/* Daily stats reporting — only while the video is live (not after a reject),
             and only when we can't read the numbers off the platform ourselves. */}
@@ -1519,7 +1570,7 @@ function VideoRow({ s, c, authFetch, reload }) {
           statsAreAutomatic(s, c) ? (
             <>
               <p className="cp-vid__auto">
-                ✓ Просмотры тянутся из TikTok автоматически — скриншот не нужен.
+                {t('✓ Просмотры тянутся из TikTok автоматически — скриншот не нужен.')}
               </p>
               {/* Anything they sent before connecting stays on the card, read-only:
                   it stops being their job, it doesn't stop being their record. */}
@@ -1554,6 +1605,8 @@ function VideoRow({ s, c, authFetch, reload }) {
 }
 
 function SubmitForm({ c, authFetch, briefs, reload, initialBriefId = '' }) {
+  const { lang } = useLang();
+  const t = (s) => ct(lang, s);
   const today = new Date().toISOString().slice(0, 10);
   const [f, setF] = useState({ brief_id: initialBriefId || '', platform: 'TikTok', video_url: '', published_at: today, screenshot_url: '', rights_confirmed: false });
   const [error, setError] = useState('');
@@ -1570,15 +1623,15 @@ function SubmitForm({ c, authFetch, briefs, reload, initialBriefId = '' }) {
   const uploadShot = async (file) => {
     if (!file) return;
     setError('');
-    if (!file.type.startsWith('image/')) return setError('Нужен скриншот-изображение (JPG или PNG).');
-    if (file.size > 4 * 1024 * 1024) return setError('Слишком большой файл — сделай обычный скриншот (до 4 МБ).');
+    if (!file.type.startsWith('image/')) return setError(t('Нужен скриншот-изображение (JPG или PNG).'));
+    if (file.size > 4 * 1024 * 1024) return setError(t('Слишком большой файл — сделай обычный скриншот (до 4 МБ).'));
     setShotUploading(true);
     try {
       const fd = new FormData();
       fd.append('file', file);
       const res = await authFetch('/api/creator/upload', { method: 'POST', body: fd });
       const d = await res.json();
-      if (!res.ok || d.ok === false) throw new Error(d.errors?.[0] || 'Не удалось загрузить');
+      if (!res.ok || d.ok === false) throw new Error(d.errors?.[0] || t('Не удалось загрузить'));
       set('screenshot_url', d.url);
     } catch (e) {
       setError(e.message);
@@ -1590,8 +1643,8 @@ function SubmitForm({ c, authFetch, briefs, reload, initialBriefId = '' }) {
   const submit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!f.brief_id) return setError('Выбери заказ — без брифа сдать видео нельзя');
-    if (!f.video_url || !f.rights_confirmed) return setError('Укажи ссылку на видео и подтверди права');
+    if (!f.brief_id) return setError(t('Выбери заказ — без брифа сдать видео нельзя'));
+    if (!f.video_url || !f.rights_confirmed) return setError(t('Укажи ссылку на видео и подтверди права'));
     setBusy(true);
     try {
       const res = await authFetch('/api/creator/submit', {
@@ -1600,7 +1653,7 @@ function SubmitForm({ c, authFetch, briefs, reload, initialBriefId = '' }) {
         body: JSON.stringify({ ...f, brief_id: f.brief_id || null }),
       });
       const d = await res.json();
-      if (!res.ok) throw new Error((d.errors && d.errors[0]) || 'Ошибка');
+      if (!res.ok) throw new Error((d.errors && d.errors[0]) || t('Ошибка'));
       setF({ brief_id: '', platform: 'TikTok', video_url: '', published_at: today, screenshot_url: '', rights_confirmed: false });
       reload();
     } catch (err) {
@@ -1614,11 +1667,11 @@ function SubmitForm({ c, authFetch, briefs, reload, initialBriefId = '' }) {
 
   return (
     <form className="creator-portal__card cp-submit" onSubmit={submit}>
-      <h2 className="cp-card__title">Сдать видео</h2>
+      <h2 className="cp-card__title">{t('Сдать видео')}</h2>
       <div className="cp-field">
         <span className="cp-field__icon"><FieldIcon name="brief" /></span>
-        <select aria-label="Заказ (бриф)" value={f.brief_id} onChange={(e) => set('brief_id', e.target.value)}>
-          <option value="" disabled>Выбери заказ</option>
+        <select aria-label={t('Заказ (бриф)')} value={f.brief_id} onChange={(e) => set('brief_id', e.target.value)}>
+          <option value="" disabled>{t('Выбери заказ')}</option>
           {briefs.map((b) => (
             <option key={b.id} value={b.brief_id || b.id}>{b.title}</option>
           ))}
@@ -1626,17 +1679,17 @@ function SubmitForm({ c, authFetch, briefs, reload, initialBriefId = '' }) {
       </div>
       {!briefs.length && (
         <p className="creator-portal__muted" style={{ marginTop: -4 }}>
-          Нет доступных заказов — возьми заказ во вкладке «Заказы», чтобы сдать по нему видео.
+          {t('Нет доступных заказов — возьми заказ во вкладке «Заказы», чтобы сдать по нему видео.')}
         </p>
       )}
       {anyPlatformBrief && (
         <p className="creator-portal__muted" style={{ margin: '-4px 0 0', fontSize: '0.85rem' }}>
-          📱 Этот заказ — под любую площадку. Выбери ту, где ты опубликовал видео.
+          {t('📱 Этот заказ — под любую площадку. Выбери ту, где ты опубликовал видео.')}
         </p>
       )}
       <div className="cp-field">
         <span className="cp-field__icon"><FieldIcon name="platform" /></span>
-        <select aria-label="Платформа" value={f.platform} onChange={(e) => set('platform', e.target.value)}>
+        <select aria-label={t('Платформа')} value={f.platform} onChange={(e) => set('platform', e.target.value)}>
           {PLATFORMS.map((p) => <option key={p}>{p}</option>)}
         </select>
       </div>
@@ -1644,7 +1697,7 @@ function SubmitForm({ c, authFetch, briefs, reload, initialBriefId = '' }) {
       {f.platform === 'TikTok' && <TikTokConnect c={c} authFetch={authFetch} reload={reload} compact />}
       <div className="cp-field">
         <span className="cp-field__icon"><FieldIcon name="link" /></span>
-        <input placeholder="Ссылка на опубликованное видео" value={f.video_url} onChange={(e) => set('video_url', e.target.value)} />
+        <input placeholder={t('Ссылка на опубликованное видео')} value={f.video_url} onChange={(e) => set('video_url', e.target.value)} />
       </div>
       <div className="cp-field">
         <span className="cp-field__icon"><FieldIcon name="date" /></span>
@@ -1662,13 +1715,13 @@ function SubmitForm({ c, authFetch, briefs, reload, initialBriefId = '' }) {
             onClick={() => shotRef.current?.click()}
             disabled={shotUploading}
           >
-            {shotUploading ? 'Загрузка…' : f.screenshot_url ? '✓ Скриншот статистики загружен' : '📷 Загрузить скриншот статистики'}
+            {shotUploading ? t('Загрузка…') : f.screenshot_url ? t('✓ Скриншот статистики загружен') : t('📷 Загрузить скриншот статистики')}
           </button>
           <button type="button" className="creator-portal__link cp-shot__help" onClick={() => setGuideOpen((v) => !v)}>
-            {guideOpen ? 'Скрыть' : 'Как снять скриншот?'}
+            {guideOpen ? t('Скрыть') : t('Как снять скриншот?')}
           </button>
         </div>
-        {f.screenshot_url && <img className="cp-shot__preview" src={mediaUrl(f.screenshot_url)} alt="Скриншот статистики" />}
+        {f.screenshot_url && <img className="cp-shot__preview" src={mediaUrl(f.screenshot_url)} alt={t('Скриншот статистики')} />}
         {guideOpen && (
           <ol className="cp-shot__guide">
             {guide.steps.map((step, i) => (
@@ -1682,10 +1735,10 @@ function SubmitForm({ c, authFetch, briefs, reload, initialBriefId = '' }) {
       </div>
 
       <label className="pf-check">
-        <input type="checkbox" checked={f.rights_confirmed} onChange={(e) => set('rights_confirmed', e.target.checked)} /> Подтверждаю права на это видео
+        <input type="checkbox" checked={f.rights_confirmed} onChange={(e) => set('rights_confirmed', e.target.checked)} /> {t('Подтверждаю права на это видео')}
       </label>
       {error && <p className="creator-portal__err">{error}</p>}
-      <button className="btn btn--primary btn--block" disabled={busy}>{busy ? 'Отправляю…' : 'Сдать видео →'}</button>
+      <button className="btn btn--primary btn--block" disabled={busy}>{busy ? t('Отправляю…') : t('Сдать видео →')}</button>
     </form>
   );
 }
