@@ -273,6 +273,8 @@
 /* Reference note when the creator/operator reads the brief */
 .brief-ref { margin-bottom: 4px; }
 .brief-ref__note { color: var(--stone); }
+/* Inline admin brief editor (opens inside the moderation card) */
+.brief-edit { margin-top: 12px; }
 
 /* Business dashboard widgets */
 .bp-stat__hint { margin-top: 4px; font-size: 0.78rem; color: var(--fog); }

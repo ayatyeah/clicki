@@ -4,6 +4,7 @@ import { useConfirm } from '../../components/ConfirmDialog.jsx';
 import { safeHref } from '../../lib/safeHref.js';
 import { API_BASE } from '../../lib/config.js';
 import { briefOfferRows, briefRefLinks } from '../../lib/briefFields.js';
+import { BriefForm } from '../../components/BriefForm.jsx';
 
 const mediaUrl = (u) => (u && /^https?:\/\//i.test(u) ? u : `${API_BASE}${u}`);
 
@@ -258,6 +259,7 @@ function BriefModCard({ b, authFetch, creators, onChange, canManage }) {
   const [showBrief, setShowBrief] = useState(false);
   const [showAssign, setShowAssign] = useState(false);
   const [showTakers, setShowTakers] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
   const call = async (url, body) => {
     setBusy(true);
     try {
@@ -359,6 +361,11 @@ function BriefModCard({ b, authFetch, creators, onChange, canManage }) {
               {showBrief ? 'Свернуть бриф' : 'Читать бриф'}
             </button>
           )}
+          {canManage && (
+            <button className="btn btn--ghost btn--sm" onClick={() => setShowEdit((s) => !s)} aria-expanded={showEdit}>
+              {showEdit ? 'Закрыть редактор' : '✏️ Редактировать'}
+            </button>
+          )}
           <button className="btn btn--ghost btn--sm" disabled={busy} onClick={() => call(`/api/admin/briefs/${b.id}/ai`)}>ИИ-анализ</button>
           {b.status !== 'active' ? (
             <button className="btn btn--primary btn--sm" disabled={busy} onClick={publishToAll}>
@@ -389,6 +396,20 @@ function BriefModCard({ b, authFetch, creators, onChange, canManage }) {
           />
         )}
         {showTakers && <BriefTakers briefId={b.id} authFetch={authFetch} onChange={onChange} />}
+        {canManage && showEdit && (
+          <div className="brief-edit">
+            <p className="muted-note" style={{ textAlign: 'left', margin: '0 0 8px' }}>
+              Изменения вступают в силу сразу — у креаторов, которым бриф уже виден, обновится контент (статус и назначения не меняются).
+            </p>
+            <BriefForm
+              variant="admin"
+              brief={b}
+              authFetch={authFetch}
+              reload={onChange}
+              onDone={() => setShowEdit(false)}
+            />
+          </div>
+        )}
         {showNote && (
           <div className="mod-actions">
             <input placeholder="Что исправить бизнесу" value={note} onChange={(e) => setNote(e.target.value)} style={{ flex: 1, minWidth: 200 }} />

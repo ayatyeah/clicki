@@ -3,6 +3,18 @@
 // both readers (creator brief card, admin brief moderation) so a new field shows
 // up everywhere at once.
 
+/** Platforms a brief can target; «Любая» lets the creator pick at submit time. */
+export const PLATFORMS = ['TikTok', 'Instagram Reels', 'YouTube Shorts', 'Threads', 'X (Twitter)'];
+export const ANY_PLATFORM = 'Любая';
+
+/** Content-style options [key, human label]. `tone` stores the label. */
+export const STYLES = [
+  ['youth', 'Молодёжный'],
+  ['premium', 'Премиальный'],
+  ['corporate', 'Корпоративный'],
+  ['entertainment', 'Развлекательный'],
+];
+
 /** Video-format options for «Желаемый формат ролика». */
 export const VIDEO_FORMATS = ['Распаковка', 'POV', 'Говорящая голова', 'Обзор приложения', 'Тренды'];
 

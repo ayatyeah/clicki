@@ -1262,6 +1262,22 @@ export async function updateBusinessBrief(id, businessId, b) {
   );
   return r.rows[0] || null;
 }
+/** Operator edits a brief's content in place. Unlike updateBusinessBrief this does
+ *  NOT touch status/moderation — so the change is live for creators immediately
+ *  (an active/assigned brief stays active/assigned, just with new content). */
+export async function adminUpdateBrief(id, b) {
+  const r = await pool.query(
+    `UPDATE briefs SET title=$1, platform=$2, key_message=$3, req_hashtag=$4,
+        duration_max=$5, tone=$6, spec=$7, req_cta_link=$8, dos=$9, donts=$10
+      WHERE id=$11 RETURNING *`,
+    [
+      b.title, b.platform || 'TikTok', b.key_message || null, b.req_hashtag || null,
+      b.duration_max || 90, b.tone || null, JSON.stringify(b.spec || {}), b.req_cta_link || null,
+      b.dos || null, b.donts || null, id,
+    ]
+  );
+  return r.rows[0] || null;
+}
 export async function assignBrief(briefId, creatorId) {
   const r = await pool.query(
     `INSERT INTO assignments (brief_id, creator_id) VALUES ($1,$2)

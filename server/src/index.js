@@ -67,6 +67,7 @@ import {
   assignBrief,
   assignBriefMany,
   unassignBrief,
+  adminUpdateBrief,
   saveAdminSession,
   getAdminSessionExpiry,
   deleteAdminSession,
@@ -1979,6 +1980,15 @@ app.post('/api/admin/businesses/:id/delete', requireAdmin, wrap(async (req, res)
 app.get('/api/admin/briefs', requireAdmin, wrap(async (_req, res) => ok(res, { briefs: await listBriefsForAdmin() })));
 app.post('/api/admin/briefs', requireAdmin, wrap(async (req, res) => ok(res, { brief: await createBrief(req.body || {}) })));
 app.post('/api/admin/briefs/:id/status', requireAdmin, wrap(async (req, res) => ok(res, { brief: await setBriefStatus(Number(req.params.id), req.body?.status) })));
+// Operator edits a brief's content — the change goes live for creators at once
+// (no status reset / re-moderation, unlike a business edit).
+app.post('/api/admin/briefs/:id/edit', requireAdmin, wrap(async (req, res) => {
+  const b = req.body || {};
+  if (!b.title || !String(b.title).trim()) return res.status(400).json({ ok: false, errors: ['Название обязательно'] });
+  const brief = await adminUpdateBrief(Number(req.params.id), b);
+  if (!brief) return res.status(404).json({ ok: false, errors: ['Бриф не найден'] });
+  ok(res, { brief });
+}));
 // Full "who took this brief" analytics: сколько взяли, кто именно, за какое время
 // взяли и сдали ли (the 24-hour rule marks lapsed holders).
 app.get('/api/admin/briefs/:id/takers', requireAdmin, wrap(async (req, res) => ok(res, { takers: await getBriefTakers(Number(req.params.id)) })));
