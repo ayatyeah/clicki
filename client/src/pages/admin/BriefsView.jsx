@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { useConfirm } from '../../components/ConfirmDialog.jsx';
 import { safeHref } from '../../lib/safeHref.js';
@@ -388,7 +388,7 @@ function BriefModCard({ b, authFetch, creators, onChange, canManage }) {
             onDone={() => { setShowAssign(false); onChange(); }}
           />
         )}
-        {showTakers && <BriefTakers briefId={b.id} authFetch={authFetch} />}
+        {showTakers && <BriefTakers briefId={b.id} authFetch={authFetch} onChange={onChange} />}
         {showNote && (
           <div className="mod-actions">
             <input placeholder="Что исправить бизнесу" value={note} onChange={(e) => setNote(e.target.value)} style={{ flex: 1, minWidth: 200 }} />
@@ -419,24 +419,53 @@ function humanDuration(seconds) {
  * they took it, whether/when they submitted, how long take→submit took, and their
  * state under the 24-hour rule — сдал / ⏳ в работе / ⌛ просрочено (slot reopened).
  */
-function BriefTakers({ briefId, authFetch }) {
+function BriefTakers({ briefId, authFetch, onChange }) {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [takers, setTakers] = useState(null); // null = loading
   const [err, setErr] = useState('');
+  const [busyId, setBusyId] = useState(null);
 
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const res = await authFetch(`/api/admin/briefs/${briefId}/takers`);
-        const d = await res.json().catch(() => ({}));
-        if (!res.ok || d.ok === false) throw new Error(d.errors?.[0] || `Ошибка ${res.status}`);
-        if (alive) setTakers(d.takers || []);
-      } catch (e) {
-        if (alive) setErr(e.message);
-      }
-    })();
-    return () => { alive = false; };
+  const load = useCallback(async () => {
+    try {
+      const res = await authFetch(`/api/admin/briefs/${briefId}/takers`);
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok || d.ok === false) throw new Error(d.errors?.[0] || `Ошибка ${res.status}`);
+      setTakers(d.takers || []);
+      setErr('');
+    } catch (e) {
+      setErr(e.message);
+    }
   }, [briefId, authFetch]);
+
+  useEffect(() => { load(); }, [load]);
+
+  // Revoke a creator's access to this brief (delete their assignment). Their past
+  // submissions are kept; refreshes the list and the card's counts.
+  const remove = async (t) => {
+    const okTo = await confirm({
+      title: 'Убрать креатора с брифа?',
+      message: `${t.creator_name} потеряет доступ к этому брифу и больше не сможет по нему сдавать видео. Уже сданное сохранится.`,
+      confirmText: 'Убрать',
+      danger: true,
+    });
+    if (!okTo) return;
+    setBusyId(t.creator_id);
+    try {
+      const res = await authFetch(`/api/admin/briefs/${briefId}/unassign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ creator_id: t.creator_id }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok || d.ok === false) { toast.error(d.errors?.[0] || 'Не удалось убрать'); return; }
+      toast.success(`${t.creator_name} убран с брифа`);
+      await load();
+      onChange?.();
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   if (err) return <p className="creator-portal__err" style={{ margin: '8px 0' }}>Не удалось загрузить: {err}</p>;
   if (takers === null) return <p className="muted-note" style={{ margin: '8px 0' }}>Загружаю…</p>;
@@ -467,6 +496,7 @@ function BriefTakers({ briefId, authFetch }) {
               <th>Сдал</th>
               <th>Время до сдачи</th>
               <th>Статус</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -490,6 +520,11 @@ function BriefTakers({ briefId, authFetch }) {
                   </td>
                   <td data-label="Время до сдачи">{t.submitted ? humanDuration(t.seconds_to_submit) : '—'}</td>
                   <td data-label="Статус"><span className={`pf-status pf-status--${st.cls}`}>{st.text}</span></td>
+                  <td data-label="Действие">
+                    <button className="btn btn--ghost btn--sm" disabled={busyId === t.creator_id} onClick={() => remove(t)}>
+                      {busyId === t.creator_id ? '…' : '✕ Убрать'}
+                    </button>
+                  </td>
                 </tr>
               );
             })}

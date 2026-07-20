@@ -43,6 +43,25 @@ pool.on('error', (err) => {
   console.error('[db] idle client error (ignored, pool recovers):', err.message);
 });
 
+// ---- Admin sessions (persisted so they survive redeploys) ----
+export async function saveAdminSession(token, expiresAt) {
+  await pool.query(
+    `INSERT INTO admin_sessions (token, expires_at) VALUES ($1, $2)
+     ON CONFLICT (token) DO UPDATE SET expires_at = EXCLUDED.expires_at`,
+    [token, expiresAt]
+  );
+}
+export async function getAdminSessionExpiry(token) {
+  const r = await pool.query('SELECT expires_at FROM admin_sessions WHERE token = $1', [token]);
+  return r.rows[0]?.expires_at || null;
+}
+export async function deleteAdminSession(token) {
+  await pool.query('DELETE FROM admin_sessions WHERE token = $1', [token]);
+}
+export async function cleanupAdminSessions() {
+  await pool.query('DELETE FROM admin_sessions WHERE expires_at <= NOW()');
+}
+
 export async function initDb() {
   const client = await pool.connect();
   try {
@@ -215,6 +234,14 @@ export async function initDb() {
     await client.query('ALTER TABLE submissions ADD COLUMN IF NOT EXISTS ai_score INTEGER');
     await client.query('ALTER TABLE submissions ADD COLUMN IF NOT EXISTS ai_feedback TEXT');
     await client.query('ALTER TABLE submissions ADD COLUMN IF NOT EXISTS coach_feedback TEXT');
+    // Admin sessions persisted so they survive a server restart / redeploy —
+    // otherwise the in-memory session map is wiped on every deploy and the
+    // operator gets bounced to the login screen mid-work.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS admin_sessions (
+        token TEXT PRIMARY KEY,
+        expires_at TIMESTAMPTZ NOT NULL
+      )`);
     // Payouts (ТЗ §8)
     await client.query(`
       CREATE TABLE IF NOT EXISTS payouts (
@@ -1311,6 +1338,13 @@ export async function assignBriefMany(briefId, creatorIds) {
     [briefId, ids]
   );
   return { assigned: r.rowCount, requested: ids.length };
+}
+/** Remove a creator's assignment to a brief — revokes their access to work on it
+ *  (afterwards they can't submit unless the brief is an open, unlimited order).
+ *  Their past submissions are untouched. Returns how many rows were removed. */
+export async function unassignBrief(briefId, creatorId) {
+  const r = await pool.query('DELETE FROM assignments WHERE brief_id=$1 AND creator_id=$2', [briefId, creatorId]);
+  return r.rowCount;
 }
 export async function listAssignmentsForCreator(creatorId) {
   const r = await pool.query(

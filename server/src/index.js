@@ -66,6 +66,11 @@ import {
   updateBusinessBrief,
   assignBrief,
   assignBriefMany,
+  unassignBrief,
+  saveAdminSession,
+  getAdminSessionExpiry,
+  deleteAdminSession,
+  cleanupAdminSessions,
   takeBrief,
   listAssignmentsForCreator,
   createSubmission,
@@ -307,32 +312,47 @@ function safeEqual(a, b) {
 const ADMIN_SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12h
 const adminSessions = new Map(); // token -> expiresAt (ms)
 
-function issueAdminSession() {
+async function issueAdminSession() {
   const token = crypto.randomBytes(32).toString('hex');
-  adminSessions.set(token, Date.now() + ADMIN_SESSION_TTL_MS);
+  const expiresAt = Date.now() + ADMIN_SESSION_TTL_MS;
+  adminSessions.set(token, expiresAt);
+  // Persist so the session survives a redeploy/restart (the Map is just a cache).
+  try {
+    await saveAdminSession(token, new Date(expiresAt));
+  } catch (e) {
+    console.error('[admin-session save]', e.message);
+  }
   return token;
 }
-function isValidAdminSession(token) {
-  const expiresAt = adminSessions.get(token);
-  if (!expiresAt) return false;
-  if (expiresAt <= Date.now()) {
-    adminSessions.delete(token);
-    return false;
+async function isValidAdminSession(token) {
+  const cached = adminSessions.get(token);
+  if (cached && cached > Date.now()) return true;
+  if (cached) adminSessions.delete(token); // expired in cache
+  // Cache miss (e.g. right after a restart) → check the persisted store and warm
+  // the cache, so a valid session isn't dropped just because memory was cleared.
+  try {
+    const exp = await getAdminSessionExpiry(token);
+    if (exp && new Date(exp).getTime() > Date.now()) {
+      adminSessions.set(token, new Date(exp).getTime());
+      return true;
+    }
+  } catch (e) {
+    console.error('[admin-session check]', e.message);
   }
-  return true;
+  return false;
 }
-// Bounded memory: sweep expired sessions hourly rather than growing forever.
+// Bounded memory + storage: sweep expired sessions hourly rather than growing forever.
 setInterval(() => {
   const now = Date.now();
   for (const [token, expiresAt] of adminSessions) if (expiresAt <= now) adminSessions.delete(token);
+  cleanupAdminSessions().catch((e) => console.error('[admin-session cleanup]', e.message));
 }, 60 * 60 * 1000).unref();
 
-function requireAdmin(req, res, next) {
+async function requireAdmin(req, res, next) {
   const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-  if (!token || (!isValidAdminSession(token) && !safeEqual(token, ADMIN_TOKEN))) {
-    return res.status(401).json({ ok: false, errors: ['Нет доступа'] });
-  }
-  next();
+  if (token && safeEqual(token, ADMIN_TOKEN)) return next();
+  if (token && (await isValidAdminSession(token))) return next();
+  return res.status(401).json({ ok: false, errors: ['Нет доступа'] });
 }
 
 app.get('/api/health', async (_req, res) => {
@@ -534,10 +554,10 @@ app.post('/api/lead/client', leadLimiter, (req, res) => handleLead('client', req
 app.post('/api/lead/creator', leadLimiter, (req, res) => handleLead('creator', req, res));
 
 // Admin login → mints a short-lived session token (never the raw ADMIN_TOKEN).
-app.post('/api/admin/login', loginLimiter, (req, res) => {
+app.post('/api/admin/login', loginLimiter, async (req, res) => {
   const { username, password } = req.body || {};
   if (safeEqual(username, ADMIN_USER) && safeEqual(password, ADMIN_PASS)) {
-    return res.json({ ok: true, token: issueAdminSession(), expiresIn: ADMIN_SESSION_TTL_MS / 1000 });
+    return res.json({ ok: true, token: await issueAdminSession(), expiresIn: ADMIN_SESSION_TTL_MS / 1000 });
   }
   return res.status(401).json({ ok: false, errors: ['Неверный логин или пароль'] });
 });
@@ -545,7 +565,9 @@ app.post('/api/admin/login', loginLimiter, (req, res) => {
 // Explicit logout so a shared/kiosk browser can drop its session immediately
 // instead of leaving a valid token alive for the rest of the TTL.
 app.post('/api/admin/logout', requireAdmin, (req, res) => {
-  adminSessions.delete((req.headers.authorization || '').replace(/^Bearer\s+/i, ''));
+  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  adminSessions.delete(token);
+  deleteAdminSession(token).catch((e) => console.error('[admin-session delete]', e.message));
   res.json({ ok: true });
 });
 
@@ -1986,6 +2008,15 @@ app.post('/api/admin/briefs/:id/assign-many', requireAdmin, wrap(async (req, res
   if (!ids.length) return res.status(400).json({ ok: false, errors: ['Выберите хотя бы одного креатора'] });
   if (ids.length > 50) return res.status(400).json({ ok: false, errors: ['За раз можно назначить максимум 50 креаторов'] });
   ok(res, await assignBriefMany(Number(req.params.id), ids));
+}));
+// Remove one creator's assignment — revokes their access to work on this brief
+// (they can no longer submit unless it's an open, unlimited order). Past
+// submissions are kept.
+app.post('/api/admin/briefs/:id/unassign', requireAdmin, wrap(async (req, res) => {
+  const creatorId = Number(req.body?.creator_id);
+  if (!creatorId) return res.status(400).json({ ok: false, errors: ['Не указан креатор'] });
+  const removed = await unassignBrief(Number(req.params.id), creatorId);
+  ok(res, { removed });
 }));
 
 app.get('/api/admin/submissions', requireAdmin, wrap(async (req, res) => ok(res, { submissions: await listSubmissions(req.query.status) })));
