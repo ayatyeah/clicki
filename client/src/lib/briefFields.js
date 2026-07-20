@@ -30,8 +30,12 @@ export function briefOfferRows(b) {
   return rows;
 }
 
-/** Non-empty reference video links from the spec. */
+/** Reference videos from the spec as {url, note} — tolerates the old
+ *  plain-string shape and drops empties. `note` is the optional «почему взяли». */
 export function briefRefLinks(b) {
   const s = (b && b.spec) || {};
-  return Array.isArray(s.reference_links) ? s.reference_links.filter((x) => x && String(x).trim()) : [];
+  const list = Array.isArray(s.reference_links) ? s.reference_links : [];
+  return list
+    .map((r) => (typeof r === 'string' ? { url: r, note: '' } : { url: r?.url || '', note: r?.note || '' }))
+    .filter((r) => r.url && String(r.url).trim());
 }

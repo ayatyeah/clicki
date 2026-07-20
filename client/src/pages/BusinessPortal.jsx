@@ -1087,6 +1087,7 @@ const EMPTY_BRIEF = {
   req_cta_link: '',
   orientation: 'vertical',
   max_duration: 25,
+  duration_any: false,
   cta_required: true,
   logo_first5: true,
   brand_spoken: false,
@@ -1100,7 +1101,7 @@ const EMPTY_BRIEF = {
   geo: '',
   video_format: '',
   priority_platforms: [],
-  reference_links: ['', '', ''],
+  reference_links: [{ url: '', note: '' }, { url: '', note: '' }, { url: '', note: '' }],
   logo_url: '',
   submission_rules: '',
 };
@@ -1142,6 +1143,7 @@ function BriefForm({ authFetch, reload, brief = null, draft = null, onDone }) {
         req_cta_link: src.req_cta_link || '',
         orientation: src.spec?.orientation || 'vertical',
         max_duration: src.spec?.max_duration || src.duration_max || 25,
+        duration_any: src.spec?.duration_any ?? false,
         cta_required: src.spec?.cta_required ?? true,
         logo_first5: src.spec?.logo_first5 ?? true,
         brand_spoken: src.spec?.brand_spoken ?? false,
@@ -1155,7 +1157,11 @@ function BriefForm({ authFetch, reload, brief = null, draft = null, onDone }) {
         video_format: src.spec?.video_format || '',
         priority_platforms: Array.isArray(src.spec?.priority_platforms) ? src.spec.priority_platforms : [],
         // Always 3 slots so the inputs render even when fewer links were saved.
-        reference_links: [0, 1, 2].map((i) => src.spec?.reference_links?.[i] || ''),
+        // Tolerates the old string shape as well as the {url, note} objects.
+        reference_links: [0, 1, 2].map((i) => {
+          const r = src.spec?.reference_links?.[i];
+          return typeof r === 'string' ? { url: r, note: '' } : { url: r?.url || '', note: r?.note || '' };
+        }),
         logo_url: src.spec?.logo_url || '',
         submission_rules: src.spec?.submission_rules || '',
       }
@@ -1166,7 +1172,10 @@ function BriefForm({ authFetch, reload, brief = null, draft = null, onDone }) {
   const [busy, setBusy] = useState(false);
   const [logoBusy, setLogoBusy] = useState(false);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
-  const setRef = (i, v) => setF((s) => ({ ...s, reference_links: s.reference_links.map((x, idx) => (idx === i ? v : x)) }));
+  const setRefField = (i, field, v) => setF((s) => ({
+    ...s,
+    reference_links: s.reference_links.map((r, idx) => (idx === i ? { ...r, [field]: v } : r)),
+  }));
   const togglePlatform = (p) => setF((s) => ({
     ...s,
     priority_platforms: s.priority_platforms.includes(p)
@@ -1226,7 +1235,10 @@ function BriefForm({ authFetch, reload, brief = null, draft = null, onDone }) {
           video_format: f.video_format,
           // Priority platforms only apply when the brief accepts any platform.
           priority_platforms: f.platform === ANY_PLATFORM ? f.priority_platforms : [],
-          reference_links: f.reference_links.map((s) => s.trim()).filter(Boolean),
+          duration_any: f.duration_any,
+          reference_links: f.reference_links
+            .map((r) => ({ url: (r.url || '').trim(), note: (r.note || '').trim() }))
+            .filter((r) => r.url),
           logo_url: f.logo_url,
           submission_rules: f.submission_rules.trim(),
         },
@@ -1322,8 +1334,11 @@ function BriefForm({ authFetch, reload, brief = null, draft = null, onDone }) {
           <label className="creator-portal__opt"><input type="radio" name="orientation" checked={f.orientation === 'horizontal'} onChange={() => set('orientation', 'horizontal')} /> {t('Горизонтальное')}</label>
         </div>
         <div className="creator-portal__q">
-          <div className="creator-portal__q-title">{t('Максимальная длительность, сек')}</div>
-          <input type="number" min="5" max="180" value={f.max_duration} onChange={(e) => set('max_duration', e.target.value)} />
+          <div className="creator-portal__q-title">{t('Длительность')}</div>
+          <label className="pf-check"><input type="checkbox" checked={f.duration_any} onChange={(e) => set('duration_any', e.target.checked)} /> {t('Произвольная — без конкретных таймингов')}</label>
+          {!f.duration_any && (
+            <input type="number" min="5" max="180" style={{ marginTop: 8 }} placeholder={t('Максимум, сек')} value={f.max_duration} onChange={(e) => set('max_duration', e.target.value)} />
+          )}
         </div>
         <div className="creator-portal__q">
           <div className="creator-portal__q-title">{t('Желаемый формат ролика')}</div>
@@ -1394,18 +1409,23 @@ function BriefForm({ authFetch, reload, brief = null, draft = null, onDone }) {
         <div className="creator-portal__q">
           <div className="creator-portal__q-title">{t('Референсы — 2–3 ролика (по желанию)')}</div>
           <p className="creator-portal__muted" style={{ margin: '0 0 6px', fontSize: '0.82rem' }}>
-            {t('Ролики, которые нравятся — вставь ссылки.')}
+            {t('Ролик, который нравится — ссылка и, по желанию, почему его взяли.')}
           </p>
-          {f.reference_links.map((val, i) => (
-            <input
-              key={i}
-              type="url"
-              inputMode="url"
-              className="bp-ref-input"
-              placeholder={`${t('Ссылка на референс')} ${i + 1}`}
-              value={val}
-              onChange={(e) => setRef(i, e.target.value)}
-            />
+          {f.reference_links.map((r, i) => (
+            <div className="bp-ref" key={i}>
+              <input
+                type="url"
+                inputMode="url"
+                placeholder={`${t('Ссылка на референс')} ${i + 1}`}
+                value={r.url}
+                onChange={(e) => setRefField(i, 'url', e.target.value)}
+              />
+              <input
+                placeholder={t('Почему взяли этот референс (по желанию)')}
+                value={r.note}
+                onChange={(e) => setRefField(i, 'note', e.target.value)}
+              />
+            </div>
           ))}
         </div>
         <div className="creator-portal__q">

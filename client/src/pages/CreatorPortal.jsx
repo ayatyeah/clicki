@@ -1310,7 +1310,9 @@ function BriefCard({ b, top = false, onTake, takingId, mine = false }) {
   // Business creative brief (product, УТП, боль аудитории, 3-сек, гео, формат, платформы)
   rows.push(...briefOfferRows(b));
   if (spec.orientation) rows.push(['Ориентация', spec.orientation === 'horizontal' ? 'Горизонтальное' : 'Вертикальное']);
-  rows.push(['Хронометраж', b.duration_min ? `${b.duration_min}–${b.duration_max} сек` : `до ${b.duration_max} сек`]);
+  rows.push(['Хронометраж', spec.duration_any
+    ? 'Произвольный — без жёстких таймингов'
+    : (b.duration_min ? `${b.duration_min}–${b.duration_max} сек` : `до ${b.duration_max} сек`)]);
   if (spec.cta_required) rows.push(['CTA', 'Обязательно']);
   if (spec.logo_first5) rows.push(['Логотип', 'В первые 5 секунд']);
   if (spec.brand_spoken) rows.push(['Название бренда', 'Обязательно произнести']);
@@ -1380,11 +1382,12 @@ function BriefCard({ b, top = false, onTake, takingId, mine = false }) {
               <div className="brief-detail__row">
                 <dt>Референсы</dt>
                 <dd>
-                  {briefRefLinks(b).map((url, i) => {
-                    const href = safeHref(url);
+                  {briefRefLinks(b).map((r, i) => {
+                    const href = safeHref(r.url);
                     return (
-                      <div key={i}>
-                        {href ? <a href={href} target="_blank" rel="noopener noreferrer">Референс {i + 1}</a> : url}
+                      <div key={i} className="brief-ref">
+                        {href ? <a href={href} target="_blank" rel="noopener noreferrer">Референс {i + 1}</a> : r.url}
+                        {r.note && <span className="brief-ref__note"> — {r.note}</span>}
                       </div>
                     );
                   })}

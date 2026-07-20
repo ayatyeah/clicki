@@ -41,7 +41,7 @@ export function BriefRead({ b }) {
   const facts = [
     ['Платформа', b.platform],
     ['Ориентация', spec.orientation ? (spec.orientation === 'horizontal' ? 'Горизонтальное' : 'Вертикальное') : null],
-    ['Длительность', b.duration_max ? `${b.duration_min || 0}–${b.duration_max} сек` : null],
+    ['Длительность', spec.duration_any ? 'Произвольная' : (b.duration_max ? `${b.duration_min || 0}–${b.duration_max} сек` : null)],
     ['Стиль', b.tone || spec.style],
     ['Слотов', b.slots || null],
     ['Хэштег', b.req_hashtag],
@@ -112,10 +112,13 @@ export function BriefRead({ b }) {
         <div className="brief-read__block">
           <span className="brief-read__k">Референсы</span>
           <div className="brief-read__v">
-            {refLinks.map((url, i) => {
-              const href = safeHref(url);
+            {refLinks.map((r, i) => {
+              const href = safeHref(r.url);
               return (
-                <div key={i}>{href ? <a href={href} target="_blank" rel="noopener noreferrer">Референс {i + 1}</a> : url}</div>
+                <div key={i} className="brief-ref">
+                  {href ? <a href={href} target="_blank" rel="noopener noreferrer">Референс {i + 1}</a> : r.url}
+                  {r.note && <span className="brief-ref__note"> — {r.note}</span>}
+                </div>
               );
             })}
           </div>

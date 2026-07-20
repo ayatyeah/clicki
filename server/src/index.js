@@ -780,8 +780,8 @@ async function aiCheckSubmission(sub, brief) {
     if (brief.req_hashtag) reqs.push(`хэштег ${brief.req_hashtag}`);
     if (brief.req_mention) reqs.push('упоминание бренда в первые 3 сек');
     if (brief.req_cta_link) reqs.push('CTA-ссылка');
-    reqs.push(`хронометраж ${brief.duration_min}-${brief.duration_max} сек`);
     const spec = brief.spec || {};
+    if (!spec.duration_any) reqs.push(`хронометраж ${brief.duration_min}-${brief.duration_max} сек`);
     if (spec.orientation) reqs.push(`ориентация ${spec.orientation === 'horizontal' ? 'горизонтальная' : 'вертикальная'}`);
     if (spec.logo_first5) reqs.push('логотип в первые 5 секунд');
     if (spec.brand_spoken) reqs.push('произнести название бренда');

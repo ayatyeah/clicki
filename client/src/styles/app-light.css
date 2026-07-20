@@ -267,8 +267,12 @@
 .bp-acc__head:hover .bp-acc__title { color: #5b21b6; }
 .bp-acc__body { display: flex; flex-direction: column; gap: 14px; padding: 0 16px 16px; }
 .bp-acc__hint { margin: 0; font-size: 0.82rem; }
-.bp-ref-input { margin-bottom: 8px; }
-.bp-ref-input:last-child { margin-bottom: 0; }
+/* One reference = a link + an optional «почему взяли» note, grouped. */
+.bp-ref { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.bp-ref:last-child { margin-bottom: 0; }
+/* Reference note when the creator/operator reads the brief */
+.brief-ref { margin-bottom: 4px; }
+.brief-ref__note { color: var(--stone); }
 
 /* Business dashboard widgets */
 .bp-stat__hint { margin-top: 4px; font-size: 0.78rem; color: var(--fog); }
