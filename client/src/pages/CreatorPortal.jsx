@@ -170,6 +170,7 @@ function Shell({ children, wide = false }) {
           <div className="creator-portal__head">
             <Link to="/" className="creator-portal__brand"><img className="brand-mark" src="/logo-mark.png" alt="" />CLICKI</Link>
             <span className="creator-portal__tag">{t('кабинет креатора')}</span>
+            <LangToggle />
           </div>
         )}
         {children}
