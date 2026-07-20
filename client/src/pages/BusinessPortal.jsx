@@ -198,12 +198,7 @@ function AuthForm({ endpoint, onAuthed, register, toRegister }) {
       )}
       <input name="email" type="email" placeholder={t('Email')} autoComplete="email" value={f.email} onChange={(e) => set('email', e.target.value)} />
       {register && (
-        <>
-          <input name="tel" placeholder={t('Контакты — телефон или Telegram')} autoComplete="tel" value={f.contact} onChange={(e) => set('contact', e.target.value)} />
-          <p className="creator-portal__muted" style={{ margin: '-2px 0 0', fontSize: '0.78rem' }}>
-            {t('По этим контактам мы свяжемся по заказам и подбору креаторов. Например: +7 707 123 45 67 или @username')}
-          </p>
-        </>
+        <input name="tel" placeholder={t('Контакты — телефон или Telegram')} autoComplete="tel" value={f.contact} onChange={(e) => set('contact', e.target.value)} />
       )}
       <input name="password" type="password" placeholder={t('Пароль')} autoComplete={register ? 'new-password' : 'current-password'} value={f.password} onChange={(e) => set('password', e.target.value)} />
       {error && <p className="creator-portal__err">{error}</p>}
