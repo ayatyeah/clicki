@@ -301,6 +301,15 @@ const EN = {
     'e.g. submit by the 20th, send a link to the published video + a stats screenshot',
   'Сохранить — обновить у креаторов': 'Save — update for creators',
   'Сохранено — изменения сразу у креаторов ✓': 'Saved — changes are live for creators ✓',
+
+  // Per-brief analytics
+  'Аналитика по брифам': 'Per-brief analytics',
+  'Видео (принято / сдано)': 'Videos (accepted / submitted)',
+  'Цена за 1000 показов': 'Cost per 1,000 views',
+  'Брифов пока нет.': 'No briefs yet.',
+  'Любая площадка': 'Any platform',
+  идёт: 'running',
+  завершён: 'completed',
 };
 
 export function bt(lang, ru) {

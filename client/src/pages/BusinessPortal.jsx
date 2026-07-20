@@ -12,7 +12,7 @@ import { BUSINESS_GUIDE } from '../content/guides.js';
 import { useLang } from '../i18n.jsx';
 import { bt } from '../content/businessI18n.js';
 import { BriefForm } from '../components/BriefForm.jsx';
-import { PLATFORMS, STYLES } from '../lib/briefFields.js';
+import { PLATFORMS, ANY_PLATFORM, STYLES } from '../lib/briefFields.js';
 
 /** Compact RU/EN switch for the business cabinet. */
 function LangToggle() {
@@ -579,6 +579,58 @@ function BriefConstructor({ authFetch, onUseDraft }) {
 
 
 /* ---------------- Analytics ---------------- */
+/* Per-brief analytics — each of the business's briefs with its own numbers. */
+function BriefAnalytics({ authFetch }) {
+  const { lang } = useLang();
+  const t = (s) => bt(lang, s);
+  const [briefs, setBriefs] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    authFetch('/api/business/brief-analytics')
+      .then((r) => r.json())
+      .then((d) => { if (alive) setBriefs(d.briefs || []); })
+      .catch(() => { if (alive) setBriefs([]); });
+    return () => { alive = false; };
+  }, [authFetch]);
+
+  const st = (s) => (s === 'active' ? { l: t('идёт'), c: 'accepted' }
+    : s === 'closed' ? { l: t('завершён'), c: 'paid' }
+      : s === 'revision' ? { l: t('на доработке'), c: 'rework' }
+        : { l: t('на модерации'), c: 'pending' });
+
+  return (
+    <>
+      <h3 className="admin-block__title admin-subhead">{t('Аналитика по брифам')}</h3>
+      {briefs === null ? (
+        <p className="muted-note" style={{ textAlign: 'left' }}>{t('Загрузка…')}</p>
+      ) : !briefs.length ? (
+        <p className="muted-note" style={{ textAlign: 'left' }}>{t('Брифов пока нет.')}</p>
+      ) : (
+        <div className="bp-ba">
+          {briefs.map((br) => {
+            const s = st(br.status);
+            return (
+              <div className="bp-ba__card" key={br.id}>
+                <div className="bp-ba__head">
+                  <b className="bp-ba__title">{br.title}</b>
+                  <span className={`pf-status pf-status--${s.c}`}>{s.l}</span>
+                </div>
+                <div className="bp-ba__sub">{br.platform === ANY_PLATFORM ? t('Любая площадка') : br.platform}</div>
+                <div className="bp-ba__grid">
+                  <div className="bp-ba__metric"><span className="bp-ba__v">{br.views.toLocaleString('ru-RU')}</span><span className="bp-ba__l">{t('Просмотры')}</span></div>
+                  <div className="bp-ba__metric"><span className="bp-ba__v">{br.accepted} / {br.submitted}</span><span className="bp-ba__l">{t('Видео (принято / сдано)')}</span></div>
+                  <div className="bp-ba__metric"><span className="bp-ba__v">{br.spend.toLocaleString('ru-RU')} ₸</span><span className="bp-ba__l">{t('Потрачено')}</span></div>
+                  <div className="bp-ba__metric"><span className="bp-ba__v">{br.cost_per_1k_views.toLocaleString('ru-RU')} ₸</span><span className="bp-ba__l">{t('Цена за 1000 показов')}</span></div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </>
+  );
+}
+
 function Analytics({ accepted, authFetch, b }) {
   const { lang } = useLang();
   const t = (s) => bt(lang, s);
@@ -593,6 +645,9 @@ function Analytics({ accepted, authFetch, b }) {
       <div className="admin-panel__head">
         <h2 className="admin-block__title">{t('Аналитика')} <span className="an-live">● live</span></h2>
       </div>
+
+      <BriefAnalytics authFetch={authFetch} />
+
       <GrowthChart authFetch={authFetch} />
 
       <ViewCalculator authFetch={authFetch} />

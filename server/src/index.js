@@ -86,6 +86,7 @@ import {
   getViewEstimate,
   getOpsFlags,
   getBusinessReport,
+  getBusinessBriefAnalytics,
   getAutopilotRecommendations,
   listOpenBriefsForCreator,
   listBusinessSubmissions,
@@ -1482,6 +1483,8 @@ app.get('/api/business/growth', requireBusiness, wrap(async (req, res) => ok(res
 
 // Printable campaign performance report: views/videos/spend per platform to date.
 app.get('/api/business/report', requireBusiness, wrap(async (req, res) => ok(res, await getBusinessReport(req.business.id))));
+// Per-brief analytics — a brand with several campaigns gets each brief's own numbers.
+app.get('/api/business/brief-analytics', requireBusiness, wrap(async (req, res) => ok(res, { briefs: await getBusinessBriefAnalytics(req.business.id) })));
 
 // Predictive View Calculator: budget -> estimated views/videos per platform, from our own historical yield.
 app.get('/api/business/view-calculator', requireBusiness, wrap(async (req, res) => {

@@ -2265,6 +2265,45 @@ export async function getBusinessReport(businessId) {
   };
 }
 
+/** Per-brief analytics for a business — one row per brief with its own numbers,
+ *  so a brand running several campaigns sees each one separately. Counted views
+ *  and spend use the same accepted + min-views rule as getBusinessReport; briefs
+ *  with no submissions still appear (zeros). */
+export async function getBusinessBriefAnalytics(businessId) {
+  const settings = await getSettings();
+  const minViews = settings.min_views_per_video || 2000;
+  const r = await pool.query(
+    `SELECT b.id, b.title, b.platform, b.status, b.created_at,
+            COUNT(s.id)::int AS submitted,
+            COUNT(s.id) FILTER (WHERE s.status = 'accepted')::int AS accepted,
+            COALESCE(SUM(s.views) FILTER (WHERE s.status = 'accepted' AND s.views >= $2), 0)::bigint AS views,
+            COALESCE(SUM(s.views * rt.client_rate) FILTER (WHERE s.status = 'accepted' AND s.views >= $2), 0)::float AS spend
+       FROM briefs b
+       LEFT JOIN submissions s ON s.brief_id = b.id
+       LEFT JOIN rates rt ON rt.platform = s.platform
+      WHERE b.business_id = $1
+      GROUP BY b.id, b.title, b.platform, b.status, b.created_at
+      ORDER BY views DESC, b.id DESC`,
+    [businessId, minViews]
+  );
+  return r.rows.map((row) => {
+    const views = Number(row.views);
+    const spend = Math.round(row.spend);
+    return {
+      id: row.id,
+      title: row.title,
+      platform: row.platform,
+      status: row.status,
+      created_at: row.created_at,
+      submitted: row.submitted,
+      accepted: row.accepted,
+      views,
+      spend,
+      cost_per_1k_views: views > 0 ? Math.round((spend / views) * 1000) : 0,
+    };
+  });
+}
+
 /* ---------------- Platform: wallet & payouts (ТЗ §8) ---------------- */
 /** Creator earnings: accepted videos past the min-views threshold × creator_rate, minus paid out. */
 // `runner` is pool by default, but createManualPayout passes its transaction
