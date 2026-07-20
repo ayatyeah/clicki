@@ -1304,6 +1304,9 @@ function BriefCard({ b, top = false, onTake, takingId, mine = false }) {
   const [open, setOpen] = useState(false);
   const taking = takingId === (b.brief_id || b.id);
   const spec = b.spec || {};
+  // Assigned briefs carry the brief's own status; a closed one is done (target
+  // views reached) — no more submissions.
+  const closed = b.brief_status === 'closed';
   const rows = [];
   if (b.goal) rows.push(['Цель', b.goal]);
   if (b.audience) rows.push(['Аудитория', b.audience]);
@@ -1343,11 +1346,12 @@ function BriefCard({ b, top = false, onTake, takingId, mine = false }) {
           <div className="cp-brief__badges">
             <span className="pf-badge">{b.platform === ANY_PLATFORM ? 'Любая площадка' : b.platform}</span>
             {top && <span className="pf-badge pf-badge--accent">Топ по выгоде</span>}
-            {b.slots_left != null && (
+            {b.slots_left != null && !closed && (
               <span className="pf-badge pf-badge--slots">
                 {b.slots_left > 0 ? `Осталось мест: ${b.slots_left}` : 'Мест нет'}
               </span>
             )}
+            {closed && <span className="pf-badge pf-badge--closed">Закрыт — цель набрана</span>}
           </div>
         </div>
       </div>
@@ -1408,14 +1412,18 @@ function BriefCard({ b, top = false, onTake, takingId, mine = false }) {
         <button type="button" className="creator-portal__link" onClick={() => setOpen((o) => !o)}>
           {open ? 'Свернуть ↑' : 'Читать весь бриф →'}
         </button>
-        <button
-          type="button"
-          className="btn btn--primary btn--sm cp-brief__take"
-          disabled={taking}
-          onClick={() => onTake?.(b.brief_id || b.id)}
-        >
-          {mine ? 'Сдать видео →' : taking ? 'Беру…' : 'Взять в работу'}
-        </button>
+        {closed ? (
+          <span className="cp-brief__closed">✓ Бриф закрыт — набрано нужное количество просмотров</span>
+        ) : (
+          <button
+            type="button"
+            className="btn btn--primary btn--sm cp-brief__take"
+            disabled={taking}
+            onClick={() => onTake?.(b.brief_id || b.id)}
+          >
+            {mine ? 'Сдать видео →' : taking ? 'Беру…' : 'Взять в работу'}
+          </button>
+        )}
       </div>
     </div>
   );

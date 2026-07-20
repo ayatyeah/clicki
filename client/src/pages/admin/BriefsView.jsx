@@ -19,8 +19,12 @@ export function briefStatus(status) {
     status === 'active' ? 'опубликован креаторам'
       : status === 'revision' ? 'у бизнеса на доработке'
       : status === 'new' ? 'на модерации'
+      : status === 'closed' ? 'закрыт — цель достигнута'
       : status;
-  const cls = status === 'active' ? 'accepted' : status === 'revision' ? 'rework' : 'pending';
+  const cls = status === 'active' ? 'accepted'
+    : status === 'revision' ? 'rework'
+    : status === 'closed' ? 'paid'
+    : 'pending';
   return { label, cls };
 }
 
@@ -297,7 +301,7 @@ function BriefModCard({ b, authFetch, creators, onChange, canManage }) {
   // модерации». Its status stays 'new' (which really means "not broadcast to
   // everyone"), so reflect the assigned state in the pill instead of the raw label.
   const base = briefStatus(b.status);
-  const assignedTargeted = b.status !== 'active' && b.status !== 'revision' && assigned > 0;
+  const assignedTargeted = b.status === 'new' && assigned > 0;
   const statusLabel = assignedTargeted ? 'назначен выбранным' : base.label;
   const statusCls = assignedTargeted ? 'accepted' : base.cls;
   const audience = b.status === 'active'
@@ -330,6 +334,27 @@ function BriefModCard({ b, authFetch, creators, onChange, canManage }) {
     });
     if (!okTo) return;
     call(`/api/admin/briefs/${b.id}/status`, { status: 'new' });
+  };
+
+  // Target views reached → close the brief and notify everyone who took it.
+  const closeBrief = async () => {
+    const okTo = await confirm({
+      title: 'Закрыть бриф — цель достигнута?',
+      message: `Бриф закроется: приём новых видео и аналитики остановится, а креаторы, которые его взяли${assigned ? ` (${assigned})` : ''}, получат в колокольчик уведомление, что бриф закрыт (нужное количество просмотров набрано). Уже сданное сохранится.`,
+      confirmText: 'Закрыть бриф',
+      danger: true,
+    });
+    if (!okTo) return;
+    setBusy(true);
+    try {
+      const res = await authFetch(`/api/admin/briefs/${b.id}/close`, { method: 'POST' });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok || d.ok === false) { toast.error(d.errors?.[0] || 'Не удалось закрыть'); return; }
+      toast.success(`Бриф закрыт · уведомлено креаторов: ${d.notified ?? 0}`);
+      onChange();
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -383,6 +408,11 @@ function BriefModCard({ b, authFetch, creators, onChange, canManage }) {
           <button className="btn btn--ghost btn--sm" onClick={() => setShowTakers((s) => !s)} aria-expanded={showTakers}>
             📊 Кто взял{assigned ? ` (${assigned})` : ''}
           </button>
+          {canManage && b.status !== 'closed' && (
+            <button className="btn btn--ghost btn--sm" disabled={busy} onClick={closeBrief} title="Цель по просмотрам достигнута — закрыть бриф и уведомить креаторов">
+              ⏹ Стоп
+            </button>
+          )}
           {canManage && (
             <button className="btn btn--danger btn--sm" disabled={busy} onClick={remove}>Удалить</button>
           )}

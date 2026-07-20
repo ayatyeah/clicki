@@ -67,6 +67,7 @@ import {
   assignBrief,
   assignBriefMany,
   unassignBrief,
+  listBriefAssignedCreatorIds,
   adminUpdateBrief,
   saveAdminSession,
   getAdminSessionExpiry,
@@ -1980,6 +1981,20 @@ app.post('/api/admin/businesses/:id/delete', requireAdmin, wrap(async (req, res)
 app.get('/api/admin/briefs', requireAdmin, wrap(async (_req, res) => ok(res, { briefs: await listBriefsForAdmin() })));
 app.post('/api/admin/briefs', requireAdmin, wrap(async (req, res) => ok(res, { brief: await createBrief(req.body || {}) })));
 app.post('/api/admin/briefs/:id/status', requireAdmin, wrap(async (req, res) => ok(res, { brief: await setBriefStatus(Number(req.params.id), req.body?.status) })));
+// Stop a brief once the client's target views are reached: close it (no more
+// takes or submissions) and drop a note into each taker's bell. Their already-
+// submitted videos and analytics are kept.
+app.post('/api/admin/briefs/:id/close', requireAdmin, wrap(async (req, res) => {
+  const id = Number(req.params.id);
+  const brief = await setBriefStatus(id, 'closed');
+  if (!brief) return res.status(404).json({ ok: false, errors: ['Бриф не найден'] });
+  const creatorIds = await listBriefAssignedCreatorIds(id);
+  const title = 'Бриф закрыт — цель по просмотрам достигнута';
+  const body = `Бриф «${brief.title}» закрыт: набрано нужное количество просмотров. Больше сдавать по нему не нужно — спасибо за работу!`;
+  await Promise.all(creatorIds.map((cid) => createAnnouncement({ title, body, creatorId: cid }).catch(() => null)));
+  notifyOps(`⏹ Бриф #${id} закрыт — уведомлено креаторов: ${creatorIds.length}`);
+  ok(res, { brief, notified: creatorIds.length });
+}));
 // Operator edits a brief's content — the change goes live for creators at once
 // (no status reset / re-moderation, unlike a business edit).
 app.post('/api/admin/briefs/:id/edit', requireAdmin, wrap(async (req, res) => {

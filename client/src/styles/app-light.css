@@ -275,6 +275,9 @@
 .brief-ref__note { color: var(--stone); }
 /* Inline admin brief editor (opens inside the moderation card) */
 .brief-edit { margin-top: 12px; }
+/* Closed brief (target views reached) — creator side */
+.app-light .pf-badge--closed { background: rgba(22, 163, 74, 0.14); color: #15803d; }
+.cp-brief__closed { color: #15803d; font-weight: 600; font-size: 0.9rem; align-self: center; }
 
 /* Business dashboard widgets */
 .bp-stat__hint { margin-top: 4px; font-size: 0.78rem; color: var(--fog); }

@@ -1193,7 +1193,7 @@ export async function creatorCanSubmitToBrief(creatorId, briefId) {
   // hold — a non-holder can't slip a video into a capped brief.
   const r = await pool.query(
     `SELECT 1 FROM briefs b
-      WHERE b.id = $2 AND (
+      WHERE b.id = $2 AND b.status <> 'closed' AND (
         EXISTS (SELECT 1 FROM assignments a WHERE a.brief_id = b.id AND a.creator_id = $1)
         OR (b.status = 'active' AND COALESCE(b.slots, 0) = 0)
       )`,
@@ -1362,11 +1362,16 @@ export async function unassignBrief(briefId, creatorId) {
   const r = await pool.query('DELETE FROM assignments WHERE brief_id=$1 AND creator_id=$2', [briefId, creatorId]);
   return r.rowCount;
 }
+/** Creator ids assigned to a brief — used to notify takers when it's closed. */
+export async function listBriefAssignedCreatorIds(briefId) {
+  const r = await pool.query('SELECT creator_id FROM assignments WHERE brief_id = $1', [briefId]);
+  return r.rows.map((row) => row.creator_id);
+}
 export async function listAssignmentsForCreator(creatorId) {
   const r = await pool.query(
     `SELECT a.*, b.title, b.platform, b.req_hashtag, b.req_mention, b.req_cta_link,
             b.goal, b.audience, b.key_message, b.duration_min, b.duration_max,
-            b.dos, b.donts, b.tone, b.refs, b.spec
+            b.dos, b.donts, b.tone, b.refs, b.spec, b.status AS brief_status
        FROM assignments a JOIN briefs b ON b.id = a.brief_id
       WHERE a.creator_id = $1 ORDER BY a.id DESC`,
     [creatorId]
