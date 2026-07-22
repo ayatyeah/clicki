@@ -1009,22 +1009,20 @@ app.post(
   '/api/creator/register',
   loginLimiter,
   wrap(async (req, res) => {
-    const { name, contact, city, username, password } = req.body || {};
+    const { name, email, contact, city, username, password } = req.body || {};
     if (!name || !String(name).trim()) return res.status(400).json({ ok: false, errors: ['Укажите ФИО'] });
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) return res.status(400).json({ ok: false, errors: ['Укажите корректный email'] });
     if (!contact || !String(contact).trim()) return res.status(400).json({ ok: false, errors: ['Укажите телефон'] });
     if (!city || !String(city).trim()) return res.status(400).json({ ok: false, errors: ['Укажите город'] });
     if (!username || String(username).trim().length < 3) return res.status(400).json({ ok: false, errors: ['Логин не короче 3 символов'] });
     if (!password || String(password).length < 8) return res.status(400).json({ ok: false, errors: ['Пароль не короче 8 символов'] });
-    // Bot/spam check — fail-open in dev (no captcha configured locally) but
-    // fail-closed in prod so a verification outage can't be used to mass-register.
-    const captcha = await verifyRecaptcha(req.body?.recaptchaToken).catch(() => ({ ok: !IS_PROD }));
-    if (!captcha.ok) return res.status(400).json({ ok: false, errors: ['Не удалось пройти проверку на спам'] });
     if (await getCreatorByUsername(username)) return res.status(409).json({ ok: false, errors: ['Такой логин уже занят'] });
     // referred_by (from a friend link) only if it points to a real creator.
     const refId = Number(req.body?.referred_by) || null;
     const referred_by = refId && (await getCreator(refId)) ? refId : null;
     const creator = await createCreator({
       name: String(name).trim(),
+      email: String(email).trim(),
       contact: String(contact).trim(),
       city: String(city).trim(),
       username: String(username).trim(),
@@ -1038,6 +1036,7 @@ app.post(
       funnel: 'creator',
       fields: {
         ФИО: creator.name,
+        Почта: creator.email,
         Телефон: creator.contact,
         ...(creator.city ? { Город: creator.city } : {}),
         Логин: creator.username,
@@ -1410,9 +1409,6 @@ app.post(
     if (!contact) return res.status(400).json({ ok: false, errors: [CONTACT_REQUIRED] });
     const normalizedContact = normalizeContact(contact);
     if (!normalizedContact) return res.status(400).json({ ok: false, errors: [CONTACT_INVALID] });
-    // Bot/spam check — fail-open in dev, fail-closed in prod (same as creator sign-up).
-    const captcha = await verifyRecaptcha(req.body?.recaptchaToken).catch(() => ({ ok: !IS_PROD }));
-    if (!captcha.ok) return res.status(400).json({ ok: false, errors: ['Не удалось пройти проверку на спам'] });
     if (await getBusinessByEmail(email)) return res.status(409).json({ ok: false, errors: ['Аккаунт с таким email уже существует'] });
     const b = await createBusiness({
       name: String(name).trim(),

@@ -1004,7 +1004,7 @@ export async function setCreatorCredentials(id, username, password_hash) {
   );
   return r.rows[0] || null;
 }
-export async function createCreator({ name, contact, socials, city, referred_by, username, password_hash, session_token, status }) {
+export async function createCreator({ name, email, contact, socials, city, referred_by, username, password_hash, session_token, status }) {
   // Early creators get permanent Founding Creator status (ТЗ §4.5). The cap is a
   // configurable setting (default 50; 0 = unlimited) rather than a hard-coded limit.
   const count = await pool.query('SELECT COUNT(*)::int AS n FROM creators');
@@ -1016,9 +1016,9 @@ export async function createCreator({ name, contact, socials, city, referred_by,
   for (let attempt = 0; ; attempt++) {
     try {
       const r = await pool.query(
-        `INSERT INTO creators (name, contact, socials, city, referred_by, founding, username, password_hash, session_token, status, ugc_code)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,COALESCE($10,'active'),$11) RETURNING *`,
-        [name, contact || null, socials || null, city || null, referred_by || null, founding, username || null, password_hash || null, session_token || null, status || null, generateUgcCode()]
+        `INSERT INTO creators (name, email, contact, socials, city, referred_by, founding, username, password_hash, session_token, status, ugc_code)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,COALESCE($11,'active'),$12) RETURNING *`,
+        [name, email || null, contact || null, socials || null, city || null, referred_by || null, founding, username || null, password_hash || null, session_token || null, status || null, generateUgcCode()]
       );
       return r.rows[0];
     } catch (e) {

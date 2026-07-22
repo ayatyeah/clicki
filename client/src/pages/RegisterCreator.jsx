@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Seo from '../components/Seo.jsx';
 import { API_BASE } from '../lib/config.js';
-import { getRecaptchaToken } from '../lib/api.js';
 
 // Same key the creator cabinet reads on mount — writing it here logs the new
 // creator straight in, and /creator opens into onboarding (test → niche → guide).
@@ -16,7 +15,7 @@ const KEY = 'clicki_creator_token';
 export default function RegisterCreator() {
   const navigate = useNavigate();
   const refId = new URLSearchParams(window.location.search).get('ref');
-  const [f, setF] = useState({ name: '', contact: '', city: '', username: '', password: '' });
+  const [f, setF] = useState({ name: '', email: '', contact: '', city: '', username: '', password: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
@@ -25,17 +24,17 @@ export default function RegisterCreator() {
     e.preventDefault();
     setError('');
     if (!f.name.trim()) return setError('Укажи ФИО');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) return setError('Укажи корректную почту');
     if (!f.contact.trim()) return setError('Укажи телефон');
     if (!f.city.trim()) return setError('Укажи город');
     if (f.username.trim().length < 3) return setError('Логин не короче 3 символов');
     if (f.password.length < 8) return setError('Пароль не короче 8 символов');
     setBusy(true);
     try {
-      const recaptchaToken = await getRecaptchaToken('register_creator');
       const res = await fetch(`${API_BASE}/api/creator/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...f, referred_by: refId ? Number(refId) : undefined, recaptchaToken }),
+        body: JSON.stringify({ ...f, referred_by: refId ? Number(refId) : undefined }),
       });
       const d = await res.json();
       if (!res.ok) throw new Error((d.errors && d.errors[0]) || 'Не удалось зарегистрироваться');
@@ -68,6 +67,7 @@ export default function RegisterCreator() {
         </p>
         <form className="creator-portal__card" onSubmit={submit} noValidate>
           <input name="name" placeholder="ФИО" autoComplete="name" value={f.name} onChange={(e) => set('name', e.target.value)} />
+          <input name="email" type="email" inputMode="email" placeholder="Почта" autoComplete="email" value={f.email} onChange={(e) => set('email', e.target.value)} />
           <input name="contact" placeholder="Телефон" type="tel" inputMode="tel" autoComplete="tel" value={f.contact} onChange={(e) => set('contact', e.target.value)} />
           <input name="city" placeholder="Город" autoComplete="address-level2" value={f.city} onChange={(e) => set('city', e.target.value)} />
           <input name="username" placeholder="Придумай логин (мин. 3)" autoComplete="username" value={f.username} onChange={(e) => set('username', e.target.value)} />
