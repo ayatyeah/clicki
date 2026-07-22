@@ -16,7 +16,7 @@ function loadRecaptcha() {
   return recaptchaPromise;
 }
 
-async function getRecaptchaToken(action) {
+export async function getRecaptchaToken(action) {
   const grecaptcha = await loadRecaptcha();
   if (!grecaptcha) return '';
   return new Promise((resolve) => {
