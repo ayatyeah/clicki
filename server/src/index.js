@@ -12,6 +12,7 @@ import rateLimit from 'express-rate-limit';
 import multer from 'multer';
 
 import { validateLead, normalizeContact } from './validate.js';
+import { verifyRecaptcha } from './recaptcha.js';
 import { dispatchLead, notifyOps, telegramConfigured, telegramSelfTest } from './notify.js';
 import { saveLead, readLeads, migrateLegacyLeads } from './store.js';
 import { readContent, writeContent } from './content.js';
@@ -499,6 +500,18 @@ app.post('/api/assistant', assistantLimiter, async (req, res) => {
 });
 
 /** Shared handler for both funnels. */
+// reCAPTCHA v3 gate — shared by the lead forms and both sign-ups. Fails OPEN
+// when the browser sent no token (site key missing from the build, script
+// blocked, etc.) so a config slip can never again lock real users out of a
+// form; it only rejects a token that Google verifies with a failed/low score —
+// an actual bot signal. A verify-service outage also fails open.
+async function passesCaptcha(req) {
+  const token = req.body?.recaptchaToken;
+  if (!token) return true;
+  const r = await verifyRecaptcha(token).catch(() => ({ ok: true }));
+  return r.ok;
+}
+
 async function handleLead(funnel, req, res) {
   try {
     // Honeypot: bots fill hidden fields; humans never see them.
@@ -509,9 +522,9 @@ async function handleLead(funnel, req, res) {
     const { ok, errors, fields } = validateLead(funnel, req.body);
     if (!ok) return res.status(400).json({ ok: false, errors });
 
-    // reCAPTCHA temporarily disabled (domain not verified yet). The honeypot above
-    // + per-IP rate limiting still guard the lead forms. Restore verifyRecaptcha
-    // here — and flip RECAPTCHA_ENABLED in client/src/lib/api.js — to re-enable.
+    if (!(await passesCaptcha(req))) {
+      return res.status(400).json({ ok: false, errors: ['Не удалось пройти проверку на спам'] });
+    }
 
     const lead = {
       funnel,
@@ -1012,6 +1025,7 @@ app.post(
     if (!city || !String(city).trim()) return res.status(400).json({ ok: false, errors: ['Укажите город'] });
     if (!username || String(username).trim().length < 3) return res.status(400).json({ ok: false, errors: ['Логин не короче 3 символов'] });
     if (!password || String(password).length < 8) return res.status(400).json({ ok: false, errors: ['Пароль не короче 8 символов'] });
+    if (!(await passesCaptcha(req))) return res.status(400).json({ ok: false, errors: ['Не удалось пройти проверку на спам'] });
     if (await getCreatorByUsername(username)) return res.status(409).json({ ok: false, errors: ['Такой логин уже занят'] });
     // referred_by (from a friend link) only if it points to a real creator.
     const refId = Number(req.body?.referred_by) || null;
@@ -1405,6 +1419,7 @@ app.post(
     if (!contact) return res.status(400).json({ ok: false, errors: [CONTACT_REQUIRED] });
     const normalizedContact = normalizeContact(contact);
     if (!normalizedContact) return res.status(400).json({ ok: false, errors: [CONTACT_INVALID] });
+    if (!(await passesCaptcha(req))) return res.status(400).json({ ok: false, errors: ['Не удалось пройти проверку на спам'] });
     if (await getBusinessByEmail(email)) return res.status(409).json({ ok: false, errors: ['Аккаунт с таким email уже существует'] });
     const b = await createBusiness({
       name: String(name).trim(),

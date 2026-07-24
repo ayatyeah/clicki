@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Seo from '../components/Seo.jsx';
 import { API_BASE } from '../lib/config.js';
+import { getRecaptchaToken } from '../lib/api.js';
 
 // Same key the creator cabinet reads on mount — writing it here logs the new
 // creator straight in, and /creator opens into onboarding (test → niche → guide).
@@ -31,10 +32,11 @@ export default function RegisterCreator() {
     if (f.password.length < 8) return setError('Пароль не короче 8 символов');
     setBusy(true);
     try {
+      const recaptchaToken = await getRecaptchaToken('register_creator');
       const res = await fetch(`${API_BASE}/api/creator/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...f, referred_by: refId ? Number(refId) : undefined }),
+        body: JSON.stringify({ ...f, referred_by: refId ? Number(refId) : undefined, recaptchaToken }),
       });
       const d = await res.json();
       if (!res.ok) throw new Error((d.errors && d.errors[0]) || 'Не удалось зарегистрироваться');

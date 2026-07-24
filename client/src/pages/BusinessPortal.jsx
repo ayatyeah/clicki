@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Seo from '../components/Seo.jsx';
 import Icon from '../components/Icon.jsx';
 import { API_BASE } from '../lib/config.js';
+import { getRecaptchaToken } from '../lib/api.js';
 import { createApiClient } from '../lib/apiClient.js';
 import { safeHref } from '../lib/safeHref.js';
 import { normalizeContact } from '../lib/contact.js';
@@ -173,10 +174,12 @@ function AuthForm({ endpoint, onAuthed, register, toRegister }) {
     else if (!register && !f.password) return setError(t('Введите пароль'));
     setBusy(true);
     try {
+      // Only sign-up is captcha-checked server-side; login sends nothing extra.
+      const recaptchaToken = register ? await getRecaptchaToken('register_business') : undefined;
       const res = await fetch(`${API_BASE}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(f),
+        body: JSON.stringify({ ...f, recaptchaToken }),
       });
       const d = await res.json();
       if (!res.ok) throw new Error((d.errors && d.errors[0]) || t('Ошибка'));

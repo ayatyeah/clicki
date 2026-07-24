@@ -1,11 +1,10 @@
 import { API_BASE, RECAPTCHA_SITE_KEY } from './config.js';
 
-// reCAPTCHA is temporarily disabled site-wide. The site key's domain is not
-// verified in the reCAPTCHA console yet, so the v3 widget only threw a visible
-// error badge over every page (there is no captcha on cabinet login itself).
-// Re-enable by flipping this to true AND restoring the handleLead check in
-// server/src/index.js once the domain is configured.
-const RECAPTCHA_ENABLED = false;
+// reCAPTCHA v3 master switch. The server gate (passesCaptcha in index.js) fails
+// OPEN on a missing token, so if the site key is ever absent from the build the
+// forms still work — reCAPTCHA just does nothing until it's fixed. Set to false
+// to turn the widget/badge off site-wide.
+const RECAPTCHA_ENABLED = true;
 
 // Load the reCAPTCHA v3 script once, lazily.
 let recaptchaPromise = null;
@@ -23,7 +22,7 @@ function loadRecaptcha() {
   return recaptchaPromise;
 }
 
-async function getRecaptchaToken(action) {
+export async function getRecaptchaToken(action) {
   const grecaptcha = await loadRecaptcha();
   if (!grecaptcha) return '';
   return new Promise((resolve) => {
