@@ -12,7 +12,6 @@ import rateLimit from 'express-rate-limit';
 import multer from 'multer';
 
 import { validateLead, normalizeContact } from './validate.js';
-import { verifyRecaptcha } from './recaptcha.js';
 import { dispatchLead, notifyOps, telegramConfigured, telegramSelfTest } from './notify.js';
 import { saveLead, readLeads, migrateLegacyLeads } from './store.js';
 import { readContent, writeContent } from './content.js';
@@ -510,12 +509,9 @@ async function handleLead(funnel, req, res) {
     const { ok, errors, fields } = validateLead(funnel, req.body);
     if (!ok) return res.status(400).json({ ok: false, errors });
 
-    // Fail-open in dev (no captcha configured locally) but fail-closed in prod so a
-    // verification outage can't be used to bypass the spam check.
-    const captcha = await verifyRecaptcha(req.body?.recaptchaToken).catch(() => ({ ok: !IS_PROD }));
-    if (!captcha.ok) {
-      return res.status(400).json({ ok: false, errors: ['Не удалось пройти проверку на спам'] });
-    }
+    // reCAPTCHA temporarily disabled (domain not verified yet). The honeypot above
+    // + per-IP rate limiting still guard the lead forms. Restore verifyRecaptcha
+    // here — and flip RECAPTCHA_ENABLED in client/src/lib/api.js — to re-enable.
 
     const lead = {
       funnel,

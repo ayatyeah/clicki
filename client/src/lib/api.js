@@ -1,9 +1,16 @@
 import { API_BASE, RECAPTCHA_SITE_KEY } from './config.js';
 
+// reCAPTCHA is temporarily disabled site-wide. The site key's domain is not
+// verified in the reCAPTCHA console yet, so the v3 widget only threw a visible
+// error badge over every page (there is no captcha on cabinet login itself).
+// Re-enable by flipping this to true AND restoring the handleLead check in
+// server/src/index.js once the domain is configured.
+const RECAPTCHA_ENABLED = false;
+
 // Load the reCAPTCHA v3 script once, lazily.
 let recaptchaPromise = null;
 function loadRecaptcha() {
-  if (!RECAPTCHA_SITE_KEY) return Promise.resolve(null);
+  if (!RECAPTCHA_ENABLED || !RECAPTCHA_SITE_KEY) return Promise.resolve(null);
   if (recaptchaPromise) return recaptchaPromise;
   recaptchaPromise = new Promise((resolve) => {
     const s = document.createElement('script');
