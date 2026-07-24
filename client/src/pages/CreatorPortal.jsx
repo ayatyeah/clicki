@@ -326,7 +326,7 @@ function LoginForm({ onAuthed, toApply, onForgot }) {
 function ApplyForm({ refId, onDone }) {
   const { lang } = useLang();
   const t = (s) => ct(lang, s);
-  const [f, setF] = useState({ name: '', contact: '' });
+  const [f, setF] = useState({ name: '', phone: '', telegram: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
@@ -354,7 +354,8 @@ function ApplyForm({ refId, onDone }) {
   return (
     <form className="creator-portal__card" onSubmit={submit} noValidate>
       <input name="name" placeholder={t('Имя')} autoComplete="name" value={f.name} onChange={(e) => set('name', e.target.value)} />
-      <input name="contact" placeholder={t('Телефон / Telegram')} autoComplete="tel" value={f.contact} onChange={(e) => set('contact', e.target.value)} />
+      <input name="phone" type="tel" inputMode="tel" placeholder={t('Телефон')} autoComplete="tel" value={f.phone} onChange={(e) => set('phone', e.target.value)} />
+      <input name="telegram" placeholder={t('Telegram — @username')} autoComplete="off" value={f.telegram} onChange={(e) => set('telegram', e.target.value)} />
       {error && <p className="creator-portal__err">{error}</p>}
       <button className="btn btn--primary btn--block" disabled={busy}>{busy ? t('Отправляю…') : t('Отправить заявку')}</button>
       <p className="creator-portal__muted creator-portal__switch">

@@ -16,7 +16,7 @@ const KEY = 'clicki_creator_token';
 export default function RegisterCreator() {
   const navigate = useNavigate();
   const refId = new URLSearchParams(window.location.search).get('ref');
-  const [f, setF] = useState({ name: '', email: '', contact: '', city: '', username: '', password: '' });
+  const [f, setF] = useState({ name: '', email: '', contact: '', telegram: '', country: '', city: '', username: '', password: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
@@ -27,6 +27,9 @@ export default function RegisterCreator() {
     if (!f.name.trim()) return setError('Укажи ФИО');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) return setError('Укажи корректную почту');
     if (!f.contact.trim()) return setError('Укажи телефон');
+    if (!/^@?[a-zA-Z][a-zA-Z0-9_]{4,31}$/.test(f.telegram.trim().replace(/^(https?:\/\/)?(www\.)?t\.me\//, '')))
+      return setError('Telegram укажи в виде @username');
+    if (!f.country.trim()) return setError('Укажи страну');
     if (!f.city.trim()) return setError('Укажи город');
     if (f.username.trim().length < 3) return setError('Логин не короче 3 символов');
     if (f.password.length < 8) return setError('Пароль не короче 8 символов');
@@ -71,6 +74,8 @@ export default function RegisterCreator() {
           <input name="name" placeholder="ФИО" autoComplete="name" value={f.name} onChange={(e) => set('name', e.target.value)} />
           <input name="email" type="email" inputMode="email" placeholder="Почта" autoComplete="email" value={f.email} onChange={(e) => set('email', e.target.value)} />
           <input name="contact" placeholder="Телефон" type="tel" inputMode="tel" autoComplete="tel" value={f.contact} onChange={(e) => set('contact', e.target.value)} />
+          <input name="telegram" placeholder="Telegram — @username" autoComplete="off" value={f.telegram} onChange={(e) => set('telegram', e.target.value)} />
+          <input name="country" placeholder="Страна" autoComplete="country-name" value={f.country} onChange={(e) => set('country', e.target.value)} />
           <input name="city" placeholder="Город" autoComplete="address-level2" value={f.city} onChange={(e) => set('city', e.target.value)} />
           <input name="username" placeholder="Придумай логин (мин. 3)" autoComplete="username" value={f.username} onChange={(e) => set('username', e.target.value)} />
           <input name="password" type="password" placeholder="Придумай пароль (мин. 8)" autoComplete="new-password" value={f.password} onChange={(e) => set('password', e.target.value)} />

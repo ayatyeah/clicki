@@ -11,7 +11,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import multer from 'multer';
 
-import { validateLead, normalizeContact } from './validate.js';
+import { validateLead, normalizeContact, normalizeTelegram } from './validate.js';
 import { verifyRecaptcha } from './recaptcha.js';
 import { dispatchLead, notifyOps, telegramConfigured, telegramSelfTest } from './notify.js';
 import { saveLead, readLeads, migrateLegacyLeads } from './store.js';
@@ -961,16 +961,22 @@ app.post(
   '/api/creator/apply',
   leadLimiter,
   wrap(async (req, res) => {
-    const { name, contact, socials, city, referred_by } = req.body || {};
-    if (!name || !contact) return res.status(400).json({ ok: false, errors: ['Имя и контакт обязательны'] });
-    await createCreator({ name, contact, socials, city, referred_by, status: 'pending' });
+    const { name, phone, telegram, socials, city, country, referred_by } = req.body || {};
+    if (!name || !String(name).trim()) return res.status(400).json({ ok: false, errors: ['Укажите имя'] });
+    if (!phone || !String(phone).trim()) return res.status(400).json({ ok: false, errors: ['Укажите телефон'] });
+    const tg = normalizeTelegram(telegram);
+    if (!tg) return res.status(400).json({ ok: false, errors: ['Telegram укажите в виде @username'] });
+    const contact = String(phone).trim();
+    await createCreator({ name, contact, telegram: tg, socials, city, country, referred_by, status: 'pending' });
     // Full, fielded notification with Astana time (same format as site leads),
     // instead of a bare one-liner.
     dispatchLead({
       funnel: 'creator',
       fields: {
         Имя: name,
-        'Телефон/Telegram': contact,
+        Телефон: contact,
+        Telegram: tg,
+        ...(country ? { Страна: country } : {}),
         ...(city ? { Город: city } : {}),
         ...(socials ? { Соцсети: socials } : {}),
       },
@@ -1018,10 +1024,13 @@ app.post(
   '/api/creator/register',
   loginLimiter,
   wrap(async (req, res) => {
-    const { name, email, contact, city, username, password } = req.body || {};
+    const { name, email, telegram, contact, country, city, username, password } = req.body || {};
     if (!name || !String(name).trim()) return res.status(400).json({ ok: false, errors: ['Укажите ФИО'] });
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) return res.status(400).json({ ok: false, errors: ['Укажите корректный email'] });
     if (!contact || !String(contact).trim()) return res.status(400).json({ ok: false, errors: ['Укажите телефон'] });
+    const tg = normalizeTelegram(telegram);
+    if (!tg) return res.status(400).json({ ok: false, errors: ['Telegram укажите в виде @username'] });
+    if (!country || !String(country).trim()) return res.status(400).json({ ok: false, errors: ['Укажите страну'] });
     if (!city || !String(city).trim()) return res.status(400).json({ ok: false, errors: ['Укажите город'] });
     if (!username || String(username).trim().length < 3) return res.status(400).json({ ok: false, errors: ['Логин не короче 3 символов'] });
     if (!password || String(password).length < 8) return res.status(400).json({ ok: false, errors: ['Пароль не короче 8 символов'] });
@@ -1033,7 +1042,9 @@ app.post(
     const creator = await createCreator({
       name: String(name).trim(),
       email: String(email).trim(),
+      telegram: tg,
       contact: String(contact).trim(),
+      country: String(country).trim(),
       city: String(city).trim(),
       username: String(username).trim(),
       password_hash: hashPassword(password),
@@ -1048,6 +1059,8 @@ app.post(
         ФИО: creator.name,
         Почта: creator.email,
         Телефон: creator.contact,
+        Telegram: creator.telegram,
+        ...(creator.country ? { Страна: creator.country } : {}),
         ...(creator.city ? { Город: creator.city } : {}),
         Логин: creator.username,
       },

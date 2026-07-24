@@ -101,7 +101,8 @@ const COPY = {
     ],
     fields: [
       { name: 'name', label: 'Имя', required: true, autoComplete: 'name', placeholder: 'Как тебя зовут' },
-      { name: 'contact', label: 'Телефон / Telegram', required: true, placeholder: '+7 ___ или @username' },
+      { name: 'phone', label: 'Телефон', type: 'tel', required: true, autoComplete: 'tel', placeholder: '+7 ___ ___ __ __' },
+      { name: 'telegram', label: 'Telegram', required: true, placeholder: '@username' },
     ],
   },
   en: {
@@ -186,7 +187,8 @@ const COPY = {
     ],
     fields: [
       { name: 'name', label: 'Name', required: true, autoComplete: 'name', placeholder: 'What’s your name' },
-      { name: 'contact', label: 'Phone / Telegram', required: true, placeholder: '+7 ___ or @username' },
+      { name: 'phone', label: 'Phone', type: 'tel', required: true, autoComplete: 'tel', placeholder: '+7 ___ ___ __ __' },
+      { name: 'telegram', label: 'Telegram', required: true, placeholder: '@username' },
     ],
   },
 };

@@ -40,7 +40,8 @@ const EN = {
 
   // Apply
   Имя: 'Name',
-  'Телефон / Telegram': 'Phone / Telegram',
+  'Телефон': 'Phone',
+  'Telegram — @username': 'Telegram — @username',
   'Отправить заявку': 'Submit request',
   'Доступ выдаёт оператор после проверки заявки.': 'Access is granted by an operator after reviewing your request.',
 

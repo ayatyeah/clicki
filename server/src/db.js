@@ -369,6 +369,11 @@ export async function initDb() {
     await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS bio TEXT');
     await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS topics TEXT');
     await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS email VARCHAR(200)');
+    // Telegram and country used to be squeezed into the single free-text
+    // `contact` field, so neither could be searched, filtered or linked.
+    // `contact` keeps holding the phone; these two now stand on their own.
+    await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS telegram VARCHAR(120)');
+    await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS country VARCHAR(80)');
     await client.query('ALTER TABLE business_accounts ADD COLUMN IF NOT EXISTS logo_url TEXT');
     // How we reach a brand: phone or Telegram handle. Required on every new
     // account (register + admin create) and to save the profile, but the column
@@ -1004,7 +1009,7 @@ export async function setCreatorCredentials(id, username, password_hash) {
   );
   return r.rows[0] || null;
 }
-export async function createCreator({ name, email, contact, socials, city, referred_by, username, password_hash, session_token, status }) {
+export async function createCreator({ name, email, telegram, contact, country, socials, city, referred_by, username, password_hash, session_token, status }) {
   // Early creators get permanent Founding Creator status (ТЗ §4.5). The cap is a
   // configurable setting (default 50; 0 = unlimited) rather than a hard-coded limit.
   const count = await pool.query('SELECT COUNT(*)::int AS n FROM creators');
@@ -1016,9 +1021,9 @@ export async function createCreator({ name, email, contact, socials, city, refer
   for (let attempt = 0; ; attempt++) {
     try {
       const r = await pool.query(
-        `INSERT INTO creators (name, email, contact, socials, city, referred_by, founding, username, password_hash, session_token, status, ugc_code)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,COALESCE($11,'active'),$12) RETURNING *`,
-        [name, email || null, contact || null, socials || null, city || null, referred_by || null, founding, username || null, password_hash || null, session_token || null, status || null, generateUgcCode()]
+        `INSERT INTO creators (name, email, telegram, contact, country, city, socials, referred_by, founding, username, password_hash, session_token, status, ugc_code)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,COALESCE($13,'active'),$14) RETURNING *`,
+        [name, email || null, telegram || null, contact || null, country || null, city || null, socials || null, referred_by || null, founding, username || null, password_hash || null, session_token || null, status || null, generateUgcCode()]
       );
       return r.rows[0];
     } catch (e) {
@@ -1028,7 +1033,7 @@ export async function createCreator({ name, email, contact, socials, city, refer
   }
 }
 export async function updateCreator(id, fields) {
-  const allowed = ['account_open', 'onboarding_passed', 'status', 'trust_score', 'avatar_url', 'bio', 'topics', 'city', 'socials', 'email'];
+  const allowed = ['account_open', 'onboarding_passed', 'status', 'trust_score', 'avatar_url', 'bio', 'topics', 'city', 'socials', 'email', 'telegram', 'country'];
   const sets = [];
   const vals = [];
   for (const k of allowed) {

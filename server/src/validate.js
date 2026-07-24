@@ -37,18 +37,34 @@ export function normalizeContact(raw) {
   return null;
 }
 
+/**
+ * A Telegram handle on its own, however it was typed (@name, name, t.me/name,
+ * https://t.me/name) — always stored as `@name` so the admin table can link it
+ * without re-parsing. Returns null when the value isn't a handle at all.
+ */
+export function normalizeTelegram(raw) {
+  const value = clean(raw);
+  if (!value) return null;
+  const m = value.match(/^(?:(?:https?:\/\/)?(?:www\.)?t\.me\/|@)?([a-zA-Z][a-zA-Z0-9_]{4,31})$/);
+  return m ? `@${m[1]}` : null;
+}
+
 const CLIENT_FIELDS = {
   name: { label: 'Имя', required: true },
   company: { label: 'Компания', required: false },
   phone: { label: 'Телефон', required: true },
+  telegram: { label: 'Telegram', required: false },
   email: { label: 'Email', required: false },
   niche: { label: 'Сфера бизнеса', required: false },
   comment: { label: 'Комментарий', required: false },
 };
 
+// Phone and Telegram are collected apart: operators work in Telegram, but a
+// handle alone leaves nobody to call, so both are asked for outright.
 const CREATOR_FIELDS = {
   name: { label: 'Имя', required: true },
-  contact: { label: 'Телефон/Telegram', required: true },
+  phone: { label: 'Телефон', required: true },
+  telegram: { label: 'Telegram', required: true },
 };
 
 const SCHEMAS = { client: CLIENT_FIELDS, creator: CREATOR_FIELDS };
@@ -78,9 +94,16 @@ export function validateLead(funnel, body) {
     errors.push('Необходимо согласие на обработку персональных данных');
   }
 
-  // Phone sanity check (client funnel).
-  if (funnel === 'client' && body?.phone && !isPhone(clean(body.phone))) {
+  // Both funnels now carry a phone of their own.
+  if (body?.phone && !isPhone(clean(body.phone))) {
     errors.push('Укажите корректный номер телефона');
+  }
+
+  // Store the handle canonically, or say plainly what a handle looks like.
+  if (body?.telegram) {
+    const tg = normalizeTelegram(body.telegram);
+    if (!tg) errors.push('Telegram укажите в виде @username');
+    else if (fields.Telegram) fields.Telegram = tg;
   }
 
   return { ok: errors.length === 0, errors, fields };

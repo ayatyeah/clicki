@@ -217,7 +217,7 @@ export function CreatorsView({ authFetch }) {
     if (ttFilter === 'not' && c.tiktok_connected) return false;
     if (accessFilter === 'has' && !c.username) return false;
     if (accessFilter === 'none' && c.username) return false;
-    if (q && !`${c.name || ''} ${c.username || ''} ${c.contact || ''}`.toLowerCase().includes(q)) return false;
+    if (q && !`${c.name || ''} ${c.username || ''} ${c.contact || ''} ${c.telegram || ''} ${c.country || ''}`.toLowerCase().includes(q)) return false;
     return true;
   });
   const filtersActive = query || statusFilter !== 'all' || ttFilter !== 'all' || accessFilter !== 'all';
@@ -325,7 +325,17 @@ export function CreatorsView({ authFetch }) {
                     )}
                   </div>
                 </td>
-                <td data-label="Контакт">{c.contact}</td>
+                <td data-label="Контакт">
+                  {c.contact}
+                  {c.telegram && (
+                    <div className="creators-cell__socials">
+                      <a href={`https://t.me/${String(c.telegram).replace(/^@/, '')}`} target="_blank" rel="noreferrer noopener">{c.telegram}</a>
+                    </div>
+                  )}
+                  {(c.country || c.city) && (
+                    <div className="creators-cell__socials">{[c.country, c.city].filter(Boolean).join(' · ')}</div>
+                  )}
+                </td>
                 <td data-label="Доступ">
                   <Credentials creator={c} authFetch={authFetch} onSaved={load} />
                 </td>
