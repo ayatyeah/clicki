@@ -27,8 +27,7 @@ export default function RegisterCreator() {
     if (!f.name.trim()) return setError('Укажи ФИО');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) return setError('Укажи корректную почту');
     if (!f.contact.trim()) return setError('Укажи телефон');
-    if (!/^@?[a-zA-Z][a-zA-Z0-9_]{4,31}$/.test(f.telegram.trim().replace(/^(https?:\/\/)?(www\.)?t\.me\//, '')))
-      return setError('Telegram укажи в виде @username');
+    if (!f.telegram.trim()) return setError('Укажи Telegram');
     if (!f.country.trim()) return setError('Укажи страну');
     if (!f.city.trim()) return setError('Укажи город');
     if (f.username.trim().length < 3) return setError('Логин не короче 3 символов');

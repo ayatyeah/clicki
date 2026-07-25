@@ -965,7 +965,7 @@ app.post(
     if (!name || !String(name).trim()) return res.status(400).json({ ok: false, errors: ['Укажите имя'] });
     if (!phone || !String(phone).trim()) return res.status(400).json({ ok: false, errors: ['Укажите телефон'] });
     const tg = normalizeTelegram(telegram);
-    if (!tg) return res.status(400).json({ ok: false, errors: ['Telegram укажите в виде @username'] });
+    if (!tg) return res.status(400).json({ ok: false, errors: ['Укажите Telegram'] });
     const contact = String(phone).trim();
     await createCreator({ name, contact, telegram: tg, socials, city, country, referred_by, status: 'pending' });
     // Full, fielded notification with Astana time (same format as site leads),
@@ -1029,7 +1029,7 @@ app.post(
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) return res.status(400).json({ ok: false, errors: ['Укажите корректный email'] });
     if (!contact || !String(contact).trim()) return res.status(400).json({ ok: false, errors: ['Укажите телефон'] });
     const tg = normalizeTelegram(telegram);
-    if (!tg) return res.status(400).json({ ok: false, errors: ['Telegram укажите в виде @username'] });
+    if (!tg) return res.status(400).json({ ok: false, errors: ['Укажите Telegram'] });
     if (!country || !String(country).trim()) return res.status(400).json({ ok: false, errors: ['Укажите страну'] });
     if (!city || !String(city).trim()) return res.status(400).json({ ok: false, errors: ['Укажите город'] });
     if (!username || String(username).trim().length < 3) return res.status(400).json({ ok: false, errors: ['Логин не короче 3 символов'] });

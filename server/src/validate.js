@@ -38,15 +38,18 @@ export function normalizeContact(raw) {
 }
 
 /**
- * A Telegram handle on its own, however it was typed (@name, name, t.me/name,
- * https://t.me/name) — always stored as `@name` so the admin table can link it
- * without re-parsing. Returns null when the value isn't a handle at all.
+ * Tidy a Telegram value WITHOUT ever rejecting it. However it was typed
+ * (@name, name, t.me/name, https://t.me/name) a real handle comes back as
+ * `@name` so the admin table can link it. Anything else — a phone, a Cyrillic
+ * nickname, a note — is returned as-is: a signup must never be blocked over the
+ * shape of this field. Returns '' only when the input is empty.
  */
 export function normalizeTelegram(raw) {
-  const value = clean(raw);
-  if (!value) return null;
-  const m = value.match(/^(?:(?:https?:\/\/)?(?:www\.)?t\.me\/|@)?([a-zA-Z][a-zA-Z0-9_]{4,31})$/);
-  return m ? `@${m[1]}` : null;
+  const value = clean(raw).slice(0, 120);
+  if (!value) return '';
+  const handle = value.replace(/^(?:https?:\/\/)?(?:www\.)?t\.me\//i, '').replace(/^@/, '');
+  if (/^[a-zA-Z][a-zA-Z0-9_]{3,31}$/.test(handle)) return `@${handle}`;
+  return value;
 }
 
 const CLIENT_FIELDS = {
@@ -99,12 +102,8 @@ export function validateLead(funnel, body) {
     errors.push('Укажите корректный номер телефона');
   }
 
-  // Store the handle canonically, or say plainly what a handle looks like.
-  if (body?.telegram) {
-    const tg = normalizeTelegram(body.telegram);
-    if (!tg) errors.push('Telegram укажите в виде @username');
-    else if (fields.Telegram) fields.Telegram = tg;
-  }
+  // Store the handle canonically; never block a lead over its formatting.
+  if (fields.Telegram) fields.Telegram = normalizeTelegram(body.telegram);
 
   return { ok: errors.length === 0, errors, fields };
 }
