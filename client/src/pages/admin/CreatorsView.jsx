@@ -148,6 +148,7 @@ export function CreatorsView({ authFetch }) {
   const [statusFilter, setStatusFilter] = useState('all');
   const [ttFilter, setTtFilter] = useState('all');
   const [accessFilter, setAccessFilter] = useState('all');
+  const [countryFilter, setCountryFilter] = useState('all');
   const [loadErr, setLoadErr] = useState('');
   const load = async () => {
     try {
@@ -210,6 +211,10 @@ export function CreatorsView({ authFetch }) {
     load();
   };
 
+  // Distinct countries actually present in the roster, for the filter dropdown.
+  const countries = [...new Set(creators.map((c) => (c.country || '').trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'ru'));
+
   const q = query.trim().toLowerCase();
   const filtered = creators.filter((c) => {
     if (statusFilter !== 'all' && c.status !== statusFilter) return false;
@@ -217,10 +222,11 @@ export function CreatorsView({ authFetch }) {
     if (ttFilter === 'not' && c.tiktok_connected) return false;
     if (accessFilter === 'has' && !c.username) return false;
     if (accessFilter === 'none' && c.username) return false;
+    if (countryFilter !== 'all' && (c.country || '').trim() !== countryFilter) return false;
     if (q && !`${c.name || ''} ${c.username || ''} ${c.contact || ''} ${c.telegram || ''} ${c.country || ''}`.toLowerCase().includes(q)) return false;
     return true;
   });
-  const filtersActive = query || statusFilter !== 'all' || ttFilter !== 'all' || accessFilter !== 'all';
+  const filtersActive = query || statusFilter !== 'all' || ttFilter !== 'all' || accessFilter !== 'all' || countryFilter !== 'all';
 
   return (
     <section className="admin-block">
@@ -280,10 +286,16 @@ export function CreatorsView({ authFetch }) {
           <option value="has">Есть доступ</option>
           <option value="none">Нет доступа</option>
         </select>
+        <select aria-label="Фильтр по стране" value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)}>
+          <option value="all">Страна: все</option>
+          {countries.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
         {filtersActive && (
           <button
             className="btn btn--ghost btn--sm"
-            onClick={() => { setQuery(''); setStatusFilter('all'); setTtFilter('all'); setAccessFilter('all'); }}
+            onClick={() => { setQuery(''); setStatusFilter('all'); setTtFilter('all'); setAccessFilter('all'); setCountryFilter('all'); }}
           >
             Сбросить
           </button>
