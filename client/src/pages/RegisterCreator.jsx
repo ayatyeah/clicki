@@ -80,6 +80,9 @@ export default function RegisterCreator() {
           <input name="password" type="password" placeholder="Придумай пароль (мин. 8)" autoComplete="new-password" value={f.password} onChange={(e) => set('password', e.target.value)} />
           {error && <p className="creator-portal__err">{error}</p>}
           <button className="btn btn--primary btn--block" disabled={busy}>{busy ? 'Создаю…' : 'Создать аккаунт →'}</button>
+          <p className="creator-portal__muted" style={{ fontSize: '12px', marginTop: '2px' }}>
+            Регистрируясь, вы соглашаетесь с <Link to="/privacy" className="creator-portal__link">политикой конфиденциальности</Link>.
+          </p>
           <p className="creator-portal__muted creator-portal__switch">
             Уже есть аккаунт?{' '}
             <Link to="/creator" className="creator-portal__link">Войти</Link>

@@ -11,6 +11,7 @@ const L = {
     rights: 'Все права защищены.',
     portal: 'Кабинет креатора',
     about: 'О нас',
+    cookie: 'Настройки cookie',
   },
   en: {
     tagline: 'Performance platform for organic views. Astana, Kazakhstan.',
@@ -20,6 +21,7 @@ const L = {
     rights: 'All rights reserved.',
     portal: 'Creator portal',
     about: 'About',
+    cookie: 'Cookie settings',
   },
 };
 
@@ -47,6 +49,7 @@ export default function Footer() {
           <Link to="/contacts">{t.contacts}</Link>
           <Link to="/privacy">{t.privacy}</Link>
           <Link to="/terms">{t.terms}</Link>
+          <button type="button" onClick={() => window.dispatchEvent(new Event('clicki:cookie-settings'))}>{t.cookie}</button>
         </nav>
       </div>
       <div className="container site-footer__legal">© {year} CLICKI. {t.rights}</div>

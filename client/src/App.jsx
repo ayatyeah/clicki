@@ -4,6 +4,7 @@ import Hub from './pages/Hub.jsx';
 import Playground from './components/Playground.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { initAnalytics, trackPageview, trackVisit, trackEvent } from './lib/analytics.js';
+import CookieBanner, { getCookieConsent } from './components/CookieBanner.jsx';
 import { initAppleEmoji, parseAppleEmoji } from './lib/appleEmoji.js';
 import { initInstallPrompt } from './lib/installPrompt.js';
 
@@ -45,7 +46,10 @@ function RouteEffects() {
 
 export default function App() {
   useEffect(() => {
-    initAnalytics();
+    // Third-party trackers (GA/Pixel/Metrika) load only once the visitor has
+    // accepted analytics cookies. First-party visit logging (/api/track) is
+    // cookieless and stays on. See CookieBanner.
+    if (getCookieConsent() === 'all') initAnalytics();
     initAppleEmoji();
     // Chrome fires beforeinstallprompt once and early — catch it here, at app
     // start, because the cabinet that offers the button is a lazy chunk that
@@ -100,6 +104,7 @@ export default function App() {
           </Routes>
         </Suspense>
       </ErrorBoundary>
+      <CookieBanner onAcceptAll={initAnalytics} />
     </>
   );
 }
