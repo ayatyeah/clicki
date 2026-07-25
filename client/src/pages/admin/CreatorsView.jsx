@@ -3,6 +3,7 @@ import { SITE_URL } from '../../lib/config.js';
 import { useToast } from '../../components/Toast.jsx';
 import CopyButton from '../../components/CopyButton.jsx';
 import ConfirmDelete from '../../components/ConfirmDelete.jsx';
+import { matchesRegion, REGION_OPTIONS } from '../../lib/regions.js';
 
 const STAR_D = 'M12 2.6l2.85 5.77 6.37.93-4.61 4.49 1.09 6.35L12 17.77l-5.7 3l1.09-6.35-4.61-4.49 6.37-.93z';
 
@@ -148,6 +149,7 @@ export function CreatorsView({ authFetch }) {
   const [statusFilter, setStatusFilter] = useState('all');
   const [ttFilter, setTtFilter] = useState('all');
   const [accessFilter, setAccessFilter] = useState('all');
+  const [regionFilter, setRegionFilter] = useState('all');
   const [countryFilter, setCountryFilter] = useState('all');
   const [loadErr, setLoadErr] = useState('');
   const load = async () => {
@@ -211,8 +213,9 @@ export function CreatorsView({ authFetch }) {
     load();
   };
 
-  // Distinct countries actually present in the roster, for the filter dropdown.
+  // Distinct countries in the roster (scoped to the chosen region) for the dropdown.
   const countries = [...new Set(creators.map((c) => (c.country || '').trim()).filter(Boolean))]
+    .filter((c) => matchesRegion(c, regionFilter))
     .sort((a, b) => a.localeCompare(b, 'ru'));
 
   const q = query.trim().toLowerCase();
@@ -222,11 +225,12 @@ export function CreatorsView({ authFetch }) {
     if (ttFilter === 'not' && c.tiktok_connected) return false;
     if (accessFilter === 'has' && !c.username) return false;
     if (accessFilter === 'none' && c.username) return false;
+    if (!matchesRegion(c.country, regionFilter)) return false;
     if (countryFilter !== 'all' && (c.country || '').trim() !== countryFilter) return false;
     if (q && !`${c.name || ''} ${c.username || ''} ${c.contact || ''} ${c.telegram || ''} ${c.country || ''}`.toLowerCase().includes(q)) return false;
     return true;
   });
-  const filtersActive = query || statusFilter !== 'all' || ttFilter !== 'all' || accessFilter !== 'all' || countryFilter !== 'all';
+  const filtersActive = query || statusFilter !== 'all' || ttFilter !== 'all' || accessFilter !== 'all' || regionFilter !== 'all' || countryFilter !== 'all';
 
   return (
     <section className="admin-block">
@@ -286,6 +290,15 @@ export function CreatorsView({ authFetch }) {
           <option value="has">Есть доступ</option>
           <option value="none">Нет доступа</option>
         </select>
+        <select
+          aria-label="Фильтр по региону"
+          value={regionFilter}
+          onChange={(e) => { setRegionFilter(e.target.value); setCountryFilter('all'); }}
+        >
+          {REGION_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
         <select aria-label="Фильтр по стране" value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)}>
           <option value="all">Страна: все</option>
           {countries.map((c) => (
@@ -295,7 +308,7 @@ export function CreatorsView({ authFetch }) {
         {filtersActive && (
           <button
             className="btn btn--ghost btn--sm"
-            onClick={() => { setQuery(''); setStatusFilter('all'); setTtFilter('all'); setAccessFilter('all'); setCountryFilter('all'); }}
+            onClick={() => { setQuery(''); setStatusFilter('all'); setTtFilter('all'); setAccessFilter('all'); setRegionFilter('all'); setCountryFilter('all'); }}
           >
             Сбросить
           </button>
