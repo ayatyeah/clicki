@@ -500,20 +500,28 @@ export async function initDb() {
         actor_type VARCHAR(10) NOT NULL,
         actor_id INTEGER NOT NULL,
         doc_type VARCHAR(40) NOT NULL,
-        doc_version VARCHAR(20) NOT NULL,
+        doc_version VARCHAR(100) NOT NULL,
         action VARCHAR(20) NOT NULL,
         ip TEXT,
         user_agent TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`);
+    // currentLegalVersion() joins every required doc's type+version with '|'
+    // (e.g. "offer:2026-07-23|personal_data_consent:2026-07-23") — the original
+    // VARCHAR(20) here and below was sized for a single date and silently
+    // rejected every accept with a "value too long" 500. Widen unconditionally;
+    // a no-op ALTER on an already-wide column costs nothing.
+    await client.query('ALTER TABLE legal_acceptances ALTER COLUMN doc_version TYPE VARCHAR(100)');
     await client.query('CREATE INDEX IF NOT EXISTS legal_acceptances_actor_idx ON legal_acceptances (actor_type, actor_id)');
     // Cache columns so the gate check on every cabinet load is a plain column
     // read on the row requireCreator/requireBusiness already fetched — no extra
     // query. legal_accepted_version is compared in memory against the current
     // doc versions (see server/src/legalDocs.js); NULL = never accepted.
-    await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS legal_accepted_version VARCHAR(20)');
+    await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS legal_accepted_version VARCHAR(100)');
+    await client.query('ALTER TABLE creators ALTER COLUMN legal_accepted_version TYPE VARCHAR(100)');
     await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS legal_accepted_at TIMESTAMP');
-    await client.query('ALTER TABLE business_accounts ADD COLUMN IF NOT EXISTS legal_accepted_version VARCHAR(20)');
+    await client.query('ALTER TABLE business_accounts ADD COLUMN IF NOT EXISTS legal_accepted_version VARCHAR(100)');
+    await client.query('ALTER TABLE business_accounts ALTER COLUMN legal_accepted_version TYPE VARCHAR(100)');
     await client.query('ALTER TABLE business_accounts ADD COLUMN IF NOT EXISTS legal_accepted_at TIMESTAMP');
     // Soft-delete: account row is kept (financial/legal history references it),
     // PII columns are cleared, status flips to 'deleted', and auth stops working
