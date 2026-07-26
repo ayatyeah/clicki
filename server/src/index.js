@@ -270,12 +270,12 @@ if (IS_PROD) {
       `Refusing to start: set a strong value for ${insecure.join(', ')} in production (the default is publicly known).`,
     );
   }
-  // verifyRecaptcha() short-circuits to ok when no secret is configured, so an
-  // empty RECAPTCHA_SECRET in production means the lead forms have NO spam
-  // protection at all — the fail-closed branch below never even runs. Not fatal
-  // (that would take lead capture down), but it must not pass unnoticed.
+  // Without a secret nothing can be graded, so passesCaptcha() lets every
+  // submission through and the forms are left with only the honeypot and the
+  // per-IP rate limits. Not fatal (failing closed would take sign-ups down),
+  // but it must not pass unnoticed.
   if (!process.env.RECAPTCHA_SECRET) {
-    console.warn('[startup] WARNING: RECAPTCHA_SECRET is not set — lead forms accept unverified submissions.');
+    console.warn('[startup] WARNING: RECAPTCHA_SECRET is not set — forms accept unverified submissions.');
   }
 }
 if (!telegramConfigured()) {
@@ -499,18 +499,50 @@ app.post('/api/assistant', assistantLimiter, async (req, res) => {
   }
 });
 
-/** Shared handler for both funnels. */
-// reCAPTCHA v3 gate — shared by the lead forms and both sign-ups. Fails OPEN
-// when the browser sent no token (site key missing from the build, script
-// blocked, etc.) so a config slip can never again lock real users out of a
-// form; it only rejects a token that Google verifies with a failed/low score —
-// an actual bot signal. A verify-service outage also fails open.
-async function passesCaptcha(req) {
+// reCAPTCHA v3 as a SIGNAL, not a gate — shared by the lead forms and both
+// sign-ups.
+//
+// Turning a real person away costs far more than admitting a spam row an
+// operator can delete, and v3 routinely scores real people low: a VPN, a
+// privacy browser, incognito, an ad blocker, or a shared mobile IP all drag the
+// score down. On top of that, "success:false" from Google covers stale/reused
+// tokens and our own misconfiguration — none of which is evidence of a bot.
+// Both of those used to hit this exact error and blocked genuine sign-ups.
+//
+// So we refuse ONLY when Google actually graded the token and put it at or
+// below the bot floor (RECAPTCHA_BOT_SCORE, default 0.1 — automation territory;
+// real users sit well above it). Everything else passes and is logged. The
+// honeypot and the per-IP rate limiters remain the enforcing defences.
+// Only ever shown to traffic Google graded as automation. Still tells a human
+// what to do instead of dead-ending them.
+const SPAM_BLOCKED = 'Проверка на автоматические отправки не пройдена. Обновите страницу и попробуйте ещё раз, а если не поможет — напишите нам в Telegram.';
+
+const BOT_SCORE = (() => {
+  const raw = Number(process.env.RECAPTCHA_BOT_SCORE);
+  // Number('') is 0 and 0 is falsy, so `|| 0.1` would make "0" unsettable.
+  return Number.isFinite(raw) && process.env.RECAPTCHA_BOT_SCORE ? raw : 0.1;
+})();
+
+async function passesCaptcha(req, where) {
   const token = req.body?.recaptchaToken;
   if (!token) return true;
-  const r = await verifyRecaptcha(token).catch(() => ({ ok: true }));
-  return r.ok;
+
+  const r = await verifyRecaptcha(token).catch((err) => ({ verified: false, reason: err.message }));
+  if (!r.verified) {
+    console.warn(`[captcha] ${where}: not graded (${r.reason}) — allowed through`);
+    return true;
+  }
+  if (typeof r.score === 'number' && r.score <= BOT_SCORE) {
+    console.warn(`[captcha] ${where}: blocked, score ${r.score} <= ${BOT_SCORE}`);
+    return false;
+  }
+  if (typeof r.score === 'number' && r.score < 0.5) {
+    console.info(`[captcha] ${where}: low score ${r.score} — allowed through`);
+  }
+  return true;
 }
+
+/** Shared handler for both funnels. */
 
 async function handleLead(funnel, req, res) {
   try {
@@ -522,8 +554,8 @@ async function handleLead(funnel, req, res) {
     const { ok, errors, fields } = validateLead(funnel, req.body);
     if (!ok) return res.status(400).json({ ok: false, errors });
 
-    if (!(await passesCaptcha(req))) {
-      return res.status(400).json({ ok: false, errors: ['Не удалось пройти проверку на спам'] });
+    if (!(await passesCaptcha(req, `lead/${funnel}`))) {
+      return res.status(400).json({ ok: false, errors: [SPAM_BLOCKED] });
     }
 
     const lead = {
@@ -1034,7 +1066,7 @@ app.post(
     if (!city || !String(city).trim()) return res.status(400).json({ ok: false, errors: ['Укажите город'] });
     if (!username || String(username).trim().length < 3) return res.status(400).json({ ok: false, errors: ['Логин не короче 3 символов'] });
     if (!password || String(password).length < 8) return res.status(400).json({ ok: false, errors: ['Пароль не короче 8 символов'] });
-    if (!(await passesCaptcha(req))) return res.status(400).json({ ok: false, errors: ['Не удалось пройти проверку на спам'] });
+    if (!(await passesCaptcha(req, 'creator/register'))) return res.status(400).json({ ok: false, errors: [SPAM_BLOCKED] });
     if (await getCreatorByUsername(username)) return res.status(409).json({ ok: false, errors: ['Такой логин уже занят'] });
     // referred_by (from a friend link) only if it points to a real creator.
     const refId = Number(req.body?.referred_by) || null;
@@ -1432,7 +1464,7 @@ app.post(
     if (!contact) return res.status(400).json({ ok: false, errors: [CONTACT_REQUIRED] });
     const normalizedContact = normalizeContact(contact);
     if (!normalizedContact) return res.status(400).json({ ok: false, errors: [CONTACT_INVALID] });
-    if (!(await passesCaptcha(req))) return res.status(400).json({ ok: false, errors: ['Не удалось пройти проверку на спам'] });
+    if (!(await passesCaptcha(req, 'business/register'))) return res.status(400).json({ ok: false, errors: [SPAM_BLOCKED] });
     if (await getBusinessByEmail(email)) return res.status(409).json({ ok: false, errors: ['Аккаунт с таким email уже существует'] });
     const b = await createBusiness({
       name: String(name).trim(),
