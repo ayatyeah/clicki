@@ -79,9 +79,6 @@ export default function PersonalDataConsent() {
             выражением свободной, конкретной, информированной и однозначной воли Субъекта.
           </p>
 
-          <a className="legal-pdf-link" href="/legal/personal-data-consent.pdf" target="_blank" rel="noopener noreferrer">
-            Скачать оригинал документа (PDF)
-          </a>
 
           {SECTIONS.map(([title, text], i) => (
             <section className="legal-article" key={title}>
