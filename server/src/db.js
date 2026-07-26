@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import pg from 'pg';
+import { currentLegalVersion } from './legalDocs.js';
 const { Pool } = pg;
 
 // Public "UGC creator" code shown on the creator and in the admin — random, not
@@ -487,9 +488,114 @@ export async function initDb() {
     // Admin's own written reason/comment on a submission (e.g. why it was rejected),
     // separate from the AI feedback. Editable any time, shown to the creator.
     await client.query('ALTER TABLE submissions ADD COLUMN IF NOT EXISTS review_note TEXT');
+
+    // Legal acceptance history — append-only, one row per accept/decline/deletion
+    // event (offer + PDn consent for creators, PDn consent for businesses). No FK
+    // to creators/business_accounts: this is the evidentiary record required by
+    // the offer (§3.3) and the PDn consent (§10.2) — date, time, IP, revision — and
+    // it must survive even a soft-deleted/anonymized account.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS legal_acceptances (
+        id BIGSERIAL PRIMARY KEY,
+        actor_type VARCHAR(10) NOT NULL,
+        actor_id INTEGER NOT NULL,
+        doc_type VARCHAR(40) NOT NULL,
+        doc_version VARCHAR(20) NOT NULL,
+        action VARCHAR(20) NOT NULL,
+        ip TEXT,
+        user_agent TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+    await client.query('CREATE INDEX IF NOT EXISTS legal_acceptances_actor_idx ON legal_acceptances (actor_type, actor_id)');
+    // Cache columns so the gate check on every cabinet load is a plain column
+    // read on the row requireCreator/requireBusiness already fetched — no extra
+    // query. legal_accepted_version is compared in memory against the current
+    // doc versions (see server/src/legalDocs.js); NULL = never accepted.
+    await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS legal_accepted_version VARCHAR(20)');
+    await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS legal_accepted_at TIMESTAMP');
+    await client.query('ALTER TABLE business_accounts ADD COLUMN IF NOT EXISTS legal_accepted_version VARCHAR(20)');
+    await client.query('ALTER TABLE business_accounts ADD COLUMN IF NOT EXISTS legal_accepted_at TIMESTAMP');
+    // Soft-delete: account row is kept (financial/legal history references it),
+    // PII columns are cleared, status flips to 'deleted', and auth stops working
+    // because session_token is wiped too.
+    await client.query('ALTER TABLE creators ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP');
+    await client.query('ALTER TABLE business_accounts ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP');
   } finally {
     client.release();
   }
+}
+
+/* ---------------- Legal document acceptance ---------------- */
+// Append-only write: one row per accept/decline/account_deleted event. Never
+// updated or deleted — this table IS the audit log required by the offer
+// (§3.3) and the PDn consent (§10.2).
+export async function recordLegalAcceptance({ actorType, actorId, docType, docVersion, action, ip, userAgent }) {
+  await pool.query(
+    `INSERT INTO legal_acceptances (actor_type, actor_id, doc_type, doc_version, action, ip, user_agent)
+     VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+    [actorType, actorId, docType, docVersion, action, ip || null, userAgent || null]
+  );
+}
+// Marks all currently-required docs for the role as accepted in one shot (the
+// gate always presents them together), and stamps the cache columns so the
+// next login/cabinet-load needs no extra query — just a string compare against
+// currentLegalVersion(role) on the row requireCreator/requireBusiness already read.
+export async function acceptLegalDocs({ actorType, actorId, ip, userAgent }) {
+  const table = actorType === 'business' ? 'business_accounts' : 'creators';
+  const version = currentLegalVersion(actorType);
+  for (const docType of actorType === 'business' ? ['personal_data_consent'] : ['offer', 'personal_data_consent']) {
+    await recordLegalAcceptance({ actorType, actorId, docType, docVersion: version, action: 'accept', ip, userAgent });
+  }
+  await pool.query(
+    `UPDATE ${table} SET legal_accepted_version = $1, legal_accepted_at = NOW() WHERE id = $2`,
+    [version, actorId]
+  );
+}
+export async function declineLegalDocs({ actorType, actorId, ip, userAgent }) {
+  const version = currentLegalVersion(actorType);
+  await recordLegalAcceptance({ actorType, actorId, docType: 'all', docVersion: version, action: 'decline', ip, userAgent });
+}
+export async function listLegalAcceptances(limit = 200) {
+  const r = await pool.query(
+    `SELECT la.*,
+       CASE WHEN la.actor_type = 'creator' THEN c.name ELSE b.name END AS actor_name
+     FROM legal_acceptances la
+     LEFT JOIN creators c ON la.actor_type = 'creator' AND la.actor_id = c.id
+     LEFT JOIN business_accounts b ON la.actor_type = 'business' AND la.actor_id = b.id
+     ORDER BY la.id DESC LIMIT $1`,
+    [limit]
+  );
+  return r.rows;
+}
+// Soft-delete: keep the row (financial/legal records reference it by id), clear
+// PII, kill the session so auth stops working, log the event in the same
+// append-only journal used for accept/decline.
+export async function softDeleteCreator(id, { ip, userAgent } = {}) {
+  const r = await pool.query(
+    `UPDATE creators SET
+       status = 'deleted', deleted_at = NOW(),
+       name = 'Удалённый пользователь', email = NULL, contact = NULL, telegram = NULL,
+       socials = NULL, city = NULL, country = NULL, avatar_url = NULL, bio = NULL,
+       username = NULL, password_hash = NULL, session_token = NULL, session_expires_at = NULL,
+       tiktok_access_token = NULL, tiktok_refresh_token = NULL, ig_access_token = NULL
+     WHERE id = $1 RETURNING id`,
+    [id]
+  );
+  if (r.rows[0]) await recordLegalAcceptance({ actorType: 'creator', actorId: id, docType: 'account', docVersion: 'n/a', action: 'account_deleted', ip, userAgent });
+  return r.rows[0] || null;
+}
+export async function softDeleteBusiness(id, { ip, userAgent } = {}) {
+  const r = await pool.query(
+    `UPDATE business_accounts SET
+       status = 'deleted', deleted_at = NOW(),
+       name = 'Удалённый аккаунт', email = CONCAT('deleted-', id, '@clicki-platform.com'),
+       company = NULL, contact = NULL, logo_url = NULL,
+       session_token = NULL, session_expires_at = NULL
+     WHERE id = $1 RETURNING id`,
+    [id]
+  );
+  if (r.rows[0]) await recordLegalAcceptance({ actorType: 'business', actorId: id, docType: 'account', docVersion: 'n/a', action: 'account_deleted', ip, userAgent });
+  return r.rows[0] || null;
 }
 
 /* ---------------- Presence ---------------- */
@@ -1455,7 +1561,7 @@ export async function createBusinessBrief(businessId, b) {
 // Admin: list all business accounts (never expose password_hash / session_token).
 export async function listBusinesses() {
   const r = await pool.query(
-    `SELECT b.id, b.name, b.email, b.company, b.contact, b.created_at,
+    `SELECT b.id, b.name, b.email, b.company, b.contact, b.created_at, b.legal_accepted_version,
             (SELECT COUNT(*) FROM briefs WHERE business_id = b.id)::int AS briefs
        FROM business_accounts b
        ORDER BY b.id DESC`

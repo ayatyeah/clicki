@@ -17,6 +17,8 @@ const About = lazy(() => import('./pages/About.jsx'));
 const LoginChoice = lazy(() => import('./pages/LoginChoice.jsx'));
 const Privacy = lazy(() => import('./pages/Privacy.jsx'));
 const Terms = lazy(() => import('./pages/Terms.jsx'));
+const LegalOffer = lazy(() => import('./pages/legal/Offer.jsx'));
+const LegalPersonalDataConsent = lazy(() => import('./pages/legal/PersonalDataConsent.jsx'));
 const ThankYou = lazy(() => import('./pages/ThankYou.jsx'));
 const NotFound = lazy(() => import('./pages/NotFound.jsx'));
 const Admin = lazy(() => import('./pages/Admin.jsx'));
@@ -86,6 +88,8 @@ export default function App() {
           <Route path="/login" element={<LoginChoice />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
+          <Route path="/legal/offer" element={<LegalOffer />} />
+          <Route path="/legal/personal-data-consent" element={<LegalPersonalDataConsent />} />
           <Route path="/thanks/:type" element={<ThankYou />} />
           <Route path="/app" element={<AppLauncher />} />
           <Route path="/admin" element={<Admin />} />

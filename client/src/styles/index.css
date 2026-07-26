@@ -1576,6 +1576,21 @@ img.ae {
   accent-color: var(--charcoal);
   flex: 0 0 auto;
 }
+.creator-portal__check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 0.9rem;
+  color: var(--stone);
+  margin: 2px 0;
+}
+.creator-portal__check input {
+  margin-top: 3px;
+  width: 18px;
+  height: 18px;
+  accent-color: rgba(124, 58, 237, 1);
+  flex: 0 0 auto;
+}
 .lead-form__errors {
   margin: 0;
   padding: 12px 14px 12px 30px;
@@ -3059,6 +3074,47 @@ img.ae {
   color: var(--stone);
   margin: 0;
 }
+.legal-table-wrap {
+  overflow-x: auto;
+  margin-top: 16px;
+  max-width: 100%;
+}
+.legal-table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 640px;
+  font-size: 0.92rem;
+}
+.legal-table th,
+.legal-table td {
+  border: 1px solid var(--line);
+  padding: 10px 14px;
+  text-align: left;
+  vertical-align: top;
+  color: var(--stone);
+}
+.legal-table th {
+  background: rgba(124, 58, 237, 0.08);
+  color: var(--ink);
+  font-weight: 600;
+}
+.legal-pdf-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 20px 0;
+  padding: 10px 18px;
+  border-radius: var(--r-pill, 999px);
+  border: 1px solid rgba(124, 58, 237, 0.4);
+  color: var(--ink);
+  font-weight: 600;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+.legal-pdf-link:hover {
+  background: rgba(124, 58, 237, 0.1);
+  transform: translateY(-1px);
+  color: inherit;
+}
 
 /* ---------- About page ---------- */
 .about-principles {
@@ -4043,6 +4099,27 @@ canvas {
 .confirm__title { margin: 0 0 8px; font-size: 1.15rem; }
 .confirm__msg { margin: 0 0 18px; color: var(--fog); font-size: 0.92rem; }
 .confirm__actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+/* Legal acceptance gate (components/LegalGate.jsx) — blocks the whole cabinet
+   until the required documents are accepted; sits below the confirm dialog
+   (1050) so "Удалить аккаунт" can still pop its own confirmation on top. */
+.legal-gate {
+  position: fixed; inset: 0; z-index: 1040;
+  background: rgba(6, 4, 20, 0.7);
+  display: grid; place-items: center; padding: 24px;
+  animation: lbFade 140ms ease;
+}
+.legal-gate__card {
+  background: var(--paper); color: var(--ink);
+  border: 1px solid var(--line); border-radius: var(--r-card);
+  padding: 32px; max-width: 460px; width: 100%;
+  box-shadow: 0 24px 70px rgba(0,0,0,0.4);
+  animation: toastIn 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.legal-gate__title { margin: 0 0 12px; font-size: 1.3rem; letter-spacing: -0.01em; }
+.legal-gate__text { margin: 0 0 22px; color: var(--stone); font-size: 0.95rem; line-height: 1.5; }
+.legal-gate__text a { color: rgba(124, 58, 237, 1); text-decoration: underline; }
+.legal-gate__actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
 
 /* Empty state (components/EmptyState.jsx) */
 .empty-state { text-align: center; padding: 32px 16px; color: var(--fog); }

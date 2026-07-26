@@ -19,6 +19,7 @@ import { CreatorsView } from './admin/CreatorsView.jsx';
 import { BusinessesView } from './admin/BusinessesView.jsx';
 import { PayoutsView } from './admin/PayoutsView.jsx';
 import { DecisionJournalView } from './admin/DecisionJournalView.jsx';
+import { LegalAcceptancesView } from './admin/LegalAcceptancesView.jsx';
 
 const TOKEN_KEY = 'clicki_admin_token';
 const EMPTY = { showcase: [], devices: { iphone: { image: '' }, laptop: { image: '' } }, creatorVideo: '', hubVideo: '' };
@@ -294,6 +295,7 @@ export default function Admin() {
     { key: 'monthly-report', label: 'Отчёт за месяц', icon: 'chart' },
     { key: 'review', label: 'Проверка видео', icon: 'check' },
     { key: 'decisions', label: 'Дневник решений', icon: 'briefs' },
+    { key: 'legal', label: 'Юр. документы', icon: 'check' },
     { key: 'creators', label: 'Креаторы', icon: 'user' },
     { key: 'businesses', label: 'Бизнесы', icon: 'users' },
     { key: 'payouts', label: 'Выплаты', icon: 'wallet' },
@@ -487,6 +489,7 @@ export default function Admin() {
           {view === 'monthly-report' && <MonthlyReportView authFetch={authFetch} />}
           {view === 'review' && <ReviewView authFetch={authFetch} />}
           {view === 'decisions' && <DecisionJournalView authFetch={authFetch} />}
+          {view === 'legal' && <LegalAcceptancesView authFetch={authFetch} />}
           {view === 'creators' && <CreatorsView authFetch={authFetch} />}
           {view === 'businesses' && <BusinessesView authFetch={authFetch} />}
           {view === 'payouts' && <PayoutsView authFetch={authFetch} />}

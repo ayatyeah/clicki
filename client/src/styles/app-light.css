@@ -1115,6 +1115,10 @@
 .cp-social { margin-top: 16px; }
 .cp-social .cp-section-sub { margin-top: 4px; }
 
+/* Self-service account deletion (bottom of the account/profile screen) */
+.cp-danger-zone { margin-top: 16px; border-color: rgba(220, 38, 38, 0.3); }
+.cp-danger-zone .cp-section-sub { margin-top: 4px; margin-bottom: 14px; }
+
 /* "Установить приложение" (components/InstallApp.jsx) — hidden entirely unless
    the browser can actually do something, so it never renders empty. */
 .cp-install { margin-top: 16px; display: grid; justify-items: start; gap: 10px; }

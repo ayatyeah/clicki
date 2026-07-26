@@ -14,6 +14,9 @@ import { useLang } from '../i18n.jsx';
 import { bt } from '../content/businessI18n.js';
 import { BriefForm } from '../components/BriefForm.jsx';
 import { PLATFORMS, ANY_PLATFORM, STYLES } from '../lib/briefFields.js';
+import LegalGate from '../components/LegalGate.jsx';
+import { useConfirm } from '../components/ConfirmDialog.jsx';
+import { useToast } from '../components/Toast.jsx';
 
 /** Compact RU/EN switch for the business cabinet. */
 function LangToggle() {
@@ -114,6 +117,19 @@ export default function BusinessPortal() {
         </div>
       </main>
     );
+  // Blocks the whole cabinet until the PDn consent is accepted at the version
+  // currently in force — see the matching check in CreatorPortal.jsx.
+  if (data.business.legal_accepted_version !== data.legalCurrentVersion) {
+    return (
+      <LegalGate
+        role="business"
+        authFetch={authFetch}
+        onAccepted={(payload) => setData(payload)}
+        onLogout={logout}
+        onDeleted={logout}
+      />
+    );
+  }
   return <Dashboard data={data} authFetch={authFetch} reload={loadMe} onLogout={logout} />;
 }
 
@@ -156,6 +172,7 @@ function AuthForm({ endpoint, onAuthed, register, toRegister }) {
   const { lang } = useLang();
   const t = (s) => bt(lang, s);
   const [f, setF] = useState({ name: '', company: '', email: '', contact: '', password: '' });
+  const [acceptPersonalData, setAcceptPersonalData] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
@@ -172,6 +189,7 @@ function AuthForm({ endpoint, onAuthed, register, toRegister }) {
     if (register && !normalizeContact(f.contact)) return setError(t('Контакты: укажите телефон (+7 707 123 45 67) или Telegram (@username)'));
     if (register && f.password.length < 8) return setError(t('Пароль не короче 8 символов'));
     else if (!register && !f.password) return setError(t('Введите пароль'));
+    if (register && !acceptPersonalData) return setError(t('Нужно согласие на обработку персональных данных'));
     setBusy(true);
     try {
       // Only sign-up is captcha-checked server-side; login sends nothing extra.
@@ -179,7 +197,7 @@ function AuthForm({ endpoint, onAuthed, register, toRegister }) {
       const res = await fetch(`${API_BASE}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...f, recaptchaToken }),
+        body: JSON.stringify({ ...f, acceptPersonalData: register ? acceptPersonalData : undefined, recaptchaToken }),
       });
       const d = await res.json();
       if (!res.ok) throw new Error((d.errors && d.errors[0]) || t('Ошибка'));
@@ -204,6 +222,15 @@ function AuthForm({ endpoint, onAuthed, register, toRegister }) {
         <input name="tel" placeholder={t('Контакты — телефон или Telegram')} autoComplete="tel" value={f.contact} onChange={(e) => set('contact', e.target.value)} />
       )}
       <input name="password" type="password" placeholder={t('Пароль')} autoComplete={register ? 'new-password' : 'current-password'} value={f.password} onChange={(e) => set('password', e.target.value)} />
+      {register && (
+        <label className="creator-portal__check">
+          <input type="checkbox" checked={acceptPersonalData} onChange={(e) => setAcceptPersonalData(e.target.checked)} />
+          <span>
+            {t('Я даю ')}
+            <Link to="/legal/personal-data-consent" target="_blank" className="creator-portal__link">{t('согласие на обработку персональных данных')}</Link>
+          </span>
+        </label>
+      )}
       {error && <p className="creator-portal__err">{error}</p>}
       <button className="btn btn--primary btn--block" disabled={busy}>{busy ? '…' : register ? t('Создать аккаунт') : t('Войти')}</button>
       <p className="creator-portal__muted creator-portal__switch">
@@ -1001,6 +1028,9 @@ function GrowthChart({ authFetch }) {
 function Profile({ b, authFetch, reload, onLogout }) {
   const { lang } = useLang();
   const t = (s) => bt(lang, s);
+  const confirm = useConfirm();
+  const toast = useToast();
+  const [deleting, setDeleting] = useState(false);
   const fileRef = useRef(null);
   const [logo, setLogo] = useState(b.logo_url || '');
   const [name, setName] = useState(b.name || '');
@@ -1067,6 +1097,25 @@ function Profile({ b, authFetch, reload, onLogout }) {
     }
   };
 
+  const deleteAccount = async () => {
+    const yes = await confirm({
+      title: t('Удалить аккаунт?'),
+      message: t('Доступ к аккаунту будет закрыт, персональные данные обезличены. Юридические и финансовые записи сохранятся, как того требует закон. Восстановление невозможно.'),
+      confirmText: t('Удалить'),
+      danger: true,
+    });
+    if (!yes) return;
+    setDeleting(true);
+    try {
+      const res = await authFetch('/api/business/account', { method: 'DELETE' });
+      if (!res.ok) throw new Error('delete-failed');
+      onLogout();
+    } catch {
+      toast.error(t('Не удалось удалить аккаунт. Попробуйте ещё раз.'));
+      setDeleting(false);
+    }
+  };
+
   return (
     <section className="admin-block">
       <h2 className="admin-block__title">{t('Профиль компании')}</h2>
@@ -1114,6 +1163,16 @@ function Profile({ b, authFetch, reload, onLogout }) {
         <button className="btn btn--primary btn--block" onClick={save} disabled={busy}>{busy ? t('Сохраняю…') : t('Сохранить')}</button>
         {msg && <p className="creator-portal__muted" style={{ textAlign: 'center', color: '#15803d' }}>{msg}</p>}
         <button className="btn btn--ghost btn--sm" style={{ marginTop: 6 }} onClick={onLogout}>{t('Выйти')}</button>
+      </div>
+
+      <div className="bp-card cp-danger-zone" style={{ maxWidth: 520 }}>
+        <h3 className="cp-card__title">{t('Удаление аккаунта')}</h3>
+        <p className="creator-portal__muted cp-section-sub">
+          {t('Аккаунт закроется, персональные данные будут обезличены. Действие необратимо.')}
+        </p>
+        <button className="btn btn--danger" onClick={deleteAccount} disabled={deleting}>
+          {deleting ? t('Удаляю…') : t('Удалить аккаунт')}
+        </button>
       </div>
     </section>
   );

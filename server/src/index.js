@@ -152,7 +152,13 @@ import {
   getCreatorAnnouncements,
   markCreatorAnnouncementsSeen,
   getPresenceRoster,
+  acceptLegalDocs,
+  declineLegalDocs,
+  listLegalAcceptances,
+  softDeleteCreator,
+  softDeleteBusiness,
 } from './db.js';
+import { currentLegalVersion } from './legalDocs.js';
 import { geminiGenerate, geminiEnabled } from './gemini.js';
 import { uploadToSpaces, spacesEnabled, spacesMediaHosts } from './storage.js';
 import { safeHttpUrl, fetchPageText, buildCspDirectives } from './security.js';
@@ -832,7 +838,12 @@ async function creatorPayload(c) {
     listActiveBriefsRanked(c.id),
     listCreatorSubmissions(c.id),
   ]);
-  return { creator: publicCreator(c), level: levelFromXp(c.xp), wallet, forecast, briefs, available, openBriefs, submissions };
+  return {
+    creator: publicCreator(c),
+    level: levelFromXp(c.xp),
+    wallet, forecast, briefs, available, openBriefs, submissions,
+    legalCurrentVersion: currentLegalVersion('creator'),
+  };
 }
 
 // Pipeline step 7: AI auto-check on upload. The model scores likely compliance
@@ -1056,7 +1067,7 @@ app.post(
   '/api/creator/register',
   loginLimiter,
   wrap(async (req, res) => {
-    const { name, email, telegram, contact, country, city, username, password } = req.body || {};
+    const { name, email, telegram, contact, country, city, username, password, acceptOffer, acceptPersonalData } = req.body || {};
     if (!name || !String(name).trim()) return res.status(400).json({ ok: false, errors: ['Укажите ФИО'] });
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) return res.status(400).json({ ok: false, errors: ['Укажите корректный email'] });
     if (!contact || !String(contact).trim()) return res.status(400).json({ ok: false, errors: ['Укажите телефон'] });
@@ -1066,6 +1077,8 @@ app.post(
     if (!city || !String(city).trim()) return res.status(400).json({ ok: false, errors: ['Укажите город'] });
     if (!username || String(username).trim().length < 3) return res.status(400).json({ ok: false, errors: ['Логин не короче 3 символов'] });
     if (!password || String(password).length < 8) return res.status(400).json({ ok: false, errors: ['Пароль не короче 8 символов'] });
+    if (acceptOffer !== true && acceptOffer !== 'true') return res.status(400).json({ ok: false, errors: ['Необходимо принять публичную оферту'] });
+    if (acceptPersonalData !== true && acceptPersonalData !== 'true') return res.status(400).json({ ok: false, errors: ['Необходимо согласие на обработку персональных данных'] });
     if (!(await passesCaptcha(req, 'creator/register'))) return res.status(400).json({ ok: false, errors: [SPAM_BLOCKED] });
     if (await getCreatorByUsername(username)) return res.status(409).json({ ok: false, errors: ['Такой логин уже занят'] });
     // referred_by (from a friend link) only if it points to a real creator.
@@ -1085,6 +1098,7 @@ app.post(
     });
     const token = newToken();
     await setCreatorToken(creator.id, token);
+    await acceptLegalDocs({ actorType: 'creator', actorId: creator.id, ip: req.ip, userAgent: req.headers['user-agent'] });
     dispatchLead({
       funnel: 'creator',
       fields: {
@@ -1108,6 +1122,38 @@ app.get(
   '/api/creator/me',
   requireCreator,
   wrap(async (req, res) => ok(res, await creatorPayload(req.creator)))
+);
+
+// Legal gate: accept the offer + PDn consent (existing creators who registered
+// before this system existed, or after a document version bump).
+app.post(
+  '/api/creator/legal/accept',
+  requireCreator,
+  wrap(async (req, res) => {
+    await acceptLegalDocs({ actorType: 'creator', actorId: req.creator.id, ip: req.ip, userAgent: req.headers['user-agent'] });
+    ok(res, await creatorPayload({ ...req.creator, legal_accepted_version: currentLegalVersion('creator') }));
+  })
+);
+// Decline just logs the refusal — the account isn't touched here; the client
+// then offers "log out" or "delete account" (below).
+app.post(
+  '/api/creator/legal/decline',
+  requireCreator,
+  wrap(async (req, res) => {
+    await declineLegalDocs({ actorType: 'creator', actorId: req.creator.id, ip: req.ip, userAgent: req.headers['user-agent'] });
+    ok(res, {});
+  })
+);
+// Self-service account deletion (soft-delete + PII anonymization — financial/
+// legal history rows referencing this creator_id are kept, per the retention
+// periods in the offer §9.6-2/§11.1 and the PDn consent §7.1).
+app.delete(
+  '/api/creator/account',
+  requireCreator,
+  wrap(async (req, res) => {
+    await softDeleteCreator(req.creator.id, { ip: req.ip, userAgent: req.headers['user-agent'] });
+    ok(res, {});
+  })
 );
 
 // Encode a safe internal return path into the OAuth `state` so the callback can
@@ -1445,7 +1491,7 @@ async function requireBusiness(req, res, next) {
 }
 async function businessPayload(b) {
   const [briefs, submissions] = await Promise.all([listBusinessBriefs(b.id), listBusinessSubmissions(b.id)]);
-  return { business: publicBusiness(b), briefs, submissions };
+  return { business: publicBusiness(b), briefs, submissions, legalCurrentVersion: currentLegalVersion('business') };
 }
 
 // Every brand must leave a way to reach it — phone or Telegram (see normalizeContact).
@@ -1457,13 +1503,14 @@ app.post(
   '/api/business/register',
   loginLimiter,
   wrap(async (req, res) => {
-    const { name, email, company, contact, password } = req.body || {};
+    const { name, email, company, contact, password, acceptPersonalData } = req.body || {};
     if (!name || !email || !password) return res.status(400).json({ ok: false, errors: ['Имя, email и пароль обязательны'] });
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) return res.status(400).json({ ok: false, errors: ['Некорректный email'] });
     if (String(password).length < 8) return res.status(400).json({ ok: false, errors: ['Пароль не короче 8 символов'] });
     if (!contact) return res.status(400).json({ ok: false, errors: [CONTACT_REQUIRED] });
     const normalizedContact = normalizeContact(contact);
     if (!normalizedContact) return res.status(400).json({ ok: false, errors: [CONTACT_INVALID] });
+    if (acceptPersonalData !== true && acceptPersonalData !== 'true') return res.status(400).json({ ok: false, errors: ['Необходимо согласие на обработку персональных данных'] });
     if (!(await passesCaptcha(req, 'business/register'))) return res.status(400).json({ ok: false, errors: [SPAM_BLOCKED] });
     if (await getBusinessByEmail(email)) return res.status(409).json({ ok: false, errors: ['Аккаунт с таким email уже существует'] });
     const b = await createBusiness({
@@ -1475,6 +1522,7 @@ app.post(
     });
     const token = newToken();
     await setBusinessToken(b.id, token);
+    await acceptLegalDocs({ actorType: 'business', actorId: b.id, ip: req.ip, userAgent: req.headers['user-agent'] });
     notifyOps(`🏢 Новый бизнес-аккаунт: ${name} (${email})\nСвязь: ${normalizedContact}`);
     ok(res, { token, ...(await businessPayload({ ...b, session_token: token })) });
   })
@@ -1495,6 +1543,31 @@ app.post(
 );
 
 app.get('/api/business/me', requireBusiness, wrap(async (req, res) => ok(res, await businessPayload(req.business))));
+
+app.post(
+  '/api/business/legal/accept',
+  requireBusiness,
+  wrap(async (req, res) => {
+    await acceptLegalDocs({ actorType: 'business', actorId: req.business.id, ip: req.ip, userAgent: req.headers['user-agent'] });
+    ok(res, await businessPayload({ ...req.business, legal_accepted_version: currentLegalVersion('business') }));
+  })
+);
+app.post(
+  '/api/business/legal/decline',
+  requireBusiness,
+  wrap(async (req, res) => {
+    await declineLegalDocs({ actorType: 'business', actorId: req.business.id, ip: req.ip, userAgent: req.headers['user-agent'] });
+    ok(res, {});
+  })
+);
+app.delete(
+  '/api/business/account',
+  requireBusiness,
+  wrap(async (req, res) => {
+    await softDeleteBusiness(req.business.id, { ip: req.ip, userAgent: req.headers['user-agent'] });
+    ok(res, {});
+  })
+);
 
 // Business "My account" — edit company/name/contact; logo has its own multipart endpoint.
 app.post('/api/business/profile', requireBusiness, wrap(async (req, res) => {
@@ -1802,6 +1875,7 @@ app.get('/api/admin/reports/monthly', requireAdmin, wrap(async (req, res) => {
 }));
 // Decision journal: raw accept/reject/rework log — the foundation for future AI, not AI itself.
 app.get('/api/admin/decisions', requireAdmin, wrap(async (_req, res) => ok(res, { decisions: await listDecisionJournal() })));
+app.get('/api/admin/legal-acceptances', requireAdmin, wrap(async (_req, res) => ok(res, { acceptances: await listLegalAcceptances() })));
 // Manually trigger a TikTok view-count sync across all connected creators.
 // Diagnostic: send a test Telegram message and report the real result, so a
 // silent failure (chat_id changed, token revoked, bot removed) is visible.

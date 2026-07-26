@@ -17,6 +17,8 @@ export default function RegisterCreator() {
   const navigate = useNavigate();
   const refId = new URLSearchParams(window.location.search).get('ref');
   const [f, setF] = useState({ name: '', email: '', contact: '', telegram: '', country: '', city: '', username: '', password: '' });
+  const [acceptOffer, setAcceptOffer] = useState(false);
+  const [acceptPersonalData, setAcceptPersonalData] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
@@ -32,13 +34,15 @@ export default function RegisterCreator() {
     if (!f.city.trim()) return setError('Укажи город');
     if (f.username.trim().length < 3) return setError('Логин не короче 3 символов');
     if (f.password.length < 8) return setError('Пароль не короче 8 символов');
+    if (!acceptOffer) return setError('Нужно принять публичную оферту');
+    if (!acceptPersonalData) return setError('Нужно согласие на обработку персональных данных');
     setBusy(true);
     try {
       const recaptchaToken = await getRecaptchaToken('register_creator');
       const res = await fetch(`${API_BASE}/api/creator/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...f, referred_by: refId ? Number(refId) : undefined, recaptchaToken }),
+        body: JSON.stringify({ ...f, acceptOffer, acceptPersonalData, referred_by: refId ? Number(refId) : undefined, recaptchaToken }),
       });
       const d = await res.json();
       if (!res.ok) throw new Error((d.errors && d.errors[0]) || 'Не удалось зарегистрироваться');
@@ -78,10 +82,22 @@ export default function RegisterCreator() {
           <input name="city" placeholder="Город" autoComplete="address-level2" value={f.city} onChange={(e) => set('city', e.target.value)} />
           <input name="username" placeholder="Придумай логин (мин. 3)" autoComplete="username" value={f.username} onChange={(e) => set('username', e.target.value)} />
           <input name="password" type="password" placeholder="Придумай пароль (мин. 8)" autoComplete="new-password" value={f.password} onChange={(e) => set('password', e.target.value)} />
+          <label className="creator-portal__check">
+            <input type="checkbox" checked={acceptOffer} onChange={(e) => setAcceptOffer(e.target.checked)} />
+            <span>
+              Я принимаю условия <Link to="/legal/offer" target="_blank" className="creator-portal__link">публичной оферты</Link>
+            </span>
+          </label>
+          <label className="creator-portal__check">
+            <input type="checkbox" checked={acceptPersonalData} onChange={(e) => setAcceptPersonalData(e.target.checked)} />
+            <span>
+              Я даю <Link to="/legal/personal-data-consent" target="_blank" className="creator-portal__link">согласие на обработку персональных данных</Link>
+            </span>
+          </label>
           {error && <p className="creator-portal__err">{error}</p>}
           <button className="btn btn--primary btn--block" disabled={busy}>{busy ? 'Создаю…' : 'Создать аккаунт →'}</button>
           <p className="creator-portal__muted" style={{ fontSize: '12px', marginTop: '2px' }}>
-            Регистрируясь, вы соглашаетесь с <Link to="/privacy" className="creator-portal__link">политикой конфиденциальности</Link>.
+            Регистрируясь, вы также соглашаетесь с <Link to="/privacy" className="creator-portal__link">политикой конфиденциальности</Link>.
           </p>
           <p className="creator-portal__muted creator-portal__switch">
             Уже есть аккаунт?{' '}

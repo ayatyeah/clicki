@@ -90,6 +90,7 @@ export function BusinessesView({ authFetch }) {
               <th>Контакты</th>
               <th>Email (логин)</th>
               <th>Брифов</th>
+              <th>Документы</th>
               <th>Создан</th>
               <th>Действия</th>
             </tr>
@@ -116,6 +117,11 @@ export function BusinessesView({ authFetch }) {
                         </button>
                       )
                       : <span className="muted-cell">0</span>}
+                  </td>
+                  <td data-label="Документы">
+                    {b.legal_accepted_version
+                      ? <span className="tt-chip tt-chip--on" title={`Принято: ${b.legal_accepted_version}`}>✓</span>
+                      : <span className="tt-chip" title="Согласие на ПДн ещё не принято">—</span>}
                   </td>
                   <td className="muted-cell" data-label="Создан">{b.created_at ? new Date(b.created_at).toLocaleDateString('ru-RU') : '—'}</td>
                   <td data-label="Действия">

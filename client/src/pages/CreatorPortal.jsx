@@ -13,6 +13,8 @@ import EmptyState from '../components/EmptyState.jsx';
 import Guide from '../components/Guide.jsx';
 import Tour from '../components/Tour.jsx';
 import InstallApp from '../components/InstallApp.jsx';
+import LegalGate from '../components/LegalGate.jsx';
+import { useConfirm } from '../components/ConfirmDialog.jsx';
 import { CREATOR_GUIDE, CREATOR_TOUR } from '../content/guides.js';
 import { briefOfferRows, briefRefLinks } from '../lib/briefFields.js';
 import { useToast } from '../components/Toast.jsx';
@@ -141,6 +143,21 @@ export default function CreatorPortal() {
   if (!data) return <Shell><p className="creator-portal__muted">{loading ? t('Загрузка…') : '…'}</p></Shell>;
 
   const c = data.creator;
+  // Blocks the whole cabinet until the offer + PDn consent are accepted at the
+  // version currently in force — covers both a brand-new required document and
+  // a revision bump on one already accepted. Checked before onboarding too:
+  // legal acceptance is a precondition for using the cabinet at all.
+  if (c.legal_accepted_version !== data.legalCurrentVersion) {
+    return (
+      <LegalGate
+        role="creator"
+        authFetch={authFetch}
+        onAccepted={(payload) => setData(payload)}
+        onLogout={logout}
+        onDeleted={logout}
+      />
+    );
+  }
   if (!c.onboarding_passed) return <Onboarding authFetch={authFetch} onDone={() => { setOpenGuide(true); loadMe(); }} />;
 
   // openGuide is set the moment onboarding is completed, so it doubles as "this
@@ -787,7 +804,7 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
             ))}
           </div>
 
-          {view === 'account' && <AccountView c={c} authFetch={authFetch} reload={reload} />}
+          {view === 'account' && <AccountView c={c} authFetch={authFetch} reload={reload} onLogout={onLogout} />}
 
           {view === 'referrals' && (
             <>
@@ -841,10 +858,12 @@ function Dashboard({ data, authFetch, reload, onLogout, initialView = 'overview'
 }
 
 /* ---------------- Creator account (avatar, bio, niche) ---------------- */
-function AccountView({ c, authFetch, reload }) {
+function AccountView({ c, authFetch, reload, onLogout }) {
   const { lang } = useLang();
   const t = (s) => ct(lang, s);
   const toast = useToast();
+  const confirm = useConfirm();
+  const [deleting, setDeleting] = useState(false);
   const fileRef = useRef(null);
   const [avatar, setAvatar] = useState(c.avatar_url || '');
   const [city, setCity] = useState(c.city || '');
@@ -905,6 +924,25 @@ function AccountView({ c, authFetch, reload }) {
     }
   };
 
+  const deleteAccount = async () => {
+    const yes = await confirm({
+      title: t('Удалить аккаунт?'),
+      message: t('Доступ к аккаунту будет закрыт, персональные данные обезличены. Юридические и финансовые записи (выплаты, история брифов) сохранятся, как того требует закон. Восстановление невозможно.'),
+      confirmText: t('Удалить'),
+      danger: true,
+    });
+    if (!yes) return;
+    setDeleting(true);
+    try {
+      const res = await authFetch('/api/creator/account', { method: 'DELETE' });
+      if (!res.ok) throw new Error('delete-failed');
+      onLogout();
+    } catch {
+      toast.error(t('Не удалось удалить аккаунт. Попробуйте ещё раз.'));
+      setDeleting(false);
+    }
+  };
+
   return (
     <>
       <h2 className="creator-portal__h2">{t('Мой аккаунт')}</h2>
@@ -958,6 +996,16 @@ function AccountView({ c, authFetch, reload }) {
       </div>
 
       <InstallApp />
+
+      <div className="creator-portal__card cp-danger-zone">
+        <h3 className="cp-card__title">{t('Удаление аккаунта')}</h3>
+        <p className="creator-portal__muted cp-section-sub">
+          {t('Аккаунт закроется, персональные данные будут обезличены. Действие необратимо.')}
+        </p>
+        <button className="btn btn--danger" onClick={deleteAccount} disabled={deleting}>
+          {deleting ? t('Удаляю…') : t('Удалить аккаунт')}
+        </button>
+      </div>
     </>
   );
 }

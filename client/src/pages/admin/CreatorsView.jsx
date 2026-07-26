@@ -348,6 +348,11 @@ export function CreatorsView({ authFetch }) {
                     ) : (
                       <span className="tt-chip">TikTok —</span>
                     )}
+                    {c.legal_accepted_version ? (
+                      <span className="tt-chip tt-chip--on" title={`Принято: ${c.legal_accepted_version}`}>Документы ✓</span>
+                    ) : (
+                      <span className="tt-chip" title="Оферта и согласие на ПДн ещё не приняты">Документы —</span>
+                    )}
                   </div>
                 </td>
                 <td data-label="Контакт">
