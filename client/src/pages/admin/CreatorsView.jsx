@@ -232,14 +232,53 @@ export function CreatorsView({ authFetch }) {
   });
   const filtersActive = query || statusFilter !== 'all' || ttFilter !== 'all' || accessFilter !== 'all' || regionFilter !== 'all' || countryFilter !== 'all';
 
+  // Always the full roster, independent of the on-screen filters — an export
+  // is expected to be a complete record, not a snapshot of whatever search was
+  // active when someone clicked the button.
+  // jsPDF pulls in html2canvas (~200KB) that this admin tab otherwise never
+  // needs — dynamic import keeps that weight out of the main Admin bundle and
+  // only fetches it the first time someone actually clicks "Скачать PDF".
+  const exportPdf = async () => {
+    const { exportTablePdf } = await import('../../lib/exportPdf.js');
+    exportTablePdf({
+      title: `Креаторы CLICKI (${creators.length})`,
+      filename: `clicki-creators-${new Date().toISOString().slice(0, 10)}.pdf`,
+      columns: [
+        { header: 'Имя', key: 'name' },
+        { header: 'Логин', key: 'username' },
+        { header: 'Контакт', key: 'contact' },
+        { header: 'Страна / город', key: 'location' },
+        { header: 'Статус', key: 'status' },
+        { header: 'Баланс', key: 'balance' },
+        { header: 'XP', key: 'xp' },
+        { header: 'Регистрация', key: 'createdAt' },
+      ],
+      rows: creators.map((c) => ({
+        name: c.name || '—',
+        username: c.username || '—',
+        contact: c.contact || '—',
+        location: [c.country, c.city].filter(Boolean).join(', ') || '—',
+        status: c.status || '—',
+        balance: `${(c.balance || 0).toLocaleString('ru-RU')} ₸`,
+        xp: c.xp ?? 0,
+        createdAt: c.created_at ? new Date(c.created_at).toLocaleDateString('ru-RU') : '—',
+      })),
+    });
+  };
+
   return (
     <section className="admin-block">
-      <h2 className="admin-block__title">
-        Креаторы ({creators.length}){' '}
-        <span className="creator-portal__muted" style={{ fontSize: '0.9rem', fontWeight: 400 }}>
-          · TikTok подключили: {creators.filter((c) => c.tiktok_connected).length}
-        </span>
-      </h2>
+      <div className="admin-panel__head">
+        <h2 className="admin-block__title">
+          Креаторы ({creators.length}){' '}
+          <span className="creator-portal__muted" style={{ fontSize: '0.9rem', fontWeight: 400 }}>
+            · TikTok подключили: {creators.filter((c) => c.tiktok_connected).length}
+          </span>
+        </h2>
+        <button className="btn btn--ghost btn--sm" onClick={exportPdf} disabled={!creators.length}>
+          Скачать PDF
+        </button>
+      </div>
       <p className="muted-note" style={{ textAlign: 'left', marginTop: 0 }}>
         Создай аккаунт креатору (выдай логин и пароль) — под этими данными он войдёт в кабинет.
         Заявки с сайта приходят со статусом <b>pending</b>: выдай им доступ кнопкой «Выдать».
