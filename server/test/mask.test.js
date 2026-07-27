@@ -90,7 +90,17 @@ test('maskBriefRow drops a client campaign but keeps the moderation flow', () =>
     duration_max: 25,
     req_hashtag: '#relocate',
     ai_score: 82,
-    spec: { style: 'youth', orientation: 'vertical' },
+    // The whole creative brief lives in this one JSONB column. It was on the
+    // allowlist from when it only held a style flag, and every field added to it
+    // since then rode out to the public endpoint for free.
+    spec: {
+      style: 'youth',
+      product: 'сопровождение релокации под ключ',
+      usp: 'виза за 3 недели без юриста',
+      audience_pain: 'боятся отказа и потери денег на юристе',
+      hook: 'первые 3 секунды — штамп в паспорте крупным планом',
+      refs: [{ url: 'https://drive.google.com/секретная-папка', note: 'вот такой темп нравится' }],
+    },
     // The parts a competitor would actually want:
     goal: 'заявки на релокацию',
     audience: 'IT-специалисты 25-35',
@@ -101,7 +111,7 @@ test('maskBriefRow drops a client campaign but keeps the moderation flow', () =>
     req_cta_link: 'https://client.example/landing?utm=clicki',
   });
 
-  for (const leaked of ['goal', 'audience', 'key_message', 'dos', 'donts', 'refs', 'req_cta_link']) {
+  for (const leaked of ['goal', 'audience', 'key_message', 'dos', 'donts', 'refs', 'req_cta_link', 'spec']) {
     assert.ok(!(leaked in masked), `${leaked} must not reach the public demo endpoint`);
   }
   // What the demo page renders survives untouched, so the queue still looks real.
@@ -113,8 +123,18 @@ test('maskBriefRow drops a client campaign but keeps the moderation flow', () =>
     duration_max: 25,
     req_hashtag: '#relocate',
     ai_score: 82,
-    spec: { style: 'youth', orientation: 'vertical' },
   });
+});
+
+/* A JSONB column is a moving target: whatever it grows to hold ships the day it
+   is added, with no diff to review. Nothing on the demo allowlist may be one. */
+test('no JSONB blob is allowlisted wholesale', () => {
+  const masked = maskBriefRow({
+    id: 1,
+    title: 'x',
+    spec: { anything_added_later: 'must not ship by default' },
+  });
+  assert.ok(!('spec' in masked));
 });
 
 test('maskBriefRow survives an empty or missing row', () => {

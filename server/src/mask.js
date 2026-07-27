@@ -122,13 +122,22 @@ export function maskSubmissionRow(row) {
  * did strip turned out to reach the public through the submissions endpoint
  * anyway. An allowlist can't rot that way.
  *
+ * `spec` was the exception that proved otherwise, so it is gone. Allowlisting a
+ * JSONB column names one key but admits whatever that column later grows to
+ * hold — and `briefs.spec` became the home for the entire creative brief
+ * (product, USP, audience and its pain, the opening hook, references with the
+ * client's notes on them, submission rules). None of it was rendered by the demo
+ * page; it rode along because the column had been listed back when it held a
+ * style flag. Never allowlist a JSONB blob wholesale: list the individual keys
+ * the page actually renders, or drop the column.
+ *
  * Known and left in: `ai_feedback` routinely quotes the key message back (the
  * model is asked to critique it) and `revision_note` is the operator's note to
  * the client. Both are rendered by the demo queue, so removing them is a product
  * call, not a bug fix — raised separately.
  */
 const DEMO_BRIEF_FIELDS = [
-  'id', 'title', 'status', 'platform', 'duration_max', 'req_hashtag', 'spec',
+  'id', 'title', 'status', 'platform', 'duration_max', 'req_hashtag',
   'ai_score', 'ai_feedback', 'revision_note',
 ];
 export function maskBriefRow(row) {
