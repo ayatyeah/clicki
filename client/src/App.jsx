@@ -5,7 +5,7 @@ import Playground from './components/Playground.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { initAnalytics, trackPageview, trackVisit, trackEvent } from './lib/analytics.js';
 import CookieBanner, { getCookieConsent } from './components/CookieBanner.jsx';
-import { initAppleEmoji, parseAppleEmoji } from './lib/appleEmoji.js';
+import { initEmoji, parseEmoji } from './lib/emoji.js';
 import { initInstallPrompt } from './lib/installPrompt.js';
 
 // Landing (Hub) ships in the main bundle for instant first paint;
@@ -41,7 +41,7 @@ function RouteEffects() {
     trackPageview(pathname);
     trackVisit(pathname);
     // Re-skin emoji that the new route just rendered.
-    requestAnimationFrame(() => parseAppleEmoji(document.body));
+    requestAnimationFrame(() => parseEmoji(document.body));
   }, [pathname]);
   return null;
 }
@@ -52,7 +52,7 @@ export default function App() {
     // accepted analytics cookies. First-party visit logging (/api/track) is
     // cookieless and stays on. See CookieBanner.
     if (getCookieConsent() === 'all') initAnalytics();
-    initAppleEmoji();
+    initEmoji();
     // Chrome fires beforeinstallprompt once and early — catch it here, at app
     // start, because the cabinet that offers the button is a lazy chunk that
     // may not exist yet when it arrives.

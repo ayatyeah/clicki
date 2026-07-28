@@ -105,7 +105,7 @@ img, video {
   display: block;
 }
 
-/* Apple-style emoji images injected by lib/appleEmoji.js */
+/* Emoji sprites injected by lib/emoji.js (class name kept: .ae) */
 img.ae {
   display: inline-block;
   height: 1em;
@@ -3414,6 +3414,19 @@ img.ae {
   color: var(--fog);
   font-size: 0.85rem;
   padding-inline: 4px;
+}
+
+/* Third-party attribution required by the Twemoji license (CC BY 4.0).
+   Quieter than the copyright line, but must stay visible — do not display:none. */
+.site-footer__attrib {
+  display: inline-block;
+  opacity: 0.7;
+  font-size: 0.78rem;
+}
+
+.site-footer__attrib a {
+  color: inherit;
+  text-decoration: underline;
 }
 
 /* ============================================================

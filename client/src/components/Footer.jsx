@@ -12,6 +12,8 @@ const L = {
     portal: 'Кабинет креатора',
     about: 'О нас',
     cookie: 'Настройки cookie',
+    emojiPre: 'Эмодзи — ',
+    emojiPost: ', © Twitter, Inc. и участники проекта, лицензия CC BY 4.0.',
   },
   en: {
     tagline: 'Performance platform for organic views. Astana, Kazakhstan.',
@@ -22,6 +24,8 @@ const L = {
     portal: 'Creator portal',
     about: 'About',
     cookie: 'Cookie settings',
+    emojiPre: 'Emoji artwork by ',
+    emojiPost: ', © Twitter, Inc. and other contributors, licensed under CC BY 4.0.',
   },
 };
 
@@ -52,7 +56,17 @@ export default function Footer() {
           <button type="button" onClick={() => window.dispatchEvent(new Event('clicki:cookie-settings'))}>{t.cookie}</button>
         </nav>
       </div>
-      <div className="container site-footer__legal">© {year} CLICKI. {t.rights}</div>
+      <div className="container site-footer__legal">
+        © {year} CLICKI. {t.rights}{' '}
+        {/* CC BY 4.0 requires visible attribution for the Twemoji sprites used by lib/emoji.js. */}
+        <span className="site-footer__attrib">
+          {t.emojiPre}
+          <a href="https://github.com/jdecked/twemoji" target="_blank" rel="noreferrer noopener">
+            Twemoji
+          </a>
+          {t.emojiPost}
+        </span>
+      </div>
     </footer>
   );
 }

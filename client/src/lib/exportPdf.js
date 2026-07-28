@@ -4,8 +4,12 @@ import { ROBOTO_REGULAR_BASE64, ROBOTO_BOLD_BASE64 } from './fonts/robotoFont.js
 
 /**
  * jsPDF's built-in fonts (Helvetica etc.) only cover Latin/WinAnsi — any
- * Cyrillic text renders as garbage or blank boxes. Roboto (Apache 2.0,
- * embedded in lib/fonts/robotoFont.js) is registered once per document.
+ * Cyrillic text renders as garbage or blank boxes. Roboto (SIL OFL 1.1,
+ * embedded in lib/fonts/robotoFont.js, license in lib/fonts/OFL.txt) is
+ * registered once per document.
+ *
+ * Embedding an OFL font into a generated document is explicitly permitted and
+ * does not put the PDF itself under the OFL (OFL 1.1 §5).
  */
 function registerCyrillicFont(doc) {
   doc.addFileToVFS('Roboto-Regular.ttf', ROBOTO_REGULAR_BASE64);

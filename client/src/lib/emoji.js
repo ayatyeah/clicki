@@ -1,12 +1,23 @@
 /**
- * Apple-style emoji rendering.
+ * Consistent emoji rendering.
  *
- * Native emoji glyphs vary by OS (Segoe on Windows, etc.). To give the site a
- * consistent Apple look, we swap emoji text for Apple emoji images served from
- * the `emoji-datasource-apple` package via jsDelivr — the same DOM-parse
- * technique twemoji uses. Misses fall back to the original glyph via onerror.
+ * Native emoji glyphs vary by OS (Segoe on Windows, etc.), so we swap emoji text
+ * for a fixed sprite set served from jsDelivr — the same DOM-parse technique
+ * twemoji uses. Misses fall back to the original glyph via onerror.
+ *
+ * The set is Twemoji, shipped through the `emoji-datasource-twitter` package.
+ * Graphics are CC-BY 4.0 (Twitter, Inc. and other contributors) — attribution
+ * lives in the site footer and in THIRD_PARTY_NOTICES.md at the repo root.
+ *
+ * This used to be `emoji-datasource-apple`. Those PNGs are glyphs lifted out of
+ * Apple Color Emoji: Apple's copyrighted artwork, licensed for use only on Apple
+ * hardware and not redistributable by third parties. The npm package's MIT
+ * license covers its code and metadata, not Apple's images. Do not switch back,
+ * and do not swap in `emoji-datasource-facebook` either (also proprietary).
+ * Freely-licensed alternatives with the identical path layout: `-twitter`
+ * (CC-BY 4.0, current) and `-google` (Noto Color Emoji, OFL 1.1).
  */
-const BASE = 'https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.1.2/img/apple/64/';
+const BASE = 'https://cdn.jsdelivr.net/npm/emoji-datasource-twitter@15.1.2/img/twitter/64/';
 
 // Keycaps, flags (regional-indicator pairs), and pictographic ZWJ sequences.
 const EMOJI_RE =
@@ -82,7 +93,7 @@ function inSkippedSubtree(el) {
 }
 
 /** Walk a subtree and convert emoji in its text nodes. */
-export function parseAppleEmoji(root = document.body) {
+export function parseEmoji(root = document.body) {
   if (!root) return;
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode(node) {
@@ -99,11 +110,11 @@ export function parseAppleEmoji(root = document.body) {
 
 let started = false;
 /** Initial pass + observe future DOM changes (assistant, route swaps, etc.). */
-export function initAppleEmoji() {
+export function initEmoji() {
   if (started || typeof window === 'undefined') return;
   started = true;
 
-  parseAppleEmoji(document.body);
+  parseEmoji(document.body);
 
   // Re-parse only the subtree that actually changed, not the whole page —
   // walking all of document.body on every mutation gets expensive once
@@ -126,7 +137,7 @@ export function initAppleEmoji() {
       scheduled = false;
       const targets = [...pending];
       pending.clear();
-      targets.forEach((t) => parseAppleEmoji(t));
+      targets.forEach((t) => parseEmoji(t));
     });
   });
   observer.observe(document.body, { childList: true, subtree: true, characterData: true });

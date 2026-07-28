@@ -189,7 +189,7 @@ export function buildCspDirectives({ isProd = false, mediaHosts = [] } = {}) {
     // React/framer-motion write inline `style` attributes; Google Fonts ships a stylesheet.
     styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
     fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
-    // jsdelivr serves the Apple emoji sprites that lib/appleEmoji.js swaps every
+    // jsdelivr serves the Twemoji sprites that lib/emoji.js swaps every
     // emoji on the public pages for. Leaving it out did not merely un-style them:
     // each blocked image restored its text node, the MutationObserver read that
     // as new content, and the page rebuilt the same blocked image ~60×/second,
