@@ -56,7 +56,12 @@ export default function Footer() {
           <button type="button" onClick={() => window.dispatchEvent(new Event('clicki:cookie-settings'))}>{t.cookie}</button>
         </nav>
       </div>
-      <div className="container site-footer__legal">
+      {/* ae-skip: строка содержит ©, а lib/emoji.js подменяет его через
+          replaceChild и выбрасывает текстовый узел, созданный React.
+          React остаётся со ссылкой на отсоединённый узел и при смене
+          языка обновляет его вхолостую — атрибуция застревала на языке
+          первого рендера. Юридическому © подмена на спрайт и не нужна. */}
+      <div className="container site-footer__legal ae-skip">
         © {year} CLICKI. {t.rights}{' '}
         {/* CC BY 4.0 requires visible attribution for the Twemoji sprites used by lib/emoji.js. */}
         <span className="site-footer__attrib">
