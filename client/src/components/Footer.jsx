@@ -56,11 +56,11 @@ export default function Footer() {
           <button type="button" onClick={() => window.dispatchEvent(new Event('clicki:cookie-settings'))}>{t.cookie}</button>
         </nav>
       </div>
-      {/* ae-skip: строка содержит ©, а lib/emoji.js подменяет его через
-          replaceChild и выбрасывает текстовый узел, созданный React.
-          React остаётся со ссылкой на отсоединённый узел и при смене
-          языка обновляет его вхолостую — атрибуция застревала на языке
-          первого рендера. Юридическому © подмена на спрайт и не нужна. */}
+      {/* ae-skip: this line contains ©, and lib/emoji.js swaps it via
+          replaceChild, discarding the text node React created. React kept a
+          reference to the now-detached node and, on a language change, updated
+          it in vain — the attribution stayed stuck on whichever language was
+          active at first render. The legal © doesn't need the sprite swap anyway. */}
       <div className="container site-footer__legal ae-skip">
         © {year} CLICKI. {t.rights}{' '}
         {/* CC BY 4.0 requires visible attribution for the Twemoji sprites used by lib/emoji.js. */}
