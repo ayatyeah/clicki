@@ -48,6 +48,12 @@ Thumbs.db
 desktop.ini
 
 # ---- Playwright MCP (browser screenshots / snapshots) ----
+# .playwright-mcp/ is where QA screenshots/snapshots/console-logs are meant to
+# land (see .claude/agents/ui-visual-qa.md). The three root-level globs below
+# are a safety net, not dead weight: as of 2026-07-28, a QA run still dropped
+# admin-creators.png straight into the repo root, and this /admin-*.png rule
+# is the only reason it didn't show up as untracked clutter. Don't remove
+# these without re-checking that nothing still writes screenshots to root.
 .playwright-mcp/
 /admin-*.png
 /creator-*.png
