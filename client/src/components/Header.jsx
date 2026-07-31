@@ -24,13 +24,15 @@ const L = {
         ['Требования', '#requirements'],
         ['Заявка', '#apply'],
       ],
+      // One "Документы" entry instead of separate Политика/Условия links: the
+      // /legal index lists all four documents (offer first) and keeps the nav
+      // from growing every time a document is added.
       hub: [
         ['Бизнесу', '/business'],
         ['Креаторам', '/creators'],
         ['О нас', '/about'],
         ['Контакты', '/contacts'],
-        ['Политика', '/privacy'],
-        ['Условия', '/terms'],
+        ['Документы', '/legal'],
       ],
     },
   },
@@ -58,8 +60,7 @@ const L = {
         ['For creators', '/creators'],
         ['About', '/about'],
         ['Contacts', '/contacts'],
-        ['Privacy', '/privacy'],
-        ['Terms', '/terms'],
+        ['Legal', '/legal'],
       ],
     },
   },

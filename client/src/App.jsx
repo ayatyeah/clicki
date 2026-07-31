@@ -1,4 +1,4 @@
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useEffect, lazy, Suspense } from 'react';
 import Hub from './pages/Hub.jsx';
 import Playground from './components/Playground.jsx';
@@ -17,6 +17,7 @@ const About = lazy(() => import('./pages/About.jsx'));
 const LoginChoice = lazy(() => import('./pages/LoginChoice.jsx'));
 const Privacy = lazy(() => import('./pages/Privacy.jsx'));
 const Terms = lazy(() => import('./pages/Terms.jsx'));
+const LegalIndex = lazy(() => import('./pages/legal/LegalIndex.jsx'));
 const LegalOffer = lazy(() => import('./pages/legal/Offer.jsx'));
 const LegalPersonalDataConsent = lazy(() => import('./pages/legal/PersonalDataConsent.jsx'));
 const ThankYou = lazy(() => import('./pages/ThankYou.jsx'));
@@ -88,7 +89,12 @@ export default function App() {
           <Route path="/login" element={<LoginChoice />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
+          <Route path="/legal" element={<LegalIndex />} />
           <Route path="/legal/offer" element={<LegalOffer />} />
+          {/* Short, quotable alias — the offer gets referenced in chats, docs and
+              support replies, and /offer is what people actually type. Must stay
+              above the "/:login" creator catch-all. */}
+          <Route path="/offer" element={<Navigate to="/legal/offer" replace />} />
           <Route path="/legal/personal-data-consent" element={<LegalPersonalDataConsent />} />
           <Route path="/thanks/:type" element={<ThankYou />} />
           <Route path="/app" element={<AppLauncher />} />

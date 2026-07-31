@@ -31,6 +31,21 @@
     <priority>0.5</priority>
   </url>
   <url>
+    <loc>https://clicki-platform.com/legal</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://clicki-platform.com/legal/offer</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://clicki-platform.com/legal/personal-data-consent</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
     <loc>https://clicki-platform.com/privacy</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>

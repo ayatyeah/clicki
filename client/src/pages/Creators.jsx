@@ -5,6 +5,7 @@ import Assistant from '../components/Assistant.jsx';
 import FloatingContacts from '../components/FloatingContacts.jsx';
 import FloatingBg from '../components/FloatingBg.jsx';
 import LeadForm from '../components/LeadForm.jsx';
+import { LegalNote } from '../components/LegalLinks.jsx';
 import {
   FunnelHero,
   LogoStrip,
@@ -256,6 +257,10 @@ export default function Creators() {
           }
         >
           <LeadForm funnel="creator" fields={t.fields} submitLabel={t.contact.cta} />
+          {/* Highest-intent spot on the creator funnel: the offer is the contract
+              this person is about to sign, so it is linked at the form, not only
+              from the footer. */}
+          <LegalNote role="creator" />
         </ContactSplit>
       </main>
       <Footer />

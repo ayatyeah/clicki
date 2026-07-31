@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import Seo from '../components/Seo.jsx';
 import Header from '../components/Header.jsx';
 import Footer from '../components/Footer.jsx';
@@ -21,6 +22,9 @@ const COPY = {
       ['Контакты', null],
     ],
     contact1: 'По вопросам, связанным с условиями использования, пишите на ',
+    offerPre: 'Отношения платформы с креаторами регулируются отдельным договором — ',
+    offerLink: 'публичной офертой',
+    offerPost: '. В части, касающейся креаторов, она имеет приоритет над настоящими условиями.',
   },
   en: {
     seoTitle: 'Terms of Service - CLICKI',
@@ -38,6 +42,9 @@ const COPY = {
       ['Contact', null],
     ],
     contact1: 'For questions about these terms, email ',
+    offerPre: 'The platform’s relationship with creators is governed by a separate contract — ',
+    offerLink: 'the public offer',
+    offerPost: '. Where creators are concerned, it prevails over these terms.',
   },
 };
 
@@ -52,6 +59,14 @@ export default function Terms() {
         <div className="container page__inner">
           <h1 className="page__title">{t.title}</h1>
           <p className="page__lead">{t.lead}</p>
+          {/* These terms are the site-level rules; the binding creator contract lives
+              at /legal/offer. Cross-linked so a reader who lands here first isn't
+              left thinking this page is the whole agreement. */}
+          <p className="page__lead">
+            {t.offerPre}
+            <Link to="/legal/offer">{t.offerLink}</Link>
+            {t.offerPost}
+          </p>
 
           {t.articles.map(([title, text], i) => (
             <section className="legal-article" key={title}>

@@ -1,29 +1,28 @@
 import { Link } from 'react-router-dom';
 import { PHONE, PHONE_TEL, TELEGRAM_URL, EMAIL, EMAIL_URL } from '../lib/config.js';
 import { useLang } from '../i18n.jsx';
+import LegalLinks from './LegalLinks.jsx';
 
 const L = {
   ru: {
     tagline: 'Performance-платформа органических просмотров. Астана, Казахстан.',
     contacts: 'Контакты',
-    privacy: 'Политика конфиденциальности',
-    terms: 'Условия использования',
     rights: 'Все права защищены.',
     portal: 'Кабинет креатора',
     about: 'О нас',
     cookie: 'Настройки cookie',
+    docs: 'Документы',
     emojiPre: 'Эмодзи — ',
     emojiPost: ', © Twitter, Inc. и участники проекта, лицензия CC BY 4.0.',
   },
   en: {
     tagline: 'Performance platform for organic views. Astana, Kazakhstan.',
     contacts: 'Contacts',
-    privacy: 'Privacy policy',
-    terms: 'Terms of Service',
     rights: 'All rights reserved.',
     portal: 'Creator portal',
     about: 'About',
     cookie: 'Cookie settings',
+    docs: 'Legal',
     emojiPre: 'Emoji artwork by ',
     emojiPost: ', © Twitter, Inc. and other contributors, licensed under CC BY 4.0.',
   },
@@ -51,10 +50,15 @@ export default function Footer() {
           <Link to="/about">{t.about}</Link>
           <Link to="/creator">{t.portal}</Link>
           <Link to="/contacts">{t.contacts}</Link>
-          <Link to="/privacy">{t.privacy}</Link>
-          <Link to="/terms">{t.terms}</Link>
           <button type="button" onClick={() => window.dispatchEvent(new Event('clicki:cookie-settings'))}>{t.cookie}</button>
         </nav>
+        {/* Own column, not a couple of links tacked onto the nav above: the public
+            offer is the contract a creator signs, and it has to be findable from
+            any page without going through the registration form. */}
+        <div className="site-footer__docs">
+          <div className="site-footer__docs-title">{t.docs}</div>
+          <LegalLinks />
+        </div>
       </div>
       {/* ae-skip: this line contains ©, and lib/emoji.js swaps it via
           replaceChild, discarding the text node React created. React kept a

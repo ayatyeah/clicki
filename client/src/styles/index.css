@@ -3429,6 +3429,100 @@ img.ae {
   text-decoration: underline;
 }
 
+/* ---------- Legal documents ---------- */
+.site-footer__docs {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+.site-footer__docs-title {
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.legal-links {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+.legal-links a {
+  line-height: 1.35;
+}
+
+/* Small print under a funnel lead form. Muted, but the links stay underlined —
+   a legal disclosure that reads as decoration isn't a disclosure. */
+.legal-note {
+  color: var(--fog);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  margin: 12px 0 0;
+}
+.legal-note a {
+  color: var(--stone);
+  text-decoration: underline;
+}
+.legal-note a:hover {
+  color: var(--ink);
+}
+
+.legal-docs {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr;
+  margin-top: 32px;
+  max-width: 900px;
+}
+.legal-doc-card {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  padding: 24px;
+  color: var(--stone);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.legal-doc-card:hover {
+  color: var(--stone);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-card);
+}
+.legal-doc-card__title {
+  font-family: var(--font);
+  font-size: 1.15rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.legal-doc-card__hint {
+  font-size: 0.95rem;
+}
+.legal-doc-card__foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+.legal-doc-card__meta {
+  color: var(--fog);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+.legal-doc-card__cta {
+  color: var(--cornflower);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+@media (min-width: 640px) {
+  .legal-docs {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 /* ============================================================
    Responsive
    ============================================================ */
@@ -3463,8 +3557,10 @@ img.ae {
   .showcase {
     column-count: 4;
   }
+  /* 4th column = legal documents. Ratios favour columns 1 and 4 because both
+     hold wrapping text (tagline, full document titles), not short nav labels. */
   .site-footer__inner {
-    grid-template-columns: 2fr 1fr 1fr;
+    grid-template-columns: 1.7fr 0.9fr 0.9fr 1.5fr;
   }
 }
 

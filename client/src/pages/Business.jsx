@@ -5,6 +5,7 @@ import Assistant from '../components/Assistant.jsx';
 import FloatingContacts from '../components/FloatingContacts.jsx';
 import FloatingBg from '../components/FloatingBg.jsx';
 import LeadForm from '../components/LeadForm.jsx';
+import { LegalNote } from '../components/LegalLinks.jsx';
 import {
   FunnelHero,
   LogoStrip,
@@ -269,6 +270,9 @@ export default function Business() {
           }
         >
           <LeadForm funnel="client" fields={t.fields} submitLabel={t.contact.cta} />
+          {/* Businesses accept only the PDn consent (REQUIRED_DOCS in
+              server/src/legalDocs.js), so role="business" — no creator offer here. */}
+          <LegalNote role="business" />
         </ContactSplit>
       </main>
       <Footer />
