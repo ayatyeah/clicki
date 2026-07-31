@@ -144,8 +144,10 @@ governs, translations would be non-authoritative).
 - **Public visibility**: the documents are also reachable outside the
   acceptance flow — `/legal` (`pages/legal/LegalIndex.jsx`) lists all four
   public documents (offer, PDn consent, privacy, terms) with their versions,
-  linked from the footer on every page and from a single "Документы"/"Legal"
-  header nav item (replacing the old separate Privacy/Terms links). `/offer`
+  linked from the footer on every page and from a single "Оферта"/"Offer"
+  header nav item (replacing the old separate Privacy/Terms links) — labeled
+  after the offer even though it links to all four docs, since that's the
+  one visitors are actually looking for. `/offer`
   redirects to `/legal/offer` as a short alias. The link list itself is
   centralized in `client/src/components/LegalLinks.jsx`
   (`legalDocLinks(lang)`, `<LegalLinks />` for the footer, `<LegalNote
