@@ -784,6 +784,10 @@ function BroadcastView({ authFetch }) {
   const [body, setBody] = useState('');
   const [confirming, setConfirming] = useState(false);
   const [sending, setSending] = useState(false);
+  // History filter: everything / broadcasts only / private messages only.
+  // Private messages (sent from Креаторы → «Написать») land in this same list
+  // with creatorId set — the filter lets the admin quickly check who got what.
+  const [typeFilter, setTypeFilter] = useState('all');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -825,12 +829,21 @@ function BroadcastView({ authFetch }) {
     setItems((prev) => prev.filter((a) => a.id !== id));
   };
 
+  // creatorId set = private message to that one creator, null = broadcast to all.
+  const filteredItems = items.filter((a) => {
+    if (typeFilter === 'broadcast') return !a.creatorId;
+    if (typeFilter === 'private') return !!a.creatorId;
+    return true;
+  });
+
   return (
     <section className="admin-block">
       <h2 className="admin-block__title">Рассылка креаторам</h2>
       <p className="muted-note">
         Сообщение появится в колокольчике у <b>всех</b> креаторов сразу после отправки. Внешние
         уведомления (Telegram / e-mail) при этом не рассылаются — только внутри кабинета.
+        Личные сообщения (кнопка «Написать» в разделе Креаторы) тоже попадают в историю ниже —
+        с пометкой, кому именно отправлено.
       </p>
 
       <div className="broadcast-compose">
@@ -872,16 +885,39 @@ function BroadcastView({ authFetch }) {
       </div>
 
       <div className="admin-panel__head" style={{ marginTop: 26 }}>
-        <h3 className="admin-block__title">Отправленные ({items.length})</h3>
-        <button className="btn btn--ghost btn--sm" onClick={load} disabled={loading}>
-          {loading ? 'Обновляю…' : 'Обновить'}
-        </button>
+        <h3 className="admin-block__title">Отправленные ({filteredItems.length}{typeFilter !== 'all' ? ` из ${items.length}` : ''})</h3>
+        <div className="broadcast-history-tools">
+          <select
+            aria-label="Фильтр истории по типу"
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+          >
+            <option value="all">Все</option>
+            <option value="broadcast">📢 Всем креаторам</option>
+            <option value="private">✉️ Личные</option>
+          </select>
+          <button className="btn btn--ghost btn--sm" onClick={load} disabled={loading}>
+            {loading ? 'Обновляю…' : 'Обновить'}
+          </button>
+        </div>
       </div>
-      {items.length ? (
+      {filteredItems.length ? (
         <ul className="broadcast-list">
-          {items.map((a) => (
+          {filteredItems.map((a) => (
             <li key={a.id} className="broadcast-item">
               <div className="broadcast-item__main">
+                <div className="broadcast-item__head">
+                  {a.creatorId ? (
+                    // Private message: show exactly who received it. If the creator
+                    // was deleted since (ON DELETE CASCADE removes the row, but be
+                    // defensive), fall back to the id.
+                    <span className="broadcast-item__badge broadcast-item__badge--private">
+                      ✉️ Лично → {a.creatorName || `креатор #${a.creatorId}`}
+                    </span>
+                  ) : (
+                    <span className="broadcast-item__badge">📢 Всем креаторам</span>
+                  )}
+                </div>
                 <div className="broadcast-item__title">{a.title}</div>
                 {a.body && <div className="broadcast-item__body">{a.body}</div>}
                 <div className="broadcast-item__time">{new Date(a.createdAt).toLocaleString('ru-RU')}</div>
@@ -891,7 +927,11 @@ function BroadcastView({ authFetch }) {
           ))}
         </ul>
       ) : (
-        !loading && <div className="admin-placeholder">Пока ничего не отправляли</div>
+        !loading && (
+          <div className="admin-placeholder">
+            {items.length ? 'По этому фильтру ничего нет' : 'Пока ничего не отправляли'}
+          </div>
+        )
       )}
     </section>
   );

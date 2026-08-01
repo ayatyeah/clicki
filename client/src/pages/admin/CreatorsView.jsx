@@ -115,7 +115,7 @@ function MessageCreator({ creator, authFetch }) {
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { toast.error((d.errors && d.errors[0]) || 'Не удалось отправить'); return; }
-      toast.success(`Отправлено: ${creator.name}`);
+      toast.success(`Отправлено: ${creator.name} — история во вкладке «Рассылка»`);
       setTitle(''); setBody(''); setOpen(false);
     } finally {
       setBusy(false);
@@ -227,7 +227,8 @@ export function CreatorsView({ authFetch }) {
     if (accessFilter === 'none' && c.username) return false;
     if (!matchesRegion(c.country, regionFilter)) return false;
     if (countryFilter !== 'all' && (c.country || '').trim() !== countryFilter) return false;
-    if (q && !`${c.name || ''} ${c.username || ''} ${c.contact || ''} ${c.telegram || ''} ${c.country || ''}`.toLowerCase().includes(q)) return false;
+    // ugc_code included twice ("ugc XXXX" + raw) so both "7f3k" and "ugc 7f3k" match.
+    if (q && !`${c.name || ''} ${c.username || ''} ${c.contact || ''} ${c.telegram || ''} ${c.country || ''} ${c.ugc_code ? `ugc ${c.ugc_code}` : ''}`.toLowerCase().includes(q)) return false;
     return true;
   });
   const filtersActive = query || statusFilter !== 'all' || ttFilter !== 'all' || accessFilter !== 'all' || regionFilter !== 'all' || countryFilter !== 'all';
@@ -308,7 +309,7 @@ export function CreatorsView({ authFetch }) {
       <div className="cr-filters">
         <input
           className="cr-filters__search"
-          placeholder="Поиск: имя, логин, контакт…"
+          placeholder="Поиск: имя, логин, контакт, UGC ID…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
