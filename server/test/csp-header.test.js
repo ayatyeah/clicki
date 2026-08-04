@@ -43,6 +43,10 @@ test('helmet accepts the directives and emits an enforcing CSP header', async ()
   assert.match(csp, /frame-ancestors 'self'/);
   assert.match(csp, /upgrade-insecure-requests/);
   assert.match(csp, /script-src [^;]*https:\/\/www\.googletagmanager\.com/);
+  // Google Sign-In (/google-test): the GIS script and its button iframe. If a
+  // CSP edit drops these, the Google button silently stops rendering.
+  assert.match(csp, /script-src [^;]*https:\/\/accounts\.google\.com/);
+  assert.match(csp, /frame-src [^;]*https:\/\/accounts\.google\.com/);
 
   // The property the whole XSS fix rests on.
   const scriptSrc = csp.split(';').find((d) => d.trim().startsWith('script-src'));

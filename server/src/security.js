@@ -185,9 +185,12 @@ export function buildCspDirectives({ isProd = false, mediaHosts = [] } = {}) {
       'https://mc.yandex.ru',
       'https://www.google.com',
       'https://www.gstatic.com',
+      // Google Identity Services — the "Sign in with Google" button (/google-test).
+      'https://accounts.google.com',
     ],
-    // React/framer-motion write inline `style` attributes; Google Fonts ships a stylesheet.
-    styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+    // React/framer-motion write inline `style` attributes; Google Fonts ships a
+    // stylesheet; GIS (accounts.google.com) injects one for its button.
+    styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://accounts.google.com'],
     fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
     // jsdelivr serves the Twemoji sprites that lib/emoji.js swaps every
     // emoji on the public pages for. Leaving it out did not merely un-style them:
@@ -198,6 +201,8 @@ export function buildCspDirectives({ isProd = false, mediaHosts = [] } = {}) {
       "'self'", 'data:', 'blob:',
       'https://cdn.jsdelivr.net',
       'https://images.unsplash.com', 'https://mc.yandex.ru', 'https://www.facebook.com',
+      // Google account avatars shown after a Google sign-in (/google-test).
+      'https://*.googleusercontent.com',
       ...hosts,
     ],
     mediaSrc: ["'self'", 'blob:', ...hosts],
@@ -207,8 +212,11 @@ export function buildCspDirectives({ isProd = false, mediaHosts = [] } = {}) {
       'https://region1.google-analytics.com',
       'https://connect.facebook.net',
       'https://mc.yandex.ru',
+      // GIS status/telemetry XHR from the Sign in with Google button.
+      'https://accounts.google.com',
     ],
-    frameSrc: ["'self'", 'https://www.google.com'], // reCAPTCHA challenge iframe
+    // reCAPTCHA challenge iframe + the GIS button/account-chooser iframe.
+    frameSrc: ["'self'", 'https://www.google.com', 'https://accounts.google.com'],
     objectSrc: ["'none'"],
     baseUri: ["'self'"],
     formAction: ["'self'"],

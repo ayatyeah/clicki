@@ -25,7 +25,9 @@ const ACTIVE_HOLDER_SQL = `(
   OR EXISTS (SELECT 1 FROM submissions s WHERE s.brief_id = a.brief_id AND s.creator_id = a.creator_id)
 )`;
 
-const pool = new Pool({
+// Exported for self-contained feature modules (googleAuth.js): they reuse this
+// pool instead of opening a second connection set to the managed Postgres.
+export const pool = new Pool({
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   host: process.env.DB_HOST,

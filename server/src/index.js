@@ -159,6 +159,7 @@ import {
   softDeleteBusiness,
 } from './db.js';
 import { currentLegalVersion } from './legalDocs.js';
+import { createGoogleAuthRouter } from './googleAuth.js';
 import { geminiGenerate, geminiEnabled } from './gemini.js';
 import { uploadToSpaces, spacesEnabled, spacesMediaHosts } from './storage.js';
 import { safeHttpUrl, fetchPageText, buildCspDirectives } from './security.js';
@@ -1291,6 +1292,12 @@ app.get('/api/auth/instagram/callback', async (req, res) => {
     res.redirect(`${back}?instagram=error`);
   }
 });
+
+// Google Sign-In — TEST loop (/api/auth/google/*): config, credential exchange,
+// session check, admin list. All logic lives in googleAuth.js; only the mount is
+// here. Isolated from creators/business on purpose — own table, own tokens —
+// so the flow can be proven on production without touching live accounts.
+app.use('/api/auth/google', createGoogleAuthRouter({ requireAdmin, loginLimiter }));
 
 // Onboarding test passed → unlock briefs (ТЗ §3 step 2)
 app.post(

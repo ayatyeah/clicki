@@ -1,0 +1,182 @@
+/* /google-test — служебная тест-консоль Google-входа.
+   Отдельный файл: попадает только в lazy-чанк этой страницы, общие стили сайта
+   не трогает. Все классы под префиксом gtest-, цвета — из токенов index.css. */
+
+.gtest {
+  min-height: 100vh;
+  padding: 48px 20px 80px;
+  font-family: var(--font);
+}
+.gtest__inner {
+  max-width: 720px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+.gtest__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+.gtest__eyebrow {
+  margin: 0 0 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fog);
+}
+.gtest__title {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: clamp(24px, 4vw, 34px);
+  color: var(--ink);
+}
+.gtest__lead {
+  margin: 0;
+  max-width: 52ch;
+  color: var(--stone);
+  font-size: 14px;
+}
+.gtest__home {
+  flex-shrink: 0;
+  color: var(--cornflower);
+  text-decoration: none;
+  font-size: 14px;
+}
+.gtest__home:hover { text-decoration: underline; }
+
+.gtest-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  padding: 20px 22px;
+  box-shadow: var(--shadow-soft);
+}
+.gtest-card__title {
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.gtest-muted { color: var(--fog); font-size: 14px; margin: 0; }
+
+.gtest-check {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 4px 0;
+  font-size: 14px;
+  color: var(--stone);
+}
+.gtest-check__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transform: translateY(1px);
+}
+.gtest-check__dot.is-ok { background: var(--green); }
+.gtest-check__dot.is-bad { background: #ef4444; }
+.gtest-check__label { color: var(--ink); }
+.gtest-check__detail { color: var(--fog); font-family: var(--font-mono); font-size: 12px; }
+
+.gtest-consent {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 13px;
+  color: var(--stone);
+  margin-bottom: 16px;
+  cursor: pointer;
+}
+.gtest-consent input { margin-top: 2px; accent-color: var(--signal); }
+
+.gtest-btn-wrap { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+/* Фикс. высота — кнопку рисует iframe Google, без резерва места страница дёргается. */
+.gtest-gbtn { min-height: 44px; }
+
+.gtest-setup { font-size: 14px; color: var(--stone); }
+.gtest-setup ol { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 6px; }
+.gtest-setup code, .gtest__lead code, .gtest-foot code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--veil);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 1px 6px;
+  color: var(--ink);
+}
+
+.gtest-user { display: flex; gap: 14px; align-items: center; }
+.gtest-user__avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  object-fit: cover;
+}
+.gtest-user__avatar--empty {
+  display: grid;
+  place-items: center;
+  color: var(--fog);
+  background: var(--veil);
+  font-size: 20px;
+}
+.gtest-user__meta { display: grid; gap: 4px; min-width: 0; }
+.gtest-user__name { margin: 0; color: var(--ink); font-weight: 600; }
+.gtest-user__email { margin: 0; color: var(--stone); font-size: 14px; overflow-wrap: anywhere; }
+.gtest-user__facts { margin: 2px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
+
+.gtest-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line);
+  background: var(--veil);
+  color: var(--stone);
+  margin-left: 0;
+}
+.gtest-user__email .gtest-badge { margin-left: 8px; }
+.gtest-badge--green { color: #4ade80; border-color: rgba(34, 197, 94, 0.35); background: var(--sprout); }
+
+.gtest-actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+.gtest-btn {
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--white);
+  background: var(--signal);
+  border: 1px solid transparent;
+  border-radius: var(--r-pill);
+  padding: 9px 18px;
+  cursor: pointer;
+}
+.gtest-btn:hover { background: var(--cobalt); }
+.gtest-btn:disabled { opacity: 0.55; cursor: default; }
+.gtest-btn--ghost { background: transparent; color: var(--stone); border-color: var(--line); }
+.gtest-btn--ghost:hover { background: var(--veil); }
+
+.gtest-log { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.gtest-log__row {
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--stone);
+  align-items: baseline;
+}
+.gtest-log__time { font-family: var(--font-mono); font-size: 11px; color: var(--fog); flex-shrink: 0; }
+.gtest-log__row.is-ok { color: #4ade80; }
+.gtest-log__row.is-err { color: #f87171; }
+.gtest-log__row.is-warn { color: #facc15; }
+
+.gtest-foot { margin: 4px 2px 0; font-size: 12px; color: var(--fog); }
+
+@media (max-width: 560px) {
+  .gtest__head { flex-direction: column; }
+  .gtest-user { align-items: flex-start; }
+}

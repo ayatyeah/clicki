@@ -129,3 +129,9 @@ services:
       - key: TIKTOK_REDIRECT_URI
         scope: RUN_TIME
         value: https://clicki-platform.com/api/auth/tiktok/callback
+      # Google Sign-In (test page /google-test). OAuth 2.0 Web client ID from
+      # Google Cloud Console; the client SECRET is not used by this flow.
+      # Empty = the feature is disabled. Set the real value in the DO dashboard.
+      - key: GOOGLE_CLIENT_ID
+        scope: RUN_TIME
+        value: ""
