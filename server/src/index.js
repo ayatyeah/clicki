@@ -34,7 +34,10 @@ import {
   fetchInstagramUser,
   fetchInstagramMediaViews,
   parseInstagramShortcode,
+  fetchInstagramMediaComments,
+  resolveInstagramMediaByShortcode,
 } from './instagram.js';
+import { createMetaComplianceHandlers } from './metaCompliance.js';
 import {
   initDb,
   saveMedia,
@@ -104,6 +107,8 @@ import {
   saveInstagramTokens,
   clearInstagramConnection,
   listCreatorsWithInstagram,
+  clearInstagramByIgUserId,
+  deleteInstagramDataByIgUserId,
   getCreatorWallet,
   getEarningsForecast,
   listPayouts,
@@ -1210,6 +1215,38 @@ app.post(
   })
 );
 
+// Комментарии под видео заявки — подтягиваются через подключённый Instagram
+// креатора (instagram_business_manage_comments). Видео обязано принадлежать
+// именно этому аккаунту: резолвим shortcode из ссылки заявки по /me/media,
+// чужая ссылка = 404. Не персистим — комменты живые, дешевле читать по запросу.
+app.get('/api/creator/submissions/:id/instagram-comments', requireCreator, wrap(async (req, res) => {
+  const subId = Number(req.params.id);
+  const sub = await getSubmission(subId);
+  if (!sub || sub.creator_id !== req.creator.id) return res.status(404).json({ ok: false, errors: ['Заявка не найдена'] });
+  if (!/instagram|reels/i.test(sub.platform)) {
+    return res.status(400).json({ ok: false, errors: ['Заявка не относится к Instagram'] });
+  }
+  const creator = await getCreator(req.creator.id);
+  if (!creator?.ig_access_token) {
+    return res.status(409).json({ ok: false, errors: ['Instagram не подключён'] });
+  }
+  const shortcode = parseInstagramShortcode(sub.video_url);
+  if (!shortcode) return res.status(400).json({ ok: false, errors: ['Некорректная ссылка на видео'] });
+  try {
+    const media = await resolveInstagramMediaByShortcode(creator.ig_access_token, shortcode);
+    if (!media) return res.status(404).json({ ok: false, errors: ['Видео не найдено в подключённом аккаунте'] });
+    const data = await fetchInstagramMediaComments(creator.ig_access_token, media.id, { maxComments: 100 });
+    ok(res, { media_id: media.id, ...data });
+  } catch (err) {
+    console.error('[ig-comments]', err.message);
+    // Код 10 / OAuth-ошибки = токен выдан до добавления скоупа комментариев.
+    if (err.code === 10 || /permission|oauth/i.test(err.message)) {
+      return res.status(403).json({ ok: false, errors: ['Нет доступа к комментариям — переподключите Instagram'] });
+    }
+    res.status(502).json({ ok: false, errors: ['Instagram временно недоступен'] });
+  }
+}));
+
 // A creator checks their own leads/clients brought in via their referral link.
 app.get('/api/creator/referrals', requireCreator, wrap(async (req, res) => ok(res, { referrals: await getReferralLeadsForCreator(req.creator.id) })));
 
@@ -1292,6 +1329,19 @@ app.get('/api/auth/instagram/callback', async (req, res) => {
     res.redirect(`${back}?instagram=error`);
   }
 });
+
+// Обязательные колбэки Meta App Dashboard (Deauthorize / Data Deletion).
+// Приходят как application/x-www-form-urlencoded с полем signed_request,
+// подписанным секретом приложения. Публичные, подпись = аутентификация.
+const metaCompliance = createMetaComplianceHandlers({
+  clearByIgUserId: clearInstagramByIgUserId,
+  deleteDataByIgUserId: deleteInstagramDataByIgUserId,
+  statusUrlFor: (code) =>
+    `${process.env.PUBLIC_BASE_URL || 'https://clicki-platform.com'}/api/auth/instagram/data-deletion-status?code=${code}`,
+});
+app.post('/api/auth/instagram/deauthorize', express.urlencoded({ extended: false }), metaCompliance.deauthorize);
+app.post('/api/auth/instagram/data-deletion', express.urlencoded({ extended: false }), metaCompliance.dataDeletion);
+app.get('/api/auth/instagram/data-deletion-status', metaCompliance.deletionStatus);
 
 // Google Sign-In — TEST loop (/api/auth/google/*): config, credential exchange,
 // session check, admin list. All logic lives in googleAuth.js; only the mount is

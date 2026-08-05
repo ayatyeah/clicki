@@ -1238,6 +1238,26 @@ export async function listCreatorsWithInstagram() {
   return r.rows;
 }
 
+/** Deauthorize callback: креатор отключил приложение в настройках Instagram. */
+export async function clearInstagramByIgUserId(igUserId) {
+  await pool.query(
+    `UPDATE creators SET ig_user_id=NULL, ig_username=NULL, ig_access_token=NULL, ig_token_expires_at=NULL
+      WHERE ig_user_id=$1`,
+    [String(igUserId)]
+  );
+}
+
+/** Data-deletion callback: стереть всё, что получено через Instagram API. */
+export async function deleteInstagramDataByIgUserId(igUserId) {
+  // Сейчас всё IG-производное живёт в колонках creators; если появятся
+  // отдельные таблицы (снапшоты метрик, кэш комментов) — чистить и их здесь же.
+  await pool.query(
+    `UPDATE creators SET ig_user_id=NULL, ig_username=NULL, ig_access_token=NULL, ig_token_expires_at=NULL
+      WHERE ig_user_id=$1`,
+    [String(igUserId)]
+  );
+}
+
 /* ---------------- Platform: briefs (ТЗ §9) ---------------- */
 export async function listBriefs() {
   const r = await pool.query('SELECT * FROM briefs ORDER BY id DESC');

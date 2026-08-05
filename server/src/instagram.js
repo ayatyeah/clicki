@@ -4,7 +4,8 @@
 //
 // Requires a Meta app with "Instagram API (Instagram login)" configured, plus
 // App Review + Business Verification for `instagram_business_manage_insights`
-// before it works for creators who aren't roled on the app.
+// and `instagram_business_manage_comments` before it works for creators who
+// aren't roled on the app.
 // Docs: developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login
 
 const APP_ID = process.env.IG_APP_ID;
@@ -13,8 +14,11 @@ const REDIRECT_URI = process.env.IG_REDIRECT_URI;
 
 export const instagramEnabled = !!(APP_ID && APP_SECRET && REDIRECT_URI);
 
-// Only what we need: profile basics + read insights (views/reach per media).
-const SCOPES = 'instagram_business_basic,instagram_business_manage_insights';
+// Only what we need: profile basics + read insights (views/reach per media)
+// + read comments (shown to the creator/business in the submission stats).
+// Must stay in sync with the permissions added in the Meta App Dashboard.
+const SCOPES =
+  'instagram_business_basic,instagram_business_manage_insights,instagram_business_manage_comments';
 
 /** URL to send a creator to so they can authorize us. `state` is a CSRF token. */
 export function instagramAuthorizeUrl(state) {
@@ -128,4 +132,90 @@ async function fetchMediaViews(mediaId, accessToken) {
 export function parseInstagramShortcode(url) {
   const m = String(url || '').match(/(?:reel|reels|p|tv)\/([A-Za-z0-9_-]+)/);
   return m ? m[1] : null;
+}
+
+// ---------------------------------------------------------------------------
+// Comments (instagram_business_manage_comments)
+// ---------------------------------------------------------------------------
+
+/**
+ * Find a media object owned by the connected account by the shortcode from its
+ * permalink. Walks /me/media (paginated, capped at ~200 items). Returns the
+ * media node or null when the video doesn't belong to this account — which
+ * doubles as an anti-fraud check for submitted links.
+ */
+export async function resolveInstagramMediaByShortcode(accessToken, shortcode) {
+  if (!shortcode) return null;
+  let url = new URL('https://graph.instagram.com/me/media');
+  url.searchParams.set('fields', 'id,permalink,media_type,media_product_type,timestamp');
+  url.searchParams.set('access_token', accessToken);
+  url.searchParams.set('limit', '50');
+
+  for (let page = 0; page < 4 && url; page += 1) {
+    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(`Instagram media error: ${res.status}`);
+    const hit = (data.data || []).find((m) => parseInstagramShortcode(m.permalink) === shortcode);
+    if (hit) return hit;
+    url = data.paging?.next ? new URL(data.paging.next) : null;
+  }
+  return null;
+}
+
+/**
+ * Comments on a media object, newest first. Returns
+ * { total, comments: [{ id, text, username, like_count, timestamp, replies: [...] }] }.
+ * `total` comes from comments_count on the media node (includes replies), so it
+ * can be larger than comments.length when maxComments caps the list.
+ */
+export async function fetchInstagramMediaComments(accessToken, mediaId, { maxComments = 100 } = {}) {
+  // comments_count for the headline number (cheap, one call)
+  const metaUrl = new URL(`https://graph.instagram.com/${mediaId}`);
+  metaUrl.searchParams.set('fields', 'comments_count');
+  metaUrl.searchParams.set('access_token', accessToken);
+  const metaRes = await fetch(metaUrl, { signal: AbortSignal.timeout(10000) });
+  const meta = await metaRes.json().catch(() => ({}));
+  const total = metaRes.ok ? meta.comments_count ?? null : null;
+
+  const comments = [];
+  let url = new URL(`https://graph.instagram.com/${mediaId}/comments`);
+  url.searchParams.set(
+    'fields',
+    'id,text,username,like_count,timestamp,replies{id,text,username,like_count,timestamp}'
+  );
+  url.searchParams.set('access_token', accessToken);
+  url.searchParams.set('limit', '50');
+
+  while (url && comments.length < maxComments) {
+    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      // Token lacks the comments scope (creator connected before the scope was
+      // added) or the media type doesn't expose comments. Return what we have —
+      // the caller decides whether to surface a "reconnect Instagram" hint.
+      const msg = data.error?.message || `status ${res.status}`;
+      const err = new Error(`Instagram comments error: ${msg}`);
+      err.code = data.error?.code;
+      throw err;
+    }
+    for (const c of data.data || []) {
+      comments.push({
+        id: c.id,
+        text: c.text ?? '',
+        username: c.username ?? null,
+        like_count: c.like_count ?? 0,
+        timestamp: c.timestamp ?? null,
+        replies: (c.replies?.data || []).map((r) => ({
+          id: r.id,
+          text: r.text ?? '',
+          username: r.username ?? null,
+          like_count: r.like_count ?? 0,
+          timestamp: r.timestamp ?? null,
+        })),
+      });
+      if (comments.length >= maxComments) break;
+    }
+    url = data.paging?.next && comments.length < maxComments ? new URL(data.paging.next) : null;
+  }
+  return { total, comments };
 }
