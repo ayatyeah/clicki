@@ -103,18 +103,71 @@ export function TikTokConnect({ c, authFetch, reload, compact = false }) {
   );
 }
 
-/** Instagram — not live yet. Per request, clicking just surfaces "в разработке"
- *  (no OAuth is attempted). Swap for a real <InstagramConnect> once IG keys land. */
-export function InstagramSoon() {
-  const [clicked, setClicked] = useState(false);
+export function InstagramConnect({ c, authFetch, reload, compact = false }) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const connect = async () => {
+    setBusy(true);
+    try {
+      const r = await (await authFetch('/api/creator/instagram/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ redirect: window.location.pathname }),
+      })).json();
+      if (r.ok && r.url) window.location.href = r.url;
+      else setMsg((r.errors && r.errors[0]) || 'Не удалось начать подключение');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const disconnect = async () => {
+    setBusy(true);
+    try {
+      await authFetch('/api/creator/instagram/disconnect', { method: 'POST' });
+      reload?.();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const connected = !!c?.instagram_connected;
+
+  if (compact) {
+    return (
+      <div className="cp-connect-inline">
+        {connected ? (
+          <span className="cp-connect-inline__ok">
+            <InstagramLogo size={16} /> Instagram подключён{c.ig_username ? ` · @${c.ig_username}` : ''} — просмотры подтянутся сами
+          </span>
+        ) : (
+          <>
+            <button type="button" className="btn btn--sm cp-connect-btn" onClick={connect} disabled={busy}>
+              <InstagramLogo size={16} /> {busy ? '…' : 'Подключить Instagram'}
+            </button>
+            <span className="cp-connect-inline__hint">чтобы просмотры считались автоматически, без скриншотов</span>
+          </>
+        )}
+        {msg && <span className="creator-portal__muted">{msg}</span>}
+      </div>
+    );
+  }
+
   return (
     <div className="cp-social__row">
       <span className="cp-social__brand cp-social__brand--ig"><InstagramLogo /> Instagram</span>
       <div className="cp-social__ctl">
-        <button type="button" className="btn btn--ghost btn--sm" onClick={() => setClicked(true)}>Подключить</button>
-        <span className={`cp-social__status cp-social__status--soon ${clicked ? 'is-shown' : ''}`}>
-          {clicked ? '🛠 В разработке — скоро включим' : 'в разработке'}
-        </span>
+        {connected ? (
+          <>
+            <span className="cp-social__status is-on">Подключён{c.ig_username ? ` · @${c.ig_username}` : ''}</span>
+            <button type="button" className="btn btn--ghost btn--sm" onClick={disconnect} disabled={busy}>Отключить</button>
+          </>
+        ) : (
+          <button type="button" className="btn btn--sm cp-connect-btn" onClick={connect} disabled={busy}>
+            <InstagramLogo size={16} /> {busy ? '…' : 'Подключить'}
+          </button>
+        )}
+        {msg && <span className="creator-portal__muted">{msg}</span>}
       </div>
     </div>
   );

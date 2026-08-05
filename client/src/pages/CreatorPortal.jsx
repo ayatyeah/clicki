@@ -6,7 +6,7 @@ import { createApiClient } from '../lib/apiClient.js';
 import { safeHref } from '../lib/safeHref.js';
 import StatScreenshots, { guideFor } from '../components/StatScreenshots.jsx';
 import Icon from '../components/Icon.jsx';
-import { TikTokConnect, InstagramSoon } from '../components/SocialConnect.jsx';
+import { TikTokConnect, InstagramConnect } from '../components/SocialConnect.jsx';
 import AvatarCropper from '../components/AvatarCropper.jsx';
 import CopyButton from '../components/CopyButton.jsx';
 import EmptyState from '../components/EmptyState.jsx';
@@ -579,8 +579,10 @@ function NotificationBell({ authFetch }) {
  * creator whose token lapsed still reads as "connected" — excusing them here
  * would leave the video with no screenshots and no sync at all.
  *
- * Instagram stays on screenshots regardless: its connect button is still "в
- * разработке", so nothing is arriving from there.
+ * Instagram now has a real connect flow too (mirrors TikTok's OAuth) and the
+ * backend auto-syncs its views on the same 3h cron, but there's no
+ * ig_syncing-style signal yet to tell a healthy connection from a lapsed one
+ * the way tiktok_syncing does — so it stays on screenshots here for now.
  */
 function statsAreAutomatic(submission, creator) {
   return submission.platform === 'TikTok' && !!creator?.tiktok_syncing;
@@ -992,7 +994,7 @@ function AccountView({ c, authFetch, reload, onLogout }) {
         <h3 className="cp-card__title">{t('Подключение соцсетей')}</h3>
         <p className="creator-portal__muted cp-section-sub">{t('Подключи аккаунт — просмотры видео будут подтягиваться сами, без скриншотов.')}</p>
         <TikTokConnect c={c} authFetch={authFetch} reload={reload} />
-        <InstagramSoon />
+        <InstagramConnect c={c} authFetch={authFetch} reload={reload} />
       </div>
 
       <InstallApp />
@@ -1745,6 +1747,8 @@ function SubmitForm({ c, authFetch, briefs, reload, initialBriefId = '' }) {
       </div>
       {/* Only when TikTok is the chosen platform — connect once so views auto-sync. */}
       {f.platform === 'TikTok' && <TikTokConnect c={c} authFetch={authFetch} reload={reload} compact />}
+      {/* Platform list says "Instagram Reels", so match loosely rather than exact-equal like TikTok above. */}
+      {/Instagram/i.test(f.platform) && <InstagramConnect c={c} authFetch={authFetch} reload={reload} compact />}
       <div className="cp-field">
         <span className="cp-field__icon"><FieldIcon name="link" /></span>
         <input placeholder={t('Ссылка на опубликованное видео')} value={f.video_url} onChange={(e) => set('video_url', e.target.value)} />
