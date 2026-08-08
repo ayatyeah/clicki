@@ -2173,7 +2173,9 @@ app.post('/api/admin/businesses/:id/delete', requireAdmin, wrap(async (req, res)
 
 app.get('/api/admin/briefs', requireAdmin, wrap(async (_req, res) => ok(res, { briefs: await listBriefsForAdmin() })));
 app.post('/api/admin/briefs', requireAdmin, wrap(async (req, res) => ok(res, { brief: await createBrief(req.body || {}) })));
-app.post('/api/admin/briefs/:id/status', requireAdmin, wrap(async (req, res) => ok(res, { brief: await setBriefStatus(Number(req.params.id), req.body?.status) })));
+app.post('/api/admin/briefs/:id/status', requireAdmin, wrap(async (req, res) => ok(res, {
+  brief: await setBriefStatus(Number(req.params.id), req.body?.status, req.body?.slots),
+})));
 // Stop a brief once the client's target views are reached: close it (no more
 // takes or submissions) and drop a note into each taker's bell. Their already-
 // submitted videos and analytics are kept.

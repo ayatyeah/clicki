@@ -1363,7 +1363,17 @@ export async function createBrief(b) {
   );
   return r.rows[0];
 }
-export async function setBriefStatus(id, status) {
+/** `slots` is optional — pass it (e.g. publishing "with a limit") to cap how many
+ *  creators can take the brief in the same move that opens it; omit it to leave
+ *  the existing slots value untouched (plain status change). */
+export async function setBriefStatus(id, status, slots) {
+  if (slots != null) {
+    const r = await pool.query(
+      'UPDATE briefs SET status = $1, slots = $2 WHERE id = $3 RETURNING *',
+      [status, Math.max(0, Number(slots) || 0), id]
+    );
+    return r.rows[0] || null;
+  }
   const r = await pool.query('UPDATE briefs SET status = $1 WHERE id = $2 RETURNING *', [status, id]);
   return r.rows[0] || null;
 }

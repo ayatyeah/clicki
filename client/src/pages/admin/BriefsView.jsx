@@ -264,6 +264,8 @@ function BriefModCard({ b, authFetch, creators, onChange, canManage }) {
   const [showAssign, setShowAssign] = useState(false);
   const [showTakers, setShowTakers] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [showLimit, setShowLimit] = useState(false);
+  const [limitValue, setLimitValue] = useState('');
   const call = async (url, body) => {
     setBusy(true);
     try {
@@ -313,12 +315,28 @@ function BriefModCard({ b, authFetch, creators, onChange, canManage }) {
   const publishToAll = async () => {
     const okToPublish = await confirm({
       title: 'Опубликовать всем креаторам?',
-      message: `Бриф станет открытым заказом для ВСЕХ креаторов${totalCreators ? ` — это ${totalCreators} чел.` : ''}, и любой сможет взять его в работу. Если он нужен только выбранным — не публикуйте, а нажмите «Назначить креаторам».`,
+      message: `Бриф станет открытым заказом для ВСЕХ креаторов${totalCreators ? ` — это ${totalCreators} чел.` : ''}, без лимита — брать его сможет любое количество создателей. Если нужно ограничить число исполнителей, используйте «Опубликовать с лимитом». Если он нужен только выбранным — не публикуйте, а нажмите «Назначить креаторам».`,
       confirmText: 'Опубликовать всем',
       danger: true,
     });
     if (!okToPublish) return;
     call(`/api/admin/briefs/${b.id}/status`, { status: 'active' });
+  };
+
+  // Same as "опубликовать всем", but with a taker cap: the brief closes itself
+  // once that many creators have taken it (takeBrief() in db.js already enforces
+  // this — this just lets the operator set the number at publish time instead of
+  // only at brief creation).
+  const publishWithLimit = async (slots) => {
+    const n = Math.max(1, Math.floor(Number(slots) || 0));
+    const okToPublish = await confirm({
+      title: `Опубликовать всем с лимитом ${n}?`,
+      message: `Бриф станет открытым заказом для ВСЕХ креаторов${totalCreators ? ` — это ${totalCreators} чел.` : ''}, но как только его возьмут ${n} человек, он автоматически закроется для остальных.`,
+      confirmText: 'Опубликовать с лимитом',
+      danger: true,
+    });
+    if (!okToPublish) return;
+    await call(`/api/admin/briefs/${b.id}/status`, { status: 'active', slots: n });
   };
 
   // Pull a live brief back from "everyone" — the recovery if it went public by
@@ -393,9 +411,14 @@ function BriefModCard({ b, authFetch, creators, onChange, canManage }) {
           )}
           <button className="btn btn--ghost btn--sm" disabled={busy} onClick={() => call(`/api/admin/briefs/${b.id}/ai`)}>ИИ-анализ</button>
           {b.status !== 'active' ? (
-            <button className="btn btn--primary btn--sm" disabled={busy} onClick={publishToAll}>
-              🌐 Опубликовать всем
-            </button>
+            <>
+              <button className="btn btn--primary btn--sm" disabled={busy} onClick={publishToAll}>
+                🌐 Опубликовать всем
+              </button>
+              <button className="btn btn--ghost btn--sm" disabled={busy} onClick={() => setShowLimit((s) => !s)} aria-expanded={showLimit}>
+                🎯 Опубликовать всем с лимитом
+              </button>
+            </>
           ) : (
             <button className="btn btn--ghost btn--sm" disabled={busy} onClick={unpublish}>
               Снять с публикации
@@ -438,6 +461,26 @@ function BriefModCard({ b, authFetch, creators, onChange, canManage }) {
               reload={onChange}
               onDone={() => setShowEdit(false)}
             />
+          </div>
+        )}
+        {showLimit && (
+          <div className="mod-actions">
+            <input
+              type="number"
+              min="1"
+              inputMode="numeric"
+              placeholder="Сколько креаторов смогут взять бриф"
+              value={limitValue}
+              onChange={(e) => setLimitValue(e.target.value)}
+              style={{ flex: 1, minWidth: 200 }}
+            />
+            <button
+              className="btn btn--primary btn--sm"
+              disabled={busy || !limitValue || Number(limitValue) < 1}
+              onClick={async () => { await publishWithLimit(limitValue); setShowLimit(false); setLimitValue(''); }}
+            >
+              Опубликовать
+            </button>
           </div>
         )}
         {showNote && (
