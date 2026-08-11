@@ -9,9 +9,17 @@ import { VitePWA } from 'vite-plugin-pwa';
 // Stamped into the bundle at build time so the admin can tell at a glance whether
 // a deploy has actually gone live — instead of guessing and hammering Ctrl+F5.
 // The commit is best-effort: absent (empty) if the build env has no git.
+//
+// В Docker-сборке (деплой на дроплет) каталога .git в контексте нет — он
+// исключён через .dockerignore, чтобы не тащить историю в образ. Поэтому сперва
+// смотрим на GIT_COMMIT: docker-compose передаёт его build-аргументом, и плашка
+// «какая сборка живёт» в админке продолжает показывать реальный коммит.
+// На App Platform переменной нет, git есть — работает ровно как раньше.
 const BUILD_TIME = new Date().toISOString();
-let BUILD_COMMIT = '';
-try { BUILD_COMMIT = execSync('git rev-parse --short HEAD').toString().trim(); } catch { /* no git in build env */ }
+let BUILD_COMMIT = (process.env.GIT_COMMIT || '').trim();
+if (!BUILD_COMMIT) {
+  try { BUILD_COMMIT = execSync('git rev-parse --short HEAD').toString().trim(); } catch { /* no git in build env */ }
+}
 // One id per build for the stale-client self-recovery: the running bundle carries
 // it baked in, and dist/version.json serves the current one — a mismatch means
 // the client is stale. Commit when git is available, else the build timestamp;

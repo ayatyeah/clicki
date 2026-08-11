@@ -1,6 +1,16 @@
 # DigitalOcean App Platform spec — CLICKI (single service)
 # One Node web service builds the React client and serves it + the API.
 # DO auto-detects this file when creating an app from the repo.
+#
+# ─────────────────────────────────────────────────────────────────────────
+#  НЕ ПЕРЕНОСИТЕ deploy/Dockerfile В КОРЕНЬ РЕПОЗИТОРИЯ.
+#  App Platform сканирует корень при каждом деплое. Найдя там `Dockerfile`,
+#  он перестаёт использовать buildpack (`environment_slug: node-js` +
+#  build_command/run_command ниже) и молча переключается на Docker-сборку.
+#  Это изменило бы способ сборки боевого сайта на первом же push в main.
+#  Docker-обвязка для дроплета живёт в deploy/ именно поэтому — см.
+#  deploy/README.md.
+# ─────────────────────────────────────────────────────────────────────────
 name: clicki
 region: fra
 
@@ -61,6 +71,14 @@ services:
       - key: DB_DATABASE
         scope: RUN_TIME
         value: "defaultdb"
+      # TLS до managed Postgres. Значение совпадает с поведением по умолчанию
+      # (см. server/src/dbConfig.js), поэтому ничего не меняет — записано явно,
+      # чтобы при взгляде на спеку было видно: здесь TLS включён, а вот на
+      # дроплете в deploy/docker-compose.yml стоит DB_SSL=disable, потому что
+      # там Postgres в соседнем контейнере и работает без TLS.
+      - key: DB_SSL
+        scope: RUN_TIME
+        value: "require"
       # ADMIN_USER/PASS/TOKEN: without these set, the server falls back to
       # admin/admin/change-me-please (see server/src/index.js). Set real
       # values in the DigitalOcean dashboard (App > Settings > Environment

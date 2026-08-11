@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import pg from 'pg';
 import { currentLegalVersion } from './legalDocs.js';
+import { buildPoolConfig, describeDbTarget } from './dbConfig.js';
 const { Pool } = pg;
 
 // Public "UGC creator" code shown on the creator and in the admin — random, not
@@ -27,17 +28,18 @@ const ACTIVE_HOLDER_SQL = `(
 
 // Exported for self-contained feature modules (googleAuth.js): they reuse this
 // pool instead of opening a second connection set to the managed Postgres.
-export const pool = new Pool({
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  database: process.env.DB_DATABASE,
-  ssl: { rejectUnauthorized: false },
-  max: 10,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000,
-});
+//
+// SSL больше не зашит: см. ./dbConfig.js. На App Platform (DB_SSL не задан)
+// поведение прежнее — TLS с самоподписанным CA. В Docker на дроплете рядом
+// стоит локальный Postgres без TLS, там выставляется DB_SSL=disable.
+export const pool = new Pool(
+  buildPoolConfig({
+    max: 10,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000,
+  })
+);
+console.log(`[db] target: ${describeDbTarget()}`);
 // A managed Postgres backend can drop an idle connection at any time (network
 // blip, provider-side recycling). Without this listener, pg.Pool emits an
 // unhandled 'error' event that crashes the whole Node process — the real

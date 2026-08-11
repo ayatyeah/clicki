@@ -1,0 +1,31 @@
+# HTTPS для копии CLICKI на дроплете.
+#
+#   cp Caddyfile.example Caddyfile
+#   в deploy/.env:  DOMAIN=staging.clicki-platform.com  и  APP_BIND=127.0.0.1:8080
+#   docker compose --profile tls up -d
+#
+# Caddy сам получит сертификат Let's Encrypt при первом запросе. Обязательные
+# условия: A-запись домена уже указывает на IP дроплета, порты 80 и 443 открыты
+# в firewall, и приложение НЕ занимает 80-й порт (за это отвечает APP_BIND).
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	# Приложение внутри docker-сети, наружу не смотрит.
+	reverse_proxy app:8080 {
+		# Сервер вызывает app.set('trust proxy', 1) — эти заголовки нужны, чтобы
+		# rate-limit считал реальные IP посетителей, а не адрес контейнера Caddy.
+		header_up X-Real-IP {remote_host}
+	}
+
+	# Копия сайта не должна попасть в поисковую выдачу и увести трафик с
+	# боевого домена. Если этот дроплет когда-нибудь станет продом — строку убрать.
+	header X-Robots-Tag "noindex, nofollow"
+
+	log {
+		output file /data/access.log {
+			roll_size 10MiB
+			roll_keep 5
+		}
+	}
+}

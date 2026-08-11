@@ -1,0 +1,24 @@
+# CLICKI — контейнер ежедневных бэкапов.
+#
+# Берём тот же образ Postgres, что и сама БД: pg_dump обязан быть той же мажорной
+# версии, что и сервер, иначе он откажется работать («server version mismatch»).
+# POSTGRES_IMAGE приходит из docker-compose.yml — версия задаётся в одном месте.
+ARG POSTGRES_IMAGE=postgres:17-alpine
+FROM ${POSTGRES_IMAGE}
+
+# curl — телеграм-алерты о неудачном бэкапе.
+# aws-cli — необязательная выгрузка копии в DigitalOcean Spaces. Если пакета в
+# репозитории конкретной версии Alpine нет, сборка НЕ должна падать: бэкап на
+# локальный диск важнее, чем выгрузка наружу. Отсюда `|| true` и проверка
+# `command -v aws` внутри backup.sh.
+RUN apk add --no-cache curl tzdata \
+ && (apk add --no-cache aws-cli || echo "aws-cli недоступен — выгрузка в Spaces отключится сама")
+
+COPY scripts/ /scripts/
+RUN chmod +x /scripts/*.sh
+
+ENV BACKUP_DIR=/backups \
+    TZ=Asia/Almaty
+VOLUME ["/backups"]
+
+ENTRYPOINT ["/scripts/entrypoint-backup.sh"]

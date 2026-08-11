@@ -1,0 +1,166 @@
+# CLICKI на дроплете DigitalOcean.
+#
+# Запуск:  cd /opt/clicki/deploy && docker compose up -d --build
+#
+# Состав:
+#   app     — один контейнер: Node отдаёт и API, и собранный React (монолит)
+#   db      — Postgres рядом, на том же дроплете, наружу не торчит
+#   backup  — крон, каждый день делает дамп БД БЕЗ видео
+#   caddy   — опционально (profile: tls), HTTPS с автосертификатом Let's Encrypt
+#
+# ── ЗАЩИТА ОТ ГЛАВНОЙ ОШИБКИ ──────────────────────────────────────────────
+# Параметры БД заданы в блоке `environment` жёстко (db:5432). Это важнее, чем
+# кажется: в .env почти наверняка окажутся скопированные из App Platform
+# DB_HOST/DB_PASSWORD от managed-базы, и без этого блока копия на дроплете
+# начала бы писать в БОЕВУЮ базу. `environment` имеет приоритет над `env_file`,
+# поэтому что бы ни лежало в .env — app всегда работает с локальным Postgres.
+# ──────────────────────────────────────────────────────────────────────────
+
+name: clicki
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      args:
+        VITE_API_BASE: "${VITE_API_BASE-}"
+        VITE_PHONE: "${VITE_PHONE:-+7 700 000 00 00}"
+        VITE_TELEGRAM: "${VITE_TELEGRAM:-CLICKI_App}"
+        VITE_EMAIL: "${VITE_EMAIL:-info@clicki-platform.com}"
+        VITE_WHATSAPP: "${VITE_WHATSAPP-}"
+        VITE_RECAPTCHA_SITE_KEY: "${VITE_RECAPTCHA_SITE_KEY-}"
+        VITE_GA4_ID: "${VITE_GA4_ID-}"
+        VITE_META_PIXEL_ID: "${VITE_META_PIXEL_ID-}"
+        VITE_YANDEX_METRIKA_ID: "${VITE_YANDEX_METRIKA_ID-}"
+        GIT_COMMIT: "${GIT_COMMIT-}"
+    image: clicki-app:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: "8080"
+      TZ: "${TZ:-Asia/Almaty}"
+      # Локальная БД — перекрывает всё, что могло приехать из .env.
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: "${POSTGRES_USER:-clicki}"
+      DB_PASSWORD: "${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD в deploy/.env}"
+      DB_DATABASE: "${POSTGRES_DB:-clicki}"
+      # Локальный Postgres поднят без TLS — без этого pg падает на хендшейке.
+      DB_SSL: disable
+      DATABASE_URL: ""
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      # По умолчанию сайт слушает 80-й порт дроплета напрямую.
+      # С профилем tls поставьте в .env  APP_BIND=127.0.0.1:8080 — тогда
+      # наружу смотрит Caddy, а приложение доступно только изнутри.
+      - "${APP_BIND:-0.0.0.0:80}:8080"
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+
+  db:
+    image: "${POSTGRES_IMAGE:-postgres:17-alpine}"
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER:-clicki}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD в deploy/.env}"
+      POSTGRES_DB: "${POSTGRES_DB:-clicki}"
+      TZ: "${TZ:-Asia/Almaty}"
+      # Ускоряет initdb и не меняет поведение приложения (сравнения строк идут
+      # по правилам C, а не локали) — схема CLICKI на это не завязана.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Портов наружу НЕТ намеренно: база доступна только контейнерам в этой сети.
+    # Для psql с хоста используйте `docker compose exec db psql -U clicki clicki`.
+    # Если очень нужен внешний доступ — раскомментируйте и оставьте 127.0.0.1,
+    # затем ходите через SSH-туннель. НИКОГДА не публикуйте 0.0.0.0:5432.
+    # ports:
+    #   - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-clicki} -d ${POSTGRES_DB:-clicki}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  backup:
+    build:
+      context: .
+      dockerfile: Dockerfile.backup
+      args:
+        POSTGRES_IMAGE: "${POSTGRES_IMAGE:-postgres:17-alpine}"
+    image: clicki-backup:latest
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGUSER: "${POSTGRES_USER:-clicki}"
+      PGPASSWORD: "${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD в deploy/.env}"
+      PGDATABASE: "${POSTGRES_DB:-clicki}"
+      TZ: "${TZ:-Asia/Almaty}"
+      BACKUP_CRON: "${BACKUP_CRON:-30 3 * * *}"
+      BACKUP_DIR: /backups
+      RETENTION_DAYS: "${RETENTION_DAYS:-14}"
+      MONTHLY_RETENTION_DAYS: "${MONTHLY_RETENTION_DAYS:-365}"
+      # 0 = не сохранять содержимое media вообще. По умолчанию сохраняются файлы
+      # до 5 МБ (аватары, логотипы, скриншоты статистики). Видео — никогда.
+      BACKUP_MEDIA_MAX_MB: "${BACKUP_MEDIA_MAX_MB:-5}"
+      BACKUP_ON_START: "${BACKUP_ON_START:-1}"
+      NOTIFY_ON_SUCCESS: "${NOTIFY_ON_SUCCESS:-0}"
+      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN-}"
+      TELEGRAM_CHAT_ID: "${TELEGRAM_CHAT_ID-}"
+      # Необязательная копия бэкапа вне дроплета (тот же бакет, что и медиа).
+      SPACES_KEY: "${SPACES_KEY-}"
+      SPACES_SECRET: "${SPACES_SECRET-}"
+      SPACES_BUCKET: "${SPACES_BUCKET-}"
+      SPACES_REGION: "${SPACES_REGION-}"
+      SPACES_ENDPOINT: "${SPACES_ENDPOINT-}"
+      SPACES_BACKUP_PREFIX: "${SPACES_BACKUP_PREFIX:-db-backups}"
+    volumes:
+      - ./backups:/backups
+      # Скрипты примонтированы поверх скопированных в образ: правку видно сразу,
+      # без пересборки контейнера.
+      - ./scripts:/scripts:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  # HTTPS. Включается явно:  docker compose --profile tls up -d
+  # Требует: домен уже указывает A-записью на IP дроплета + APP_BIND=127.0.0.1:8080.
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["tls"]
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # Не ${DOMAIN:?...}: Compose интерполирует env для ВСЕХ сервисов при
+      # парсинге файла независимо от активных профилей — жёсткая проверка
+      # здесь ломала бы обычный `docker compose up` (без --profile tls) даже
+      # тогда, когда caddy вообще не запускается. Реальная проверка DOMAIN —
+      # ниже, самим Caddy при старте (сертификат не выпустится без домена).
+      DOMAIN: "${DOMAIN-}"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

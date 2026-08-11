@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import pg from 'pg';
+import { buildPoolConfig } from './dbConfig.js';
 
 /**
  * Deletes ALL briefs so freshly-registered creators don't see (and can't
@@ -18,15 +19,10 @@ async function main() {
     console.error('Refusing to delete briefs.\nRe-run with:  node src/clean-briefs.js --yes-i-am-sure');
     process.exit(1);
   }
-  const pool = new pg.Pool({
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    database: process.env.DB_DATABASE,
-    ssl: { rejectUnauthorized: false },
-    connectionTimeoutMillis: 12000,
-  });
+  // SSL/хост берутся из ./dbConfig.js — один и тот же конфиг, что и у боевого
+  // пула. Скрипт одинаково работает и против managed Postgres (App Platform),
+  // и против локального Postgres в Docker (DB_SSL=disable).
+  const pool = new pg.Pool(buildPoolConfig({ connectionTimeoutMillis: 12000 }));
   const client = await pool.connect();
   try {
     const before = (await client.query('SELECT COUNT(*)::int AS n FROM briefs')).rows[0].n;
