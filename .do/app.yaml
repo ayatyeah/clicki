@@ -49,33 +49,19 @@ services:
         scope: BUILD_TIME
         value: ""
       # ---- Backend (runtime) ----
-      # Database (PostgreSQL) — REQUIRED. Already set for real in the DO
-      # dashboard for this app; listed here only so a from-scratch redeploy
-      # doesn't silently forget these five vars exist. Do NOT let a spec
-      # re-apply overwrite the real values with these placeholders.
-      - key: DB_USER
+      # Database (PostgreSQL, Railway) — REQUIRED. Already set for real in the
+      # DO dashboard for this app; value is empty here (SECRET, stored
+      # encrypted in the dashboard, not in this file) so a from-scratch
+      # redeploy doesn't silently forget the var exists. Do NOT let a spec
+      # re-apply overwrite the real value with this placeholder.
+      - key: DATABASE_URL
         scope: RUN_TIME
         type: SECRET
         value: REPLACE_ME_IN_DO_DASHBOARD
-      - key: DB_PASSWORD
-        scope: RUN_TIME
-        type: SECRET
-        value: REPLACE_ME_IN_DO_DASHBOARD
-      - key: DB_HOST
-        scope: RUN_TIME
-        type: SECRET
-        value: REPLACE_ME_IN_DO_DASHBOARD
-      - key: DB_PORT
-        scope: RUN_TIME
-        value: "25060"
-      - key: DB_DATABASE
-        scope: RUN_TIME
-        value: "defaultdb"
-      # TLS до managed Postgres. Значение совпадает с поведением по умолчанию
-      # (см. server/src/dbConfig.js), поэтому ничего не меняет — записано явно,
-      # чтобы при взгляде на спеку было видно: здесь TLS включён, а вот на
-      # дроплете в deploy/docker-compose.yml стоит DB_SSL=disable, потому что
-      # там Postgres в соседнем контейнере и работает без TLS.
+      # TLS до Railway Postgres — сертификат самоподписанный, ставим require
+      # (см. server/src/dbConfig.js). На дроплете в deploy/docker-compose.yml
+      # стоит DB_SSL=disable, потому что там Postgres в соседнем контейнере и
+      # работает без TLS.
       - key: DB_SSL
         scope: RUN_TIME
         value: "require"
