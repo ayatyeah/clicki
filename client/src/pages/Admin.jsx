@@ -20,6 +20,7 @@ import { BusinessesView } from './admin/BusinessesView.jsx';
 import { PayoutsView } from './admin/PayoutsView.jsx';
 import { DecisionJournalView } from './admin/DecisionJournalView.jsx';
 import { LegalAcceptancesView } from './admin/LegalAcceptancesView.jsx';
+import { IdeaBankView } from './admin/IdeaBankView.jsx';
 
 const TOKEN_KEY = 'clicki_admin_token';
 const EMPTY = { showcase: [], devices: { iphone: { image: '' }, laptop: { image: '' } }, creatorVideo: '', hubVideo: '' };
@@ -285,6 +286,7 @@ export default function Admin() {
     { key: 'broadcast', label: 'Рассылка', icon: 'bell' },
     { key: 'ai', label: 'ИИ Аналитика', icon: 'sparkle' },
     { key: 'autopilot', label: 'Автопилот кампаний', icon: 'sparkle' },
+    { key: 'idea-bank', label: 'Банк идей', icon: 'star' },
     { key: 'analytics', label: 'Аналитика', icon: 'chart' },
     { key: 'referrals', label: 'Рефералы', icon: 'link' },
     { key: 'leads-business', label: 'Заявки Бизнеса', icon: 'inbox' },
@@ -437,6 +439,7 @@ export default function Admin() {
           {view === 'broadcast' && <BroadcastView authFetch={authFetch} />}
           {view === 'ai' && <AiAnalysisView authFetch={authFetch} />}
           {view === 'autopilot' && <AutopilotView authFetch={authFetch} />}
+          {view === 'idea-bank' && <IdeaBankView />}
 
           {view === 'analytics' && (
             <AnalyticsView authFetch={authFetch} leads={leads} businessLeads={businessLeads} creatorLeads={creatorLeads} />

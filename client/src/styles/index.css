@@ -624,10 +624,88 @@ img.ae {
   --hub-line: rgba(124, 58, 237, 0.14);
   --hub-violet: #7c3aed;
 }
-.hub__morph {
+/* ---------- 3D-phone hero (ClickiPhoneHero) ---------- */
+/* Sticky canvas + the hero/beat content scrolling past it. `.phone-stage`
+   grows to hero-height + 3×100vh beats; `.hub__hero`'s own min-height/flex
+   just let it expand to fit — nothing here needs a fixed height. */
+.phone-stage {
   position: relative;
-  z-index: 1;
+  width: 100%;
+}
+.phone3d-layer {
+  position: sticky;
+  top: 0;
   height: 100vh;
+  z-index: 1;
+  pointer-events: none;
+}
+.phone3d-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transition: opacity 0.4s ease;
+}
+.phone-stage__content {
+  position: relative;
+  z-index: 2;
+  margin-top: -100vh;
+}
+.phone-beat {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+}
+.phone-beat__inner.container {
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-left: clamp(24px, 8vw, 120px);
+  margin-right: auto;
+}
+.phone-beat--right .phone-beat__inner.container {
+  margin-left: auto;
+  margin-right: clamp(24px, 8vw, 120px);
+}
+.phone-beat__num {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 2rem;
+  letter-spacing: 0.02em;
+  color: rgba(124, 58, 237, 0.3);
+  line-height: 1;
+}
+.phone-beat__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.6rem, 3vw, 2.3rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--hub-ink);
+  margin: 0;
+}
+.phone-beat__text {
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: var(--hub-muted);
+  margin: 0;
+}
+/* Narrow screens: the module itself dims the canvas to 45% opacity past the
+   hero so beat text stays readable over it — center the copy instead of
+   alternating sides, there isn't room for the offset. */
+@media (max-width: 900px) {
+  .phone-beat__inner.container,
+  .phone-beat--right .phone-beat__inner.container {
+    margin-left: auto;
+    margin-right: auto;
+    padding-inline: clamp(20px, 6vw, 40px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .phone-beat {
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }
 .hub__inner {
   position: relative;
@@ -647,7 +725,10 @@ img.ae {
 .hub-hero__title {
   font-size: clamp(2.6rem, 7vw, 5.2rem);
   font-weight: 900;
-  line-height: 0.94;
+  /* 0.94 (tighter than the glyph box) let the comma after "Контент," collide
+     with the breve over "й" on the next line — 1.02 keeps the tight display
+     look without the overlap. */
+  line-height: 1.02;
   letter-spacing: -0.045em;
   color: var(--hub-ink);
   margin: 0 0 24px;
@@ -746,6 +827,14 @@ img.ae {
 .hub-hero__media {
   display: flex;
   justify-content: center;
+  /* Own size independent of its content: the 3D phone measures this box via
+     getBoundingClientRect() to know where to sit, but renders nothing inside
+     it (canvas is a separate sticky layer) — an empty flex child would
+     collapse to zero height and the phone would fall back to screen-center. */
+  width: 100%;
+  max-width: 360px;
+  aspect-ratio: 9 / 16;
+  margin-inline: auto;
 }
 .hub-video {
   position: relative;
@@ -2120,6 +2209,72 @@ img.ae {
   padding: 32px;
   color: var(--stone);
   max-width: 60ch;
+}
+
+.admin-idea-pipeline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 10px;
+}
+.admin-idea-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.admin-idea-step__num {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--violet, #7c3aed);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.admin-idea-step__body {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  padding: 10px 14px;
+  max-width: 220px;
+}
+.admin-idea-step__title {
+  font-weight: 700;
+  color: var(--ink);
+  font-size: 0.92rem;
+}
+.admin-idea-step__text {
+  color: var(--stone);
+  font-size: 0.82rem;
+  margin-top: 2px;
+}
+.admin-idea-step__arrow {
+  color: var(--stone);
+  font-size: 1.2rem;
+}
+.admin-idea-decisions {
+  display: grid;
+  gap: 10px;
+}
+.admin-idea-decision {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--violet, #7c3aed);
+  border-radius: var(--r-card);
+  padding: 12px 16px;
+}
+.admin-idea-decision__title {
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+.admin-idea-decision__text {
+  color: var(--stone);
+  font-size: 0.92rem;
 }
 
 /* ---------- Operator CRM (platform) ---------- */
@@ -4434,6 +4589,10 @@ canvas {
 .site-footer__links button { font: inherit; background: none; border: 0; padding: 0; cursor: pointer; color: inherit; text-align: left; }
 @media (max-width: 560px) {
   .cookie__card { flex-direction: column; align-items: stretch; }
+  /* .cookie__body's flex-basis (320px) is a row-layout width hint — in this
+     column layout the same value became a forced 320px *height*, leaving a
+     huge gap before the buttons. */
+  .cookie__body { flex: 0 1 auto; }
   .cookie__actions { justify-content: stretch; }
   .cookie__btn { flex: 1; }
 }
