@@ -133,6 +133,13 @@ export function SplitFeature({ accent = 'violet', reversed = false, title, text,
       <div className="container fx-split__grid">
         <Reveal className="fx-split__media">
           <div className="fx-statcard">
+            <div className="fx-statcard__spark" aria-hidden="true">
+              <span style={{ '--h': '38%' }} />
+              <span style={{ '--h': '62%' }} />
+              <span style={{ '--h': '48%' }} />
+              <span style={{ '--h': '84%' }} />
+              <span style={{ '--h': '70%' }} />
+            </div>
             <span className="fx-statcard__value">{stat?.value}</span>
             <span className="fx-statcard__label">{stat?.label}</span>
           </div>

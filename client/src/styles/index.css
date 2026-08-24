@@ -355,9 +355,13 @@ img.ae {
   justify-content: space-between;
   gap: 24px;
   height: auto;
-  /* Floating dark glass pill — rounded, translucent, blurred. */
+  /* Floating dark glass pill — rounded, translucent, blurred. At 0.38 alpha
+     this reads fine over the equally-dark About/Legal background, but over
+     the light Hub/funnel gradient the light bleeds through and washes out
+     the white nav text; a higher, near-opaque alpha keeps one consistent
+     look (and legible contrast) on both. */
   padding: 10px 14px 10px 22px;
-  background: rgba(18, 14, 34, 0.38);
+  background: rgba(18, 14, 34, 0.78);
   backdrop-filter: blur(20px) saturate(150%);
   -webkit-backdrop-filter: blur(20px) saturate(150%);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -911,9 +915,12 @@ img.ae {
   align-items: center;
   font-family: var(--font-mono);
   font-size: 0.82rem;
+  font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--hub-muted);
+  /* Darker than --hub-muted: at this size/weight the usual muted tone
+     was reading as near-invisible texture against the lavender hero bg. */
+  color: #423d5c;
 }
 .hub-marquee__dot {
   color: var(--hub-violet);
@@ -3628,9 +3635,10 @@ img.ae {
   max-width: 900px;
 }
 .legal-doc-card {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
-  align-content: start;
+  height: 100%;
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--r-card);
@@ -3659,7 +3667,12 @@ img.ae {
   gap: 12px;
   align-items: baseline;
   justify-content: space-between;
-  margin-top: 4px;
+  /* Pins the foot to the card's bottom edge regardless of hint length or
+     whether this doc has a version line (only offer/PDn consent do — see
+     legalDocLinks in LegalLinks.jsx) — keeps the 2x2 grid visually even
+     without needing every card to carry the same data. */
+  margin-top: auto;
+  padding-top: 4px;
 }
 .legal-doc-card__meta {
   color: var(--fog);

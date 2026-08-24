@@ -187,6 +187,10 @@ export function buildCspDirectives({ isProd = false, mediaHosts = [] } = {}) {
       'https://www.gstatic.com',
       // Google Identity Services — the "Sign in with Google" button (/google-test).
       'https://accounts.google.com',
+      // The 3D hero's Draco/GLTF decoder compiles WebAssembly; without this
+      // CSP's WASM-compile gate (governed by script-src, not worker-src)
+      // throws a CompileError even once the worker itself is allowed to run.
+      "'wasm-unsafe-eval'",
     ],
     // React/framer-motion write inline `style` attributes; Google Fonts ships a
     // stylesheet; GIS (accounts.google.com) injects one for its button.
@@ -217,6 +221,10 @@ export function buildCspDirectives({ isProd = false, mediaHosts = [] } = {}) {
     ],
     // reCAPTCHA challenge iframe + the GIS button/account-chooser iframe.
     frameSrc: ["'self'", 'https://www.google.com', 'https://accounts.google.com'],
+    // The 3D hero (Hub page) loads its GLTF/Draco decoder via a `new
+    // Worker(blobURL)` — without this, worker-src falls back to script-src
+    // (no blob:) and the worker construction is silently blocked.
+    workerSrc: ["'self'", 'blob:'],
     objectSrc: ["'none'"],
     baseUri: ["'self'"],
     formAction: ["'self'"],

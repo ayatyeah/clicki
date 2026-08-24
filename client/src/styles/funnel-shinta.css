@@ -494,6 +494,23 @@
   color: var(--fx-accent);
 }
 .fx-statcard__label { font-size: 1.05rem; font-weight: 500; color: var(--stone); }
+/* Decorative mini bar-chart — gives the plain value+label card a "live data"
+   feel without asserting any real numbers of its own. */
+.fx-statcard__spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 7px;
+  height: 44px;
+  margin-bottom: 6px;
+}
+.fx-statcard__spark span {
+  width: 9px;
+  height: var(--h);
+  border-radius: 3px 3px 0 0;
+  background: linear-gradient(180deg, var(--fx-accent) 0%, transparent 130%);
+  opacity: 0.5;
+}
+.fx-statcard__spark span:last-child { opacity: 0.9; }
 
 /* ---- Floating decorative background ---- */
 .fx-bg { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
