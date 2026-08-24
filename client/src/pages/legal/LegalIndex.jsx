@@ -22,7 +22,7 @@ const COPY = {
     requisitesTitle: 'Реквизиты',
     requisites: `ТОО «CLICKI Labs»
 БИН: 260740019117
-Место нахождения: 010000, Республика Казахстан, город Астана, район Нура, улица Ілияс Омаров, дом 27/1, квартира 7
+Республика Казахстан, город Астана
 Адрес для юридически значимых сообщений: info@clicki-platform.com`,
   },
   en: {
@@ -37,7 +37,7 @@ const COPY = {
     requisitesTitle: 'Company details',
     requisites: `CLICKI Labs LLP
 BIN: 260740019117
-Registered address: 010000, Republic of Kazakhstan, Astana, Nura district, Ilyas Omarov street, 27/1, apt. 7
+Republic of Kazakhstan, Astana
 Address for legally significant notices: info@clicki-platform.com`,
   },
 };
