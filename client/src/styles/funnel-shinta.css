@@ -358,6 +358,10 @@
 .fx-compare__table tbody td:first-child { color: var(--ink); font-weight: 500; }
 .fx-compare__table tr:last-child td { border-bottom: 0; }
 .fx-compare__us { background: var(--fx-accent-soft); color: var(--fx-accent); font-weight: 600; }
+/* Hidden by default: on desktop the column headings already say whose column is
+   whose, and a tick in every row would just be noise. Turned on below 640px,
+   where those headings are visually hidden. */
+.fx-compare__mark { display: none; }
 
 @media (max-width: 640px) {
   .fx-compare {
@@ -420,11 +424,43 @@
     font-size: 0.68rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--fog);
+    /* Was --fog (#8F8BA6): 2.71:1 on this card, i.e. the least readable text in
+       the component was the label telling you whose answer you are reading. */
+    color: var(--stone);
   }
 
   .fx-compare__table td:last-child {
     border-bottom: 0;
+  }
+
+  /* One card per row: give the two answers a mark so the comparison is scannable
+     without re-reading both labels. */
+  .fx-compare__mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin-right: 8px;
+    border-radius: 50%;
+    font-size: 0.66rem;
+    font-weight: 700;
+    vertical-align: -4px;
+  }
+  .fx-compare__mark--no {
+    background: rgba(24, 20, 48, 0.08);
+    color: var(--stone);
+  }
+  .fx-compare__mark--yes {
+    background: var(--fx-accent);
+    color: #fff;
+  }
+
+  /* The CLICKI answer is the payoff of the whole section; violet-on-violet-tint
+     made it the quietest line in the card instead of the loudest. */
+  .fx-compare__table td.fx-compare__us {
+    color: var(--ink);
+    font-weight: 600;
   }
 }
 

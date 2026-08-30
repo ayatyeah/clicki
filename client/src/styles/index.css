@@ -661,6 +661,14 @@ img.ae {
   /* Base light canvas so the area behind the floating (transparent) header
      matches the hero/content instead of revealing the dark Aurora backdrop. */
   background: linear-gradient(180deg, #f3ecff 0%, #e7dcf8 100%);
+  /* These live on .hub, not .hub__hero, because .hub-fork is the hero's SIBLING
+     and reuses .hub-choice. Scoped to the hero, --hub-line resolved to nothing
+     down there and `border: 1px solid var(--hub-line)` fell back to currentColor
+     — a dark border on a white card, no error anywhere. */
+  --hub-ink: #181430;
+  --hub-muted: #5f5b78;
+  --hub-line: rgba(124, 58, 237, 0.14);
+  --hub-violet: #7c3aed;
 }
 /* Light hero: near-white canvas with a barely-there violet tint + soft glow. */
 .hub__hero {
@@ -672,12 +680,50 @@ img.ae {
      radial glows; because the hero is ~4x the viewport tall (the phone stage
      lives inside it) every one of those got clipped at the hero's bottom edge
      and drew a hard horizontal seam across the middle of the page. The page-wide
-     wash now comes from .hub / .page-light alone. */
-  --hub-ink: #181430;
-  --hub-muted: #5f5b78;
-  --hub-line: rgba(124, 58, 237, 0.14);
-  --hub-violet: #7c3aed;
+     wash now comes from .hub / .page-light alone. The --hub-* tokens moved up to
+     .hub for the same reason .hub-fork needs them (see there). */
 }
+/* ---------- Closing fork (after the scroll story, before the footer) ---------- */
+.hub-fork {
+  position: relative;
+  /* Above .phone3d-layer (z-index 1) — the sticky canvas's box still extends
+     here even though the module has faded it out by this point. */
+  z-index: 2;
+  padding: var(--fx-y-lg, 96px) 0 var(--fx-y, 72px);
+}
+.hub-fork__eyebrow {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--hub-violet);
+  margin-bottom: 14px;
+}
+.hub-fork__title {
+  font-size: clamp(2rem, 5vw, 3.4rem);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.035em;
+  color: var(--hub-ink);
+  margin: 0 0 14px;
+}
+.hub-fork__text {
+  font-size: 1.1rem;
+  line-height: 1.55;
+  color: var(--hub-muted);
+  margin: 0 0 32px;
+  max-width: 46ch;
+}
+.hub-fork__choices {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+}
+@media (min-width: 760px) {
+  .hub-fork__choices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 /* ---------- 3D-phone hero (ClickiPhoneHero) ---------- */
 /* Sticky canvas + the hero/beat content scrolling past it. `.phone-stage`
    grows to hero-height + 3×100vh beats; `.hub__hero`'s own min-height/flex

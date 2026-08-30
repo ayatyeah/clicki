@@ -26,6 +26,9 @@ const COPY = {
     crTitle: 'Зарабатывать на контенте',
     crDesc: 'Снимай ролики с телефона и превращай свой рост в реальный доход.',
     contact: 'Связаться',
+    forkEyebrow: 'С чего начать',
+    forkTitle: 'Теперь выбирай сторону',
+    forkText: 'Ты посмотрел, как это устроено. Дальше — две разные истории.',
     login: 'Войти',
     play: 'Смотреть',
     call: 'Позвонить',
@@ -58,6 +61,9 @@ const COPY = {
     crTitle: 'I want to earn',
     crDesc: 'Film clips on your phone and turn your growth into real income.',
     contact: 'Get in touch',
+    forkEyebrow: 'Where to start',
+    forkTitle: 'Now pick your side',
+    forkText: 'You have seen how it works. From here the two paths diverge.',
     login: 'Log in',
     play: 'Watch',
     call: 'Call',
@@ -264,6 +270,35 @@ export default function Hub() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Повторная развилка. Выбор воронки стоял только в герое — то есть до
+          скролл-истории, ровно там, где посетитель ещё не понял, о чём речь, —
+          а после третьего бита страница упиралась прямо в подвал. Те же две
+          карточки, но с отдельным data-track: иначе в аналитике не отличить,
+          какая из двух развилок на самом деле конвертирует. */}
+      <section className="hub-fork">
+        <div className="container">
+          <span className="hub-fork__eyebrow">{t.forkEyebrow}</span>
+          <h2 className="hub-fork__title">{t.forkTitle}</h2>
+          <p className="hub-fork__text">{t.forkText}</p>
+
+          <div className="hub-fork__choices">
+            <Link to="/business" className="hub-choice hub-choice--business" data-track="Хаб низ: Я бизнес">
+              <span className="hub-choice__eyebrow">{t.bizEyebrow}</span>
+              <span className="hub-choice__title">{t.bizTitle}</span>
+              <span className="hub-choice__desc">{t.bizDesc}</span>
+              <span className="hub-choice__arrow" aria-hidden="true">→</span>
+            </Link>
+
+            <Link to="/creators" className="hub-choice hub-choice--creator" data-track="Хаб низ: Я креатор">
+              <span className="hub-choice__eyebrow">{t.crEyebrow}</span>
+              <span className="hub-choice__title">{t.crTitle}</span>
+              <span className="hub-choice__desc">{t.crDesc}</span>
+              <span className="hub-choice__arrow" aria-hidden="true">→</span>
+            </Link>
           </div>
         </div>
       </section>
