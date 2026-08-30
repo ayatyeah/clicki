@@ -275,9 +275,17 @@ export function mountClickiPhone(opts) {
     S.settled = true;
     S.holder.position.y = mix(A.y, B.y) + Math.sin(t * 0.6) * 0.05 * sc;
     S.holder.scale.setScalar(sc);
-    S.pivot.rotation.y = mix(a.ry, b.ry) + S.mx * 0.26;
-    S.pivot.rotation.x = mix(a.rx, b.rx) + S.my * 0.14 + Math.sin(t * 0.45) * 0.014;
-    S.pivot.rotation.z = mix(a.rz, b.rz);
+    // Rotation used to jump straight to the scroll-derived target every frame,
+    // so a normal (fast) scroll flick spun the phone almost instantly — eased
+    // the same way position.x already was, so a fast scroll still ends at the
+    // right orientation but gets there smoothly instead of snapping.
+    const targetRy = mix(a.ry, b.ry) + S.mx * 0.26;
+    const targetRx = mix(a.rx, b.rx) + S.my * 0.14 + Math.sin(t * 0.45) * 0.014;
+    const targetRz = mix(a.rz, b.rz);
+    const rotDamp = S.settled ? 0.1 : 1;
+    S.pivot.rotation.y += (targetRy - S.pivot.rotation.y) * rotDamp;
+    S.pivot.rotation.x += (targetRx - S.pivot.rotation.x) * rotDamp;
+    S.pivot.rotation.z += (targetRz - S.pivot.rotation.z) * rotDamp;
     canvas.style.opacity = (S.narrow && p > 0.08) ? '.45' : '1';
 
     const mode = p < 0.42 ? 0 : (p < 0.78 ? 1 : 2);
