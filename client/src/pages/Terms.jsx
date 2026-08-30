@@ -52,7 +52,7 @@ export default function Terms() {
   const { lang } = useLang();
   const t = COPY[lang] || COPY.ru;
   return (
-    <>
+    <div className="page-light">
       <Seo title={t.seoTitle} description={t.seoDesc} path="/terms" />
       <Header variant="hub" />
       <main className="page page--legal">
@@ -88,6 +88,6 @@ export default function Terms() {
         </div>
       </main>
       <Footer />
-    </>
+    </div>
   );
 }

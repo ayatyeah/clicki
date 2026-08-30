@@ -140,7 +140,7 @@ const MORE_SECTIONS = [
 
 export default function Offer() {
   return (
-    <>
+    <div className="page-light">
       <Seo
         title="Публичная оферта для Креаторов - CLICKI"
         description="Публичная оферта о заключении договора возмездного оказания услуг с Креатором на платформе CLICKI."
@@ -249,6 +249,6 @@ export default function Offer() {
         </div>
       </main>
       <Footer />
-    </>
+    </div>
   );
 }

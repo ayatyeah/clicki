@@ -56,7 +56,7 @@ const SECTIONS = [
 
 export default function PersonalDataConsent() {
   return (
-    <>
+    <div className="page-light">
       <Seo
         title="Согласие на обработку персональных данных - CLICKI"
         description="Согласие на сбор и обработку персональных данных на платформе CLICKI."
@@ -89,6 +89,6 @@ export default function PersonalDataConsent() {
         </div>
       </main>
       <Footer />
-    </>
+    </div>
   );
 }

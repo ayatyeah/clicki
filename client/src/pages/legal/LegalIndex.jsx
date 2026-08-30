@@ -48,7 +48,7 @@ export default function LegalIndex() {
   const docs = legalDocLinks(lang);
 
   return (
-    <>
+    <div className="page-light">
       <Seo title={t.seoTitle} description={t.seoDesc} path="/legal" />
       <Header variant="hub" />
       <main className="page page--legal">
@@ -82,6 +82,6 @@ export default function LegalIndex() {
         </div>
       </main>
       <Footer />
-    </>
+    </div>
   );
 }

@@ -47,7 +47,7 @@ export default function Privacy() {
   const { lang } = useLang();
   const t = COPY[lang] || COPY.ru;
   return (
-    <>
+    <div className="page-light">
       <Seo title={t.seoTitle} description={t.seoDesc} path="/privacy" />
       <Header variant="hub" />
       <main className="page page--legal">
@@ -75,6 +75,6 @@ export default function Privacy() {
         </div>
       </main>
       <Footer />
-    </>
+    </div>
   );
 }

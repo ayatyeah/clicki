@@ -12,6 +12,8 @@ const L = {
     about: 'О нас',
     cookie: 'Настройки cookie',
     docs: 'Оферта',
+    colContacts: 'Связаться',
+    colNav: 'Разделы',
     emojiPre: 'Эмодзи — ',
     emojiPost: ', © Twitter, Inc. и участники проекта, лицензия CC BY 4.0.',
   },
@@ -23,6 +25,8 @@ const L = {
     about: 'About',
     cookie: 'Cookie settings',
     docs: 'Offer',
+    colContacts: 'Get in touch',
+    colNav: 'Sections',
     emojiPre: 'Emoji artwork by ',
     emojiPost: ', © Twitter, Inc. and other contributors, licensed under CC BY 4.0.',
   },
@@ -39,14 +43,18 @@ export default function Footer() {
           <div className="site-footer__brand">CLICKI</div>
           <p className="site-footer__tagline">{t.tagline}</p>
         </div>
+        {/* Column headings on all four columns, not just the legal one — three
+            unlabelled link piles beside one titled list read as an accident. */}
         <div className="site-footer__contacts">
+          <div className="site-footer__col-title">{t.colContacts}</div>
           <a href={`tel:${PHONE_TEL}`}>{PHONE}</a>
           <a href={TELEGRAM_URL} target="_blank" rel="noreferrer">
             Telegram
           </a>
           <a href={EMAIL_URL}>{EMAIL}</a>
         </div>
-        <nav className="site-footer__links">
+        <nav className="site-footer__links" aria-label={t.colNav}>
+          <div className="site-footer__col-title">{t.colNav}</div>
           <Link to="/about">{t.about}</Link>
           <Link to="/creator">{t.portal}</Link>
           <Link to="/contacts">{t.contacts}</Link>

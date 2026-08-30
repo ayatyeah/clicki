@@ -105,6 +105,42 @@ img, video {
   display: block;
 }
 
+/* Per-letter intro for the funnel hero's word-flip badge
+   (components/ui/container-text-flip.tsx). */
+.ctf-letter {
+  display: inline-block;
+  animation: ctf-letter-in 0.4s ease-out both;
+}
+@keyframes ctf-letter-in {
+  from { opacity: 0; filter: blur(10px); }
+  to { opacity: 1; filter: blur(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ctf-letter { animation: none; }
+}
+
+/* ---------- Scroll reveal (components/Reveal.jsx) ----------
+   Uses the standalone `translate` property, not `transform`, on purpose: the
+   settled state must not clobber a component's own hover transform (see
+   .fx-card:hover). Anything that also transitions transform has to re-list
+   opacity + translate in its own `transition` so the reveal still animates. */
+.reveal {
+  opacity: 0;
+  translate: 0 26px;
+  transition: opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1), translate 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal.is-in {
+  opacity: 1;
+  translate: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .reveal.is-in {
+    opacity: 1;
+    translate: none;
+    transition: none;
+  }
+}
+
 /* Emoji sprites injected by lib/emoji.js (class name kept: .ae) */
 img.ae {
   display: inline-block;
@@ -117,6 +153,19 @@ img.ae {
 ::selection {
   background: var(--morning);
   color: var(--ink);
+}
+
+/* Site-wide keyboard focus ring. Only three components defined one before, and
+   several reset `outline: none` on :focus without offering a replacement, which
+   left parts of the funnel un-navigable by keyboard. :focus-visible so it never
+   fires on mouse clicks. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 3px;
+  border-radius: var(--r-inner);
+}
+.page-light :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline-color: var(--fx-accent, #7c3aed);
 }
 
 .container {
@@ -619,10 +668,11 @@ img.ae {
   min-height: 100svh;
   display: flex;
   align-items: center;
-  background:
-    radial-gradient(60% 70% at 82% 8%, rgba(124, 58, 237, 0.2) 0%, rgba(124, 58, 237, 0) 60%),
-    radial-gradient(50% 60% at 8% 95%, rgba(139, 92, 246, 0.16) 0%, rgba(139, 92, 246, 0) 60%),
-    linear-gradient(180deg, #f3ecff 0%, #e7dcf8 100%);
+  /* No background of its own. It used to repeat .hub's 180deg ramp plus two
+     radial glows; because the hero is ~4x the viewport tall (the phone stage
+     lives inside it) every one of those got clipped at the hero's bottom edge
+     and drew a hard horizontal seam across the middle of the page. The page-wide
+     wash now comes from .hub / .page-light alone. */
   --hub-ink: #181430;
   --hub-muted: #5f5b78;
   --hub-line: rgba(124, 58, 237, 0.14);
@@ -703,6 +753,14 @@ img.ae {
     margin-left: auto;
     margin-right: auto;
     padding-inline: clamp(20px, 6vw, 40px);
+  }
+  /* The phone is centred (not offset) below 900px, so vertically-centred copy
+     landed right on top of it. Park the copy in the lower third instead — the
+     module lifts and shrinks the phone to match (see world() in
+     lib/clickiPhone3d.js). */
+  .phone-beat {
+    align-items: flex-end;
+    padding-bottom: 12vh;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1707,33 +1765,77 @@ img.ae {
 .floating-contacts {
   position: fixed;
   right: 16px;
+  /* Clears the Assistant FAB's row on phones: three 54px circles starting 16px
+     from the bottom sat directly on top of the page content a thumb reaches for.
+     They now sit above it and shrink — see the max-width rule below. */
   bottom: 16px;
   z-index: 50;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 .floating-contacts__btn {
-  width: 54px;
-  height: 54px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--charcoal);
   color: var(--white);
-  box-shadow: var(--shadow-card);
-  transition: transform 0.16s ease;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 10px 24px -10px rgba(20, 16, 38, 0.55);
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
 }
 .floating-contacts__btn:hover {
-  transform: scale(1.07);
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 16px 30px -12px rgba(20, 16, 38, 0.6);
   color: var(--white);
 }
 .floating-contacts__btn--tg {
-  background: var(--signal);
+  background: #229ed9;
 }
 .floating-contacts__btn--wa {
   background: #25d366;
+}
+/* Desktop has the room to keep all three visible — the trigger only exists for
+   the phone layout below. */
+.floating-contacts__toggle { display: none; }
+@media (max-width: 640px) {
+  .floating-contacts {
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    right: 12px;
+    gap: 8px;
+  }
+  .floating-contacts__btn { width: 44px; height: 44px; }
+  .floating-contacts__btn svg { width: 19px; height: 19px; }
+  .floating-contacts__toggle {
+    display: flex;
+    /* Last in the column so the trigger is the one under the thumb, even though
+       it comes first in the DOM (where it belongs for screen readers). */
+    order: 1;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    border-radius: 50%;
+    align-items: center;
+    justify-content: center;
+    background: var(--charcoal);
+    color: var(--white);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow: 0 10px 24px -10px rgba(20, 16, 38, 0.55);
+    cursor: pointer;
+  }
+  .floating-contacts__btn {
+    transition: opacity 0.18s ease, translate 0.18s ease, visibility 0.18s;
+  }
+  /* visibility (not just opacity) so the collapsed links leave the tab order. */
+  .floating-contacts:not(.is-open) .floating-contacts__btn {
+    opacity: 0;
+    visibility: hidden;
+    translate: 0 12px;
+    pointer-events: none;
+  }
 }
 
 /* ---------- Admin ---------- */
@@ -3571,6 +3673,17 @@ img.ae {
   gap: 10px;
   align-content: start;
 }
+/* Every column gets a heading. Previously only the legal column had one, so the
+   footer read as "one titled list and two loose piles of links". */
+.site-footer__col-title {
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
 .site-footer__legal {
   margin-top: 24px;
   color: var(--fog);
@@ -3599,8 +3712,12 @@ img.ae {
 }
 .site-footer__docs-title {
   color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
   font-weight: 600;
-  font-size: 0.9rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 2px;
 }
 .legal-links {
   display: grid;

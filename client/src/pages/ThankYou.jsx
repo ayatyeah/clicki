@@ -47,7 +47,7 @@ export default function ThankYou() {
   const backTo = BACK[type] || '/business';
 
   return (
-    <main className="thanks">
+    <main className="thanks page-light">
       <Seo title={t.seoTitle} description={t.seoDesc} path={`/thanks/${type}`} noindex />
       <div className="thanks__inner">
         <Logo to={backTo} />

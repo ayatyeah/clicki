@@ -12,7 +12,7 @@ export default function NotFound() {
   const { lang } = useLang();
   const t = COPY[lang] || COPY.ru;
   return (
-    <main className="thanks">
+    <main className="thanks page-light">
       <Seo title={t.title} description="404" path="/404" noindex />
       <div className="thanks__inner">
         <Logo />

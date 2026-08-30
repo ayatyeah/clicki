@@ -62,7 +62,7 @@ export default function Assistant({ accent = 'violet', qa = [] }) {
         <div className="assistant__panel" role="dialog" aria-label={t.title}>
           <div className="assistant__head">
             <span className="assistant__avatar" aria-hidden="true">
-              <img src="/mascot.png" alt="" />
+              <img src="/mascot.png" alt="" width="40" height="40" decoding="async" />
             </span>
             <div>
               <div className="assistant__title">{t.title}</div>
@@ -117,7 +117,7 @@ export default function Assistant({ accent = 'violet', qa = [] }) {
             <path d="M6 6l12 12M18 6L6 18" />
           </svg>
         ) : (
-          <img className="assistant__fab-img" src="/mascot.png" alt="" />
+          <img className="assistant__fab-img" src="/mascot.png" alt="" width="56" height="56" decoding="async" />
         )}
       </button>
     </div>

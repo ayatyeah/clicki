@@ -109,7 +109,7 @@ export default function Hub() {
   const ribbon = [...t.ribbon, ...t.ribbon];
 
   return (
-    <main className="hub">
+    <main className="hub page-light">
       <Seo title={t.seoTitle} description={t.seoDesc} path="/" />
       <Header variant="hub" />
 

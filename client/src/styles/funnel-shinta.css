@@ -2,6 +2,13 @@
    Light "Shinta-style" funnels (scoped to .page-light)
    ============================================================ */
 .page-light {
+  /* One vertical rhythm for the whole funnel. Each section used to clamp its own
+     ceiling (160px / 140px / 120px / 96px), so two neighbours could stack ~300px
+     of empty page between two short paragraphs — the single biggest thing making
+     /business and /creators feel unfinished. --fx-y is the standard block, --fx-y-lg
+     the emphasised one (dark panel, mission statement). */
+  --fx-y: clamp(44px, 5.5vw, 80px);
+  --fx-y-lg: clamp(56px, 8vw, 108px);
   --paper: #ffffff;
   --veil: #f1ecff;
   --ink: #181430;
@@ -142,15 +149,24 @@
   justify-content: center;
   gap: clamp(28px, 5vw, 64px);
 }
-.fx-logos__row img { width: 34px; height: 34px; opacity: 0.55; filter: grayscale(1); transition: opacity 0.2s ease, filter 0.2s ease; }
-.fx-logos__row img:hover { opacity: 1; filter: none; }
+/* 34px at 55% opacity under a full grayscale filter read as five grey smudges,
+   not as "we publish on these platforms". Bigger, darker, still monochrome so the
+   strip stays a texture rather than five competing brand colours. */
+.fx-logos__row img {
+  width: 40px;
+  height: 40px;
+  opacity: 0.5;
+  filter: grayscale(1) contrast(1.35);
+  transition: opacity 0.2s ease, filter 0.2s ease, transform 0.2s ease;
+}
+.fx-logos__row img:hover { opacity: 1; filter: none; transform: translateY(-2px); }
 
 /* ---- Dark "problem" panel with floating cards ---- */
 .fx-problem {
   background: #141026;
   border-radius: clamp(28px, 4vw, 48px);
   margin: clamp(20px, 4vw, 48px) 0;
-  padding: clamp(72px, 12vw, 160px) 0;
+  padding: var(--fx-y-lg) 0;
   overflow: hidden;
 }
 .fx-problem__inner { position: relative; }
@@ -164,7 +180,7 @@
   max-width: 16ch;
   margin: 0 auto;
 }
-.fx-problem__cards { list-style: none; margin: 40px 0 0; padding: 0; display: grid; gap: 16px; }
+.fx-problem__cards { list-style: none; margin: 36px 0 0; padding: 0; display: grid; gap: 16px; }
 .fx-pcard {
   display: flex;
   align-items: flex-start;
@@ -192,7 +208,7 @@
   font-weight: 700;
 }
 @media (min-width: 1000px) {
-  .fx-problem__inner { min-height: 460px; display: flex; align-items: center; justify-content: center; }
+  .fx-problem__inner { min-height: 400px; display: flex; align-items: center; justify-content: center; }
   .fx-problem__title { margin: 0 auto; max-width: 13ch; }
   .fx-problem__cards { position: absolute; inset: 0; margin: 0; display: block; }
   .fx-pcard { position: absolute; margin: 0; max-width: 330px; }
@@ -203,7 +219,7 @@
 }
 
 /* ---- Mission ---- */
-.fx-mission { padding: clamp(64px, 10vw, 140px) 0; text-align: center; }
+.fx-mission { padding: var(--fx-y-lg) 0; text-align: center; }
 .fx-mission__eyebrow {
   display: inline-block;
   padding: 8px 18px;
@@ -227,7 +243,7 @@
 }
 
 /* ---- Split feature ---- */
-.fx-split { padding: clamp(48px, 7vw, 96px) 0; }
+.fx-split { padding: var(--fx-y) 0; }
 .fx-split__grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -244,15 +260,19 @@
 }
 .fx-split__text { font-size: 1.15rem; color: var(--stone); max-width: 44ch; margin: 0; }
 @media (min-width: 900px) {
-  .fx-split__grid { grid-template-columns: 0.95fr 1.05fr; }
+  .fx-split__grid { grid-template-columns: 0.85fr 1.15fr; }
   .fx-split--rev .fx-split__media { order: 2; }
   .fx-split--rev .fx-split__copy { order: 1; }
-  .fx-split--rev .fx-split__grid { grid-template-columns: 1.05fr 0.95fr; }
+  .fx-split--rev .fx-split__grid { grid-template-columns: 1.15fr 0.85fr; }
+  /* Capping .fx-statcard re-centred it in its column, which just moved the empty
+     space between the card and the copy. Pin it to the outer edge instead. */
+  .fx-split__media .fx-statcard { margin-inline: 0 auto; }
+  .fx-split--rev .fx-split__media .fx-statcard { margin-inline: auto 0; }
 }
 
 /* ---- Generic light section / cards / steps ---- */
-.fx-section { padding: clamp(48px, 7vw, 96px) 0; }
-.fx-head { max-width: 760px; margin: 0 0 40px; }
+.fx-section { padding: var(--fx-y) 0; }
+.fx-head { max-width: 760px; margin: 0 0 32px; }
 .fx-eyebrow {
   display: inline-block;
   font-family: var(--font-mono);
@@ -269,19 +289,32 @@
   letter-spacing: -0.035em;
   color: var(--ink);
 }
-.fx-cards { display: grid; gap: 20px; grid-template-columns: 1fr; }
+/* align-items:stretch (the default) only equalises the row if the cards are grid
+   items — they are, but the text length differed enough that the shorter cards
+   read as mistakes. Explicit flex column + auto margin on the text keeps the
+   baseline of every card's bottom edge in line. */
+.fx-cards { display: grid; gap: 20px; grid-template-columns: 1fr; align-items: stretch; }
 .fx-card {
   background: #fff;
   border: 1px solid var(--line);
   border-radius: var(--r-card);
   padding: 28px;
   box-shadow: var(--shadow-soft);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  /* opacity+translate re-listed so the scroll reveal still animates — this
+     declaration otherwise overrides .reveal's own transition (see index.css). */
+  transition: transform 0.2s ease, box-shadow 0.2s ease,
+    opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1), translate 0.55s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .fx-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-card); }
 .fx-card__title { font-size: 1.3rem; font-weight: 600; color: var(--ink); margin: 0 0 8px; letter-spacing: -0.01em; }
 .fx-card__text { color: var(--stone); margin: 0; }
+.fx-card { display: flex; flex-direction: column; }
 .fx-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; max-width: 880px; }
+@media (min-width: 1000px) {
+  /* Two columns from 1000px: the single 880px column left a third of the row
+     empty next to it and made four one-line steps ~500px tall. */
+  .fx-steps { max-width: none; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+}
 .fx-step {
   display: flex;
   gap: 18px;
@@ -396,7 +429,7 @@
 }
 
 /* ---- Contact split ---- */
-.fx-contact { padding: clamp(56px, 8vw, 120px) 0; }
+.fx-contact { padding: var(--fx-y-lg) 0 var(--fx-y); }
 .fx-contact__grid { display: grid; grid-template-columns: 1fr; gap: clamp(28px, 4vw, 56px); align-items: center; }
 .fx-contact__title { font-size: clamp(2.4rem, 6vw, 4.4rem); font-weight: 800; line-height: 0.98; letter-spacing: -0.035em; color: var(--ink); margin: 0 0 20px; }
 .fx-contact__text { font-size: 1.15rem; color: var(--stone); max-width: 42ch; }
@@ -406,7 +439,11 @@
   padding: 14px;
 }
 @media (min-width: 900px) {
-  .fx-contact__grid { grid-template-columns: 1fr 1fr; }
+  .fx-contact__grid { grid-template-columns: 1fr 1fr; align-items: start; }
+  /* align-items:center on a 2-column grid whose right side is a ~900px form left
+     the headline floating in the middle of the section with ~400px of nothing
+     above it. Pin it to the top and let it ride down with the form instead. */
+  .fx-contact__copy { position: sticky; top: 104px; }
 }
 /* Waist-up mascot sitting above the form */
 .fx-contact__mascot {
@@ -469,8 +506,13 @@
 
 /* ---- Stat panel (replaces the old video slot in split features) ---- */
 .fx-statcard {
+  /* Was width:100% + aspect-ratio 4/3 — on a 1440px viewport that made a ~600x450
+     panel to hold one number and two words, and it dragged the whole split
+     section's height with it. Capped and squarer instead. */
   width: 100%;
-  aspect-ratio: 4 / 3;
+  max-width: 400px;
+  margin-inline: auto;
+  aspect-ratio: 5 / 4;
   border-radius: 32px;
   display: flex;
   flex-direction: column;
@@ -518,7 +560,7 @@
 .fx-bg__blob--1 { width: 380px; height: 380px; top: -70px; left: -90px; background: radial-gradient(circle, rgba(139, 92, 246, 0.55), transparent 70%); animation: fx-drift 22s ease-in-out infinite; }
 .fx-bg__blob--2 { width: 460px; height: 460px; top: 42%; right: -140px; background: radial-gradient(circle, rgba(124, 58, 237, 0.45), transparent 70%); animation: fx-drift 28s ease-in-out infinite reverse; }
 .fx-bg__blob--3 { width: 320px; height: 320px; bottom: -90px; left: 32%; background: radial-gradient(circle, rgba(99, 102, 241, 0.38), transparent 70%); animation: fx-drift 25s ease-in-out infinite; }
-.fx-bg__mark { position: absolute; width: 90px; height: 90px; opacity: 0.07; filter: grayscale(1); animation: fx-fly 20s ease-in-out infinite; will-change: transform; }
+.fx-bg__mark { position: absolute; width: 76px; height: 76px; opacity: 0.045; filter: grayscale(1); animation: fx-fly 20s ease-in-out infinite; will-change: transform; }
 .fx-bg__mark:nth-child(4)  { top: 12%; left: 7%;  rotate: -12deg; animation-duration: 19s; }
 .fx-bg__mark:nth-child(5)  { top: 30%; left: 84%; rotate: 8deg;   animation-duration: 23s; animation-delay: -4s; }
 .fx-bg__mark:nth-child(6)  { top: 58%; left: 12%; rotate: 6deg;   animation-duration: 21s; animation-delay: -7s; }

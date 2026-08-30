@@ -102,7 +102,7 @@ export default function About({ forceLang }) {
   }, [forceLang, setLang]);
 
   return (
-    <>
+    <div className="page-light">
       <Seo title={t.seoTitle} description={t.seoDesc} path={forceLang === 'en' ? '/en/about' : '/about'} />
       <Header variant="hub" />
       <main className="page page--legal about-page">
@@ -158,6 +158,6 @@ export default function About({ forceLang }) {
         </div>
       </main>
       <Footer />
-    </>
+    </div>
   );
 }

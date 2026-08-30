@@ -84,7 +84,7 @@ export function LogoStrip({ caption }) {
         <p className="fx-logos__cap">{caption}</p>
         <div className="fx-logos__row">
           {SOCIALS.map((s) => (
-            <img key={s} src={`/social/${s}.svg`} alt="" />
+            <img key={s} src={`/social/${s}.svg`} alt="" width="40" height="40" loading="lazy" decoding="async" />
           ))}
         </div>
       </div>
@@ -247,7 +247,10 @@ export function ContactSplit({ id = 'consult', accent = 'violet', title, text, c
         <Reveal className="fx-contact__form-col" delay={80}>
           {mascot && (
             <div className={`fx-contact__mascot ${mascotCrop ? '' : 'fx-contact__mascot--full'}`} aria-hidden="true">
-              <img src={mascotSrc} alt="" />
+              {/* No width/height here on purpose: mascotSrc swaps between two
+                  artworks with different aspect ratios, and a fixed pair would
+                  reserve the wrong box for one of them. CSS pins the width. */}
+              <img src={mascotSrc} alt="" loading="lazy" decoding="async" />
             </div>
           )}
           <div className="fx-contact__card">{children}</div>

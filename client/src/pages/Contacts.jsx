@@ -27,7 +27,7 @@ export default function Contacts() {
   const { lang } = useLang();
   const t = COPY[lang] || COPY.ru;
   return (
-    <>
+    <div className="page-light">
       <Seo title={t.seoTitle} description={t.seoDesc} path="/contacts" />
       <Header variant="hub" />
       <main className="page">
@@ -56,6 +56,6 @@ export default function Contacts() {
         </div>
       </main>
       <Footer />
-    </>
+    </div>
   );
 }

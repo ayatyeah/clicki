@@ -120,7 +120,6 @@ export default defineConfig({
         // Keep big vendors in their own long-cached chunks, separate from app code.
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          motion: ['motion'],
         },
       },
     },

@@ -18,11 +18,15 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
+// The model's body is normalized to 2.9 world units and the camera frames 3.75,
+// so s:1.0 already fills 77% of the viewport height before the rx/rz tilt widens
+// its bounding box — in practice the phone ran off the top and bottom edges of
+// the sticky canvas at every beat. Scaled down to leave a real margin.
 export const DEFAULT_KEYS = [
   { x: 0, y: 0.03, ry: -0.14, rx: 0.02, rz: 0, s: 0.56 },    // hero: position comes from `slot`
-  { x: -0.5, y: 0, ry: 0.62, rx: -0.03, rz: 0.07, s: 1.04 }, // beat 01 — phone on the left
-  { x: 0.5, y: 0, ry: -0.85, rx: -0.06, rz: -0.05, s: 1.02 },// beat 02 — phone on the right
-  { x: -0.48, y: 0, ry: 3.32, rx: 0.02, rz: 0.05, s: 0.98 }, // beat 03 — turned back toward camera
+  { x: -0.5, y: 0, ry: 0.62, rx: -0.03, rz: 0.07, s: 0.88 }, // beat 01 — phone on the left
+  { x: 0.5, y: 0, ry: -0.85, rx: -0.06, rz: -0.05, s: 0.86 },// beat 02 — phone on the right
+  { x: -0.48, y: 0, ry: 3.32, rx: 0.02, rz: 0.05, s: 0.84 }, // beat 03 — turned back toward camera
 ];
 
 // No invented metrics: states only ("published" / "counted automatically" /
@@ -264,7 +268,15 @@ export function mountClickiPhone(opts) {
           s: ((r.height * 1.06) / vh) * S.viewH / 2.9,
         };
       }
-      return { x: (S.narrow ? 0 : kf.x) * (S.viewW / 2) * 0.98, y: kf.y, s: (S.narrow ? 0.8 : 1) * kf.s };
+      // Narrow screens have no room to put the phone beside the copy, so it is
+      // centred horizontally — which used to drop the beat headline straight on
+      // top of it. Shrink it further and lift it, so the copy owns the lower
+      // third of the screen (see .phone-beat's mobile rules in index.css).
+      return {
+        x: (S.narrow ? 0 : kf.x) * (S.viewW / 2) * 0.98,
+        y: S.narrow ? kf.y + 0.62 : kf.y,
+        s: (S.narrow ? 0.66 : 1) * kf.s,
+      };
     };
     const A = world(a, seg), B = world(b, seg + 1);
     const sc = mix(A.s, B.s);
@@ -286,7 +298,14 @@ export function mountClickiPhone(opts) {
     S.pivot.rotation.y += (targetRy - S.pivot.rotation.y) * rotDamp;
     S.pivot.rotation.x += (targetRx - S.pivot.rotation.x) * rotDamp;
     S.pivot.rotation.z += (targetRz - S.pivot.rotation.z) * rotDamp;
-    canvas.style.opacity = (S.narrow && p > 0.08) ? '.45' : '1';
+    // Two independent dimmers, multiplied:
+    //   - narrow screens keep the phone behind the beat copy readable;
+    //   - the last stretch of the stage fades it out, because the sticky canvas
+    //     stops dead at the stage's bottom edge and used to leave the phone
+    //     sliced in half right above the footer.
+    const narrowDim = (S.narrow && p > 0.08) ? 0.45 : 1;
+    const exitDim = p > 0.92 ? Math.max(0, (1 - p) / 0.08) : 1;
+    canvas.style.opacity = (narrowDim * exitDim).toFixed(3);
 
     const mode = p < 0.42 ? 0 : (p < 0.78 ? 1 : 2);
     S.frame++;

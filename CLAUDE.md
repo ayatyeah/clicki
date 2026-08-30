@@ -272,11 +272,9 @@ governs, translations would be non-authoritative).
 | `LegalLinks.jsx` | Centralized legal-document link list — `legalDocLinks(lang)`, `<LegalLinks />` (footer column), `<LegalNote role="creator\|business" />` (small print under the funnel lead forms). Paths/versions read from `lib/legalDocs.js`. |
 | `EmptyState.jsx` | Consistent "nothing here yet" placeholder (icon + text + optional action). |
 | `ErrorBoundary.jsx` | React error boundary wrapper. |
-| `Reveal.jsx` | Scroll-triggered fade/slide-in wrapper. |
-| `ScrollAway.jsx` | Hide-on-scroll wrapper (e.g. for a sticky header). |
+| `Reveal.jsx` | Scroll-triggered fade/slide-in wrapper. Plain `IntersectionObserver` + the `.reveal` CSS rules — deliberately not `motion`; see PROMPT-redesign-optimizatsiya.md for why, and for the `translate`-not-`transform` constraint any new consumer has to respect. |
 | `funnel/Shinta.jsx` | Landing-page section kit shared by Business/Creators pages: `FunnelHero`, `LogoStrip`, `Mission`, `Steps`, `CardsGrid`, `Compare`, `ContactSplit`, `MediaSlot`. |
-| `ui/scroll-morph-hero.tsx` | `IntroAnimation` — scroll-driven hero morph effect (Hub page). |
-| `ui/container-text-flip.tsx` | `ContainerTextFlip` — animated word-flip text component. |
+| `ui/container-text-flip.tsx` | `ContainerTextFlip` — animated word-flip badge in the funnel heroes (width transition + `.ctf-letter` keyframes, no animation library). |
 
 ### `client/src/content/`
 
@@ -309,7 +307,7 @@ governs, translations would be non-authoritative).
 |---|---|
 | `index.css` | Main app stylesheet — largest file (~4250 lines), most component/page classes. |
 | `app-light.css` | Light-theme app-shell styles (cabinets' 2-column layout, premium polish). |
-| `funnel-shinta.css` | Styles for the `components/funnel/Shinta.jsx` landing-page kit. |
+| `funnel-shinta.css` | Styles for the `components/funnel/Shinta.jsx` landing-page kit. Also defines `.page-light` — **every public page wraps in it**; without it the page falls back to the dark `:root` vars and, e.g., the footer renders dark on an otherwise light site. Section rhythm comes from its `--fx-y` / `--fx-y-lg`, not per-section clamps. |
 | `tailwind.css` | Tailwind directives entry point. |
 
 ### `server/test/`

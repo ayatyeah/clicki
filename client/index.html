@@ -18,8 +18,15 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Only the families/weights the stylesheets actually ask for. Poppins and
+         Inter were both requested here and never used (Inter is only a fallback
+         name inside --font / --font-display, which system-ui already covers), and
+         Unbounded/Oswald shipped weights nothing renders at. Every extra family in
+         this one render-blocking request delays first paint on mobile.
+         Geist 800 IS needed: .funnel--business swaps --font-display to Geist and
+         the .fx-* headings ask for 800/900 — without it the browser faux-bolds. -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&family=Oswald:wght@500;600;700&family=Unbounded:wght@500;600;700;800;900&family=Poppins:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&family=Oswald:wght@600;700&family=Unbounded:wght@700;800;900&display=swap"
       rel="stylesheet"
     />
     <title>CLICKI — органические просмотры с оплатой за результат</title>

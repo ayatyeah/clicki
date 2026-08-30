@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useId } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 export interface ContainerTextFlipProps {
@@ -18,6 +17,16 @@ export interface ContainerTextFlipProps {
   animationDuration?: number;
 }
 
+/**
+ * Word-flip badge in the funnel heroes. The pill widens to fit the current word
+ * while its letters blur-fade in with a small stagger.
+ *
+ * Originally built on `motion` layout animations. It was rewritten on a plain
+ * width transition + CSS keyframes because it and <Reveal> were the only two
+ * things pulling that ~97 KB library into /business and /creators — a decorative
+ * badge is not worth a third of the funnel's JS. Keyframes live in
+ * styles/index.css (`.ctf-letter`).
+ */
 export function ContainerTextFlip({
   words = ["better", "modern", "beautiful", "awesome"],
   interval = 3000,
@@ -25,79 +34,53 @@ export function ContainerTextFlip({
   textClassName,
   animationDuration = 700,
 }: ContainerTextFlipProps) {
-  const id = useId();
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
-  const [width, setWidth] = useState(100);
-  const textRef = React.useRef(null);
+  const [width, setWidth] = useState<number | undefined>(undefined);
+  const textRef = useRef<HTMLSpanElement>(null);
 
-  const updateWidthForWord = () => {
-    if (textRef.current) {
-      // Add some padding to the text width (30px on each side)
-      // @ts-ignore
-      const textWidth = textRef.current.scrollWidth + 30;
-      setWidth(textWidth);
-    }
-  };
+  // Layout effect, not effect: the measurement has to land in the same frame the
+  // new word paints, otherwise the pill visibly snaps to the old width first.
+  useLayoutEffect(() => {
+    if (textRef.current) setWidth(textRef.current.scrollWidth + 30);
+  }, [currentWordIndex, words]);
 
   useEffect(() => {
-    // Update width whenever the word changes
-    updateWidthForWord();
-  }, [currentWordIndex]);
-
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      setCurrentWordIndex((prevIndex) => (prevIndex + 1) % words.length);
-      // Width will be updated in the effect that depends on currentWordIndex
-    }, interval);
-
-    return () => clearInterval(intervalId);
+    if (words.length < 2) return undefined;
+    const id = setInterval(
+      () => setCurrentWordIndex((i) => (i + 1) % words.length),
+      interval,
+    );
+    return () => clearInterval(id);
   }, [words, interval]);
 
+  const word = words[currentWordIndex] ?? "";
+
   return (
-    <motion.div
-      layout
-      layoutId={`words-here-${id}`}
-      animate={{ width }}
-      transition={{ duration: animationDuration / 2000 }}
+    <div
+      style={{
+        width: width ? `${width}px` : undefined,
+        transitionDuration: `${animationDuration / 2}ms`,
+      }}
       className={cn(
-        "relative inline-block rounded-lg border-2 border-transparent pt-2 pb-3 text-center text-4xl font-bold text-white md:text-7xl",
+        "relative inline-block overflow-hidden rounded-lg border-2 border-transparent pt-2 pb-3 text-center text-4xl font-bold text-white transition-[width] ease-out md:text-7xl",
         // dark fill + violet gradient outline (padding-box / border-box trick)
         "[background:linear-gradient(#1b1335,#120c28)_padding-box,linear-gradient(135deg,#c4b5fd,#7c3aed_55%,#4c1d95)_border-box]",
         "shadow-[0_10px_30px_-10px_rgba(124,58,237,0.55)]",
         className,
       )}
-      key={words[currentWordIndex]}
     >
-      <motion.div
-        transition={{
-          duration: animationDuration / 1000,
-          ease: "easeInOut",
-        }}
-        className={cn("inline-block", textClassName)}
-        ref={textRef}
-        layoutId={`word-div-${words[currentWordIndex]}-${id}`}
-      >
-        <motion.div className="inline-block">
-          {words[currentWordIndex].split("").map((letter, index) => (
-            <motion.span
-              key={index}
-              initial={{
-                opacity: 0,
-                filter: "blur(10px)",
-              }}
-              animate={{
-                opacity: 1,
-                filter: "blur(0px)",
-              }}
-              transition={{
-                delay: index * 0.02,
-              }}
-            >
-              {letter}
-            </motion.span>
-          ))}
-        </motion.div>
-      </motion.div>
-    </motion.div>
+      {/* Remounting on the word (key) is what replays the per-letter keyframes. */}
+      <span key={word} ref={textRef} className={cn("inline-block whitespace-nowrap", textClassName)}>
+        {word.split("").map((letter, index) => (
+          <span
+            key={index}
+            className="ctf-letter"
+            style={{ animationDelay: `${index * 20}ms` }}
+          >
+            {letter === " " ? " " : letter}
+          </span>
+        ))}
+      </span>
+    </div>
   );
 }
