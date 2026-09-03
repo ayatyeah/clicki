@@ -302,6 +302,24 @@ const EN = {
   'Сохранить — обновить у креаторов': 'Save — update for creators',
   'Сохранено — изменения сразу у креаторов ✓': 'Saved — changes are live for creators ✓',
 
+  // Brief read view — "Читать бриф" on the business's own brief card
+  // (shared BriefRead component, also used by the admin panel)
+  'Читать бриф': 'View brief',
+  'Свернуть бриф': 'Hide brief',
+  Слотов: 'Slots',
+  Цель: 'Goal',
+  Аудитория: 'Audience',
+  Референсы: 'References',
+  Референс: 'Reference',
+  Требования: 'Requirements',
+  'Что нужно показать': 'What to show',
+  'Чего не делать': 'What not to do',
+  'Упоминание бренда в первые 3 сек': 'Brand mention in the first 3 sec',
+  'CTA обязателен': 'CTA required',
+  'Бренд произносится вслух': 'Brand spoken aloud',
+  'Логотип бренда': 'Brand logo',
+  'В брифе заполнено только название.': 'Only the title is filled in for this brief.',
+
   // Per-brief analytics
   'Аналитика по брифам': 'Per-brief analytics',
   'Видео (принято / сдано)': 'Videos (accepted / submitted)',

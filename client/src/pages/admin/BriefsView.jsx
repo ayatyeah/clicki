@@ -2,11 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { useConfirm } from '../../components/ConfirmDialog.jsx';
 import { safeHref } from '../../lib/safeHref.js';
-import { API_BASE } from '../../lib/config.js';
-import { briefOfferRows, briefRefLinks } from '../../lib/briefFields.js';
 import { BriefForm } from '../../components/BriefForm.jsx';
+import { BriefRead } from '../../components/BriefRead.jsx';
 
-const mediaUrl = (u) => (u && /^https?:\/\//i.test(u) ? u : `${API_BASE}${u}`);
+export { BriefRead };
 
 const PLATFORMS = ['TikTok', 'Instagram Reels', 'YouTube Shorts', 'Threads', 'X (Twitter)'];
 // Brief-level wildcard: the creator picks the real platform at submit time.
@@ -26,131 +25,6 @@ export function briefStatus(status) {
     : status === 'closed' ? 'paid'
     : 'pending';
   return { label, cls };
-}
-
-/**
- * The whole brief, read-only — everything the business filled in, including the
- * `spec` from its brief builder. The card only ever showed the title, platform
- * and hashtag, which meant an operator published a brief to every creator
- * without being able to read what it asked for.
- *
- * Empty fields are dropped rather than rendered as "—": admin-created briefs
- * legitimately have no goal/audience, and a wall of dashes hides the real
- * content. `tone` already holds the human-readable style label (the business
- * portal writes it there alongside the raw spec.style key), so no map is needed.
- */
-export function BriefRead({ b }) {
-  const spec = b.spec || {};
-  const who = b.business_company || b.business_name;
-
-  const facts = [
-    ['Платформа', b.platform],
-    ['Ориентация', spec.orientation ? (spec.orientation === 'horizontal' ? 'Горизонтальное' : 'Вертикальное') : null],
-    ['Длительность', spec.duration_any ? 'Произвольная' : (b.duration_max ? `${b.duration_min || 0}–${b.duration_max} сек` : null)],
-    ['Стиль', b.tone || spec.style],
-    ['Слотов', b.slots || null],
-    ['Хэштег', b.req_hashtag],
-  ].filter(([, v]) => v != null && v !== '');
-
-  const texts = [
-    ['Цель', b.goal],
-    ['Аудитория', b.audience],
-    // Business creative brief (product, УТП, боль, 3-сек, гео, формат, платформы)
-    ...briefOfferRows(b),
-    ['Ключевое сообщение', b.key_message],
-    ['Что нужно показать', b.dos],
-    ['Чего не делать', b.donts],
-    ['Референсы', b.refs],
-  ].filter(([, v]) => v && String(v).trim());
-  const refLinks = briefRefLinks(b);
-
-  const flags = [
-    [b.req_mention, 'Упоминание бренда в первые 3 сек'],
-    [spec.cta_required, 'CTA обязателен'],
-    [spec.logo_first5, 'Логотип в первые 5 сек'],
-    [spec.brand_spoken, 'Бренд произносится вслух'],
-    [spec.product_in_frame, 'Продукт в кадре'],
-  ].filter(([on]) => on).map(([, label]) => label);
-
-  // A brand-supplied URL rendered as a link: safeHref returns undefined for
-  // anything that isn't http(s), and we then show it as inert text.
-  const cta = safeHref(b.req_cta_link);
-
-  return (
-    <div className="brief-read">
-      <div className="brief-read__block">
-        <span className="brief-read__k">Прислал</span>
-        <span className="brief-read__v">
-          {who ? `${who}${b.business_company && b.business_name ? ` · ${b.business_name}` : ''} (#${b.business_id})` : 'Создан в админке'}
-          {b.created_at ? ` · ${new Date(b.created_at).toLocaleString('ru-RU')}` : ''}
-        </span>
-      </div>
-
-      {!!facts.length && (
-        <div className="brief-read__grid">
-          {facts.map(([k, v]) => (
-            <div className="brief-read__block" key={k}>
-              <span className="brief-read__k">{k}</span>
-              <span className="brief-read__v">{v}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {b.req_cta_link && (
-        <div className="brief-read__block">
-          <span className="brief-read__k">CTA-ссылка</span>
-          <span className="brief-read__v">
-            {cta ? <a href={cta} target="_blank" rel="noopener noreferrer">{b.req_cta_link}</a> : b.req_cta_link}
-          </span>
-        </div>
-      )}
-
-      {texts.map(([k, v]) => (
-        <div className="brief-read__block" key={k}>
-          <span className="brief-read__k">{k}</span>
-          <span className="brief-read__v">{v}</span>
-        </div>
-      ))}
-
-      {refLinks.length > 0 && (
-        <div className="brief-read__block">
-          <span className="brief-read__k">Референсы</span>
-          <div className="brief-read__v">
-            {refLinks.map((r, i) => {
-              const href = safeHref(r.url);
-              return (
-                <div key={i} className="brief-ref">
-                  {href ? <a href={href} target="_blank" rel="noopener noreferrer">Референс {i + 1}</a> : r.url}
-                  {r.note && <span className="brief-ref__note"> — {r.note}</span>}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {spec.logo_url && (
-        <div className="brief-read__block">
-          <span className="brief-read__k">Логотип</span>
-          <img className="brief-read__logo" src={mediaUrl(spec.logo_url)} alt="Логотип бренда" />
-        </div>
-      )}
-
-      {!!flags.length && (
-        <div className="brief-read__block">
-          <span className="brief-read__k">Требования</span>
-          <div className="brief-read__flags">
-            {flags.map((f) => <span className="brief-read__flag" key={f}>{f}</span>)}
-          </div>
-        </div>
-      )}
-
-      {!facts.length && !texts.length && !flags.length && !b.req_cta_link && !refLinks.length && !spec.logo_url && (
-        <p className="brief-read__empty" style={{ margin: 0 }}>В брифе заполнено только название.</p>
-      )}
-    </div>
-  );
 }
 
 /* ---------------- Briefs ----------------

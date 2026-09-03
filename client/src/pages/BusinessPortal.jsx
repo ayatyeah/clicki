@@ -13,6 +13,7 @@ import { BUSINESS_GUIDE } from '../content/guides.js';
 import { useLang } from '../i18n.jsx';
 import { bt } from '../content/businessI18n.js';
 import { BriefForm } from '../components/BriefForm.jsx';
+import { BriefRead } from '../components/BriefRead.jsx';
 import { PLATFORMS, ANY_PLATFORM, STYLES } from '../lib/briefFields.js';
 import LegalGate from '../components/LegalGate.jsx';
 import { useConfirm } from '../components/ConfirmDialog.jsx';
@@ -473,35 +474,49 @@ function BriefsView({ briefs, authFetch, reload }) {
         <h2 className="admin-block__title">{t('Мои брифы')} ({briefs.length})</h2>
         {briefs.length ? (
           <div className="bp-cards">
-            {briefs.map((br) => {
-              const [label, cls] = BRIEF_STATUS[br.status] || [br.status, 'pending'];
-              return (
-                <div key={br.id} className="bp-card">
-                  <div className="bp-card__head">
-                    <b>{br.title}</b>
-                    <span className={`pf-status pf-status--${cls}`}>{t(label)}</span>
-                  </div>
-                  <p className="creator-portal__muted" style={{ margin: 0 }}>
-                    {t(br.platform)} · {br.spec?.orientation === 'horizontal' ? t('горизонтальное') : t('вертикальное')} · {br.spec?.duration_any ? t('произвольная длит.') : `${t('до')} ${br.duration_max}${lang === 'en' ? 's' : 'с'}`}
-                    {br.spec?.style ? ` · ${t(STYLES.find((s) => s[0] === br.spec.style)?.[1] || br.spec.style)}` : ''}
-                  </p>
-                  {br.status === 'revision' && (
-                    <>
-                      {br.revision_note && <div className="mod-note" style={{ marginTop: 10 }}>{t('На доработку: ')}{br.revision_note}</div>}
-                      <button className="btn btn--primary btn--sm" style={{ marginTop: 10 }} onClick={() => setEditing(br)}>
-                        {t('Исправить и отправить снова')}
-                      </button>
-                    </>
-                  )}
-                </div>
-              );
-            })}
+            {briefs.map((br) => (
+              <BusinessBriefCard key={br.id} br={br} t={t} lang={lang} onEdit={() => setEditing(br)} />
+            ))}
           </div>
         ) : (
           <p className="muted-note" style={{ textAlign: 'left' }}>{t('Брифов пока нет — создайте первый выше.')}</p>
         )}
       </section>
     </>
+  );
+}
+
+/** One brief card in "Мои брифы" — summary + a toggle to read the full brief
+ *  content (product, USP, hooks, refs, requirements…), which until now was
+ *  only ever visible once, while filling in the create form. */
+function BusinessBriefCard({ br, t, lang, onEdit }) {
+  const [showBrief, setShowBrief] = useState(false);
+  const [label, cls] = BRIEF_STATUS[br.status] || [br.status, 'pending'];
+  return (
+    <div className="bp-card">
+      <div className="bp-card__head">
+        <b>{br.title}</b>
+        <span className={`pf-status pf-status--${cls}`}>{t(label)}</span>
+      </div>
+      <p className="creator-portal__muted" style={{ margin: 0 }}>
+        {t(br.platform)} · {br.spec?.orientation === 'horizontal' ? t('горизонтальное') : t('вертикальное')} · {br.spec?.duration_any ? t('произвольная длит.') : `${t('до')} ${br.duration_max}${lang === 'en' ? 's' : 'с'}`}
+        {br.spec?.style ? ` · ${t(STYLES.find((s) => s[0] === br.spec.style)?.[1] || br.spec.style)}` : ''}
+      </p>
+      {br.status === 'revision' && br.revision_note && (
+        <div className="mod-note" style={{ marginTop: 10 }}>{t('На доработку: ')}{br.revision_note}</div>
+      )}
+      {showBrief && <BriefRead b={br} t={t} lang={lang} showMeta={false} />}
+      <div className="mod-actions" style={{ marginTop: 10 }}>
+        <button className="btn btn--ghost btn--sm" onClick={() => setShowBrief((s) => !s)} aria-expanded={showBrief}>
+          {showBrief ? t('Свернуть бриф') : t('Читать бриф')}
+        </button>
+        {br.status === 'revision' && (
+          <button className="btn btn--primary btn--sm" onClick={onEdit}>
+            {t('Исправить и отправить снова')}
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 
